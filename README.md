@@ -31,6 +31,56 @@ A micro-advance mechanism for institutional fees or structured obligations where
 ### Sura Score
 A transparent, rule-based score that rewards consistency and completion without hiding the logic behind a black-box model.
 
+#### How it is calculated
+The score is a weighted sum across five pillars, not a trained model. Every point on it traces back to a named pillar and a named signal, which is what makes it auditable for a bank.
+
+| Pillar | Weight | Signal |
+|---|---|---|
+| Commitment behaviour | 35% | Locks completed vs joined, and contributions paid on time |
+| Repayment behaviour | 25% | Sura Float repayments made on time |
+| Transaction stability | 20% | Regularity of account activity, measured as coefficient of variation of the gaps between events |
+| Institutional verification | 12% | Verified identity via student portal, trade association, or gig platform history |
+| Social reliability | 8% | Peer co-signers from the same verified circle, capped at two |
+
+Each pillar produces a sub-score between 0.0 and 1.0, which is multiplied by its weight and the 1000-point maximum. Sub-scores are rounded per pillar, so the breakdown shown to a user always sums exactly to the score they were given.
+
+**Cold start.** A newly verified user with no commitment history scores exactly 120, because only the institutional verification pillar applies. That figure is derived from the weight rather than chosen by hand, and it is the anchor the rotating-commitment ordering and cap rule compares against. This is deliberate: a score model with no honest answer for someone with zero history just rebuilds the exclusion it claims to fix.
+
+#### Reference points
+These are the numbers the test suite asserts, so a change to any weight or rule shows up as a failing test rather than a silently different score.
+
+| User | Score |
+|---|---|
+| No history, unverified | 0 |
+| No history, verified (entry tier) | 120 |
+| One completed rotation, all contributions on time, regular activity, two co-signers | 750 |
+| The same user after missing one of four contributions | 706 |
+| Every pillar at maximum | 1000 |
+
+## Build status
+
+| Area | State |
+|---|---|
+| Score rule engine (`app/services/scoring.py`) | Implemented and tested |
+| Score golden-set tests (`app/tests/test_scoring.py`) | 16 cases passing |
+| `GET /v1/score/{user_id}` | Stubbed, returns a hardcoded score. Not wired to real events yet |
+| `POST /v1/commitments/lock`, `.../contribute` | In progress, owned by Backend Core |
+| Vendor verify and redemption | Not started |
+| Idempotency keys | Helper exists in `core/idempotency.py`, not yet called by any endpoint |
+
+Do not demo the score endpoint until it is wired to real contribution events. PRD section 6 requires the score shown on stage to be computed from actions taken during the demo, not seeded in advance.
+
+## Running the tests
+
+The score tests are pure Python and need nothing but pytest:
+
+```bash
+cd backend
+python -m pytest app/tests/test_scoring.py -v
+```
+
+The full suite additionally needs `pip install -r requirements.txt` and a reachable database.
+
 ## Project structure
 
 ```text
@@ -42,19 +92,22 @@ Sura/
 ├── Sura-Build-Plan.md
 ├── backend/
 │   ├── app/
-│   ├── core/
-│   ├── tests/
+│   │   ├── main.py
+│   │   ├── models.py
+│   │   ├── schemas.py
+│   │   ├── database.py
+│   │   ├── routers/        # HTTP layer, one module per resource
+│   │   ├── services/       # business rules, pure and testable
+│   │   └── tests/
+│   ├── core/               # config, security, idempotency
+│   ├── alembic/            # migrations
+│   ├── scripts/
 │   ├── requirements.txt
-│   ├── .env.example
-│   └── ...
-├── docs/
-│   ├── PRD.md
-│   ├── TRD.md
-│   ├── BUILD_PLAN.md
-│   └── ...
-├── .gitignore
-└── ...
+│   └── .env.example
+└── .gitignore
 ```
+
+Business rules live in `app/services/` and are written as pure functions with no database, clock, or HTTP dependency, so they can be tested directly and any result can be reproduced from the events that produced it. `app/routers/` stays thin and does no decisioning of its own.
 
 ## Current build intent
 
@@ -111,19 +164,27 @@ The project documents are the source of truth for scope, architecture, technical
 - [Sura-PRD.md](Sura-PRD.md)
 - [Sura-TRD.md](Sura-TRD.md)
 - [Sura-Build-Plan.md](Sura-Build-Plan.md)
-- [docs/PRD.md](docs/PRD.md)
-- [docs/TRD.md](docs/TRD.md)
-- [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md)
+
+Section 5.2 of the TRD is the scoring specification. It is the source of truth for the weights, the cold-start baseline, and when a recalculation is triggered.
 
 ## Team context
 
 This project is designed for a four-person team split across:
-- Backend Engineering
-- AI / ML Engineering
-- Frontend Engineering
-- UI / UX & Pitch
+
+| Role | GitHub | Owns |
+|---|---|---|
+| Backend Core | _unconfirmed_ | Schema, lock and contribute endpoints, anchor and cap rule, vendor and redemption, deployment |
+| Backend AI / ML | @Olatunji_Tobi | Sura Score rule engine, score endpoint, score recalculation behaviour |
+| Frontend Engineering | @fisayobadina | Create, join, contribute, redeem, and score dashboard screens against the API contract |
+| UI / UX & Pitch | _unconfirmed_ | Design system, wireframes, slide deck, demo script |
 
 The backend team owns the source of truth for the underlying system contract, while the frontend and design teams integrate against the production-ready API surface as it is built.
+
+Ownership rules that prevent duplicate work, from the build plan:
+- One person owns the schema. That is Backend Core. Everyone else reads `models.py`; nobody else edits it without telling Backend Core first.
+- Frontend never guesses at what an API returns. If a response shape is not written down in `Sura-TRD.md`, ask Backend Core before writing code that assumes it.
+- No task has two owners. If something is too big for one person, split it into two checklist items rather than putting both names on one.
+- The daily 15-minute sync is not optional. Most duplicate work happens because two people quietly built the same thing on the same day without saying so.
 
 ## Summary
 
