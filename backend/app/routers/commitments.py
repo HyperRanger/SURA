@@ -1,0 +1,24 @@
+from fastapi import APIRouter, Depends, status
+from sqlalchemy.orm import Session
+
+from app.database import get_db
+from app.schemas import ContributionRequest, LockRequest, LockResponse
+from app.services.commitments import create_commitment, get_commitment_details, record_contribution
+
+router = APIRouter(prefix="/v1/commitments", tags=["commitments"])
+
+
+@router.post("/lock", response_model=LockResponse, status_code=status.HTTP_201_CREATED)
+def create_commitment_lock(payload: LockRequest, db: Session = Depends(get_db)):
+    _, response = create_commitment(db, payload)
+    return response
+
+
+@router.post("/{commitment_id}/contribute")
+def contribute_to_commitment(commitment_id: str, payload: ContributionRequest, db: Session = Depends(get_db)):
+    return record_contribution(db, commitment_id, payload)
+
+
+@router.get("/{commitment_id}")
+def get_commitment(commitment_id: str, db: Session = Depends(get_db)):
+    return get_commitment_details(db, commitment_id)
