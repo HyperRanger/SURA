@@ -10,7 +10,7 @@ from app.database import Base
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(String, primary_key=True, index=True)
+    id = Column(String, primary_key=True)
     name = Column(String, nullable=False)
     institution_id = Column(String, ForeignKey("institutions.id"), nullable=True)
     phone = Column(String, nullable=False, unique=True)
@@ -20,7 +20,7 @@ class User(Base):
 class Institution(Base):
     __tablename__ = "institutions"
 
-    id = Column(String, primary_key=True, index=True)
+    id = Column(String, primary_key=True)
     name = Column(String, nullable=False)
     fee_calendar_json = Column(Text, nullable=True)
 
@@ -28,7 +28,7 @@ class Institution(Base):
 class Vendor(Base):
     __tablename__ = "vendors"
 
-    id = Column(String, primary_key=True, index=True)
+    id = Column(String, primary_key=True)
     name = Column(String, nullable=False)
     category = Column(String, nullable=False)
     verified_at = Column(DateTime, nullable=True)
@@ -37,7 +37,7 @@ class Vendor(Base):
 class Commitment(Base):
     __tablename__ = "commitments"
 
-    id = Column(String, primary_key=True, index=True)
+    id = Column(String, primary_key=True)
     creator_id = Column(String, ForeignKey("users.id"), nullable=False)
     type = Column(String, nullable=False, default="rotating")
     title = Column(String, nullable=False)
@@ -46,6 +46,10 @@ class Commitment(Base):
     frequency = Column(String, nullable=False)
     cycles = Column(Integer, nullable=False)
     status = Column(String, nullable=False, default="pending_members")
+    invite_code = Column(String, nullable=False, unique=True)
+    payout_order_json = Column(Text, nullable=False)
+    current_cycle_number = Column(Integer, nullable=False, default=1)
+    completed_cycle_count = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -61,7 +65,7 @@ class CommitmentMember(Base):
 class CommitmentBeneficiary(Base):
     __tablename__ = "commitment_beneficiaries"
 
-    id = Column(String, primary_key=True, index=True)
+    id = Column(String, primary_key=True)
     commitment_id = Column(String, ForeignKey("commitments.id"), nullable=False)
     cycle_number = Column(Integer, nullable=False)
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
@@ -72,17 +76,20 @@ class CommitmentBeneficiary(Base):
 class Contribution(Base):
     __tablename__ = "contributions"
 
-    id = Column(String, primary_key=True, index=True)
+    id = Column(String, primary_key=True)
     commitment_id = Column(String, ForeignKey("commitments.id"), nullable=False)
+    cycle_number = Column(Integer, nullable=False)
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
     amount = Column(Integer, nullable=False)
+    status = Column(String, nullable=False, default="full")
+    rule_trace_json = Column(Text, nullable=False)
     paid_at = Column(DateTime, default=datetime.utcnow)
 
 
 class ScoreHistory(Base):
     __tablename__ = "score_history"
 
-    id = Column(String, primary_key=True, index=True)
+    id = Column(String, primary_key=True)
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
     score = Column(Integer, nullable=False)
     breakdown_json = Column(Text, nullable=False)

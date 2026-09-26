@@ -12,6 +12,8 @@ class LockRequest(BaseModel):
     contribution_frequency: str
     cycles: int
     members: List[str]
+    payout_order: Optional[List[str]] = None
+    creator_id: Optional[str] = None
 
 
 class ContributionRequest(BaseModel):
@@ -21,6 +23,8 @@ class ContributionRequest(BaseModel):
 
 class VendorVerificationRequest(BaseModel):
     vendor_id: str
+    name: Optional[str] = None
+    category: Optional[str] = None
     verified: bool = True
 
 
