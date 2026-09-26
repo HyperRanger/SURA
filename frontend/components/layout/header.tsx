@@ -24,20 +24,21 @@ export function Header() {
         aria-label="primary"
         className="container-page flex h-18 items-center justify-between"
       >
-        <Logo />
-
-        <ul className="hidden items-center gap-8 lg:flex">
-          {mainNav.map((link) => (
-            <li key={link.href}>
-              <a
-                href={link.href}
-                className="text-sm font-bold text-muted-foreground transition-colors hover:text-link"
-              >
-                {link.label}
-              </a>
-            </li>
-          ))}
-        </ul>
+        <div className="flex items-center gap-8">
+          <Logo />
+          <ul className="hidden items-center gap-8 lg:flex">
+            {mainNav.map((link) => (
+              <li key={link.href}>
+                <a
+                  href={link.href}
+                  className="text-sm font-bold text-muted-foreground transition-colors hover:text-link"
+                >
+                  {link.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
 
         <div className="hidden items-center gap-3 lg:flex">
           <ThemeToggle />
