@@ -12,7 +12,7 @@ export function Hero() {
     <section className="relative overflow-hidden pt-10 pb-16 md:pt-16 md:pb-24">
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute top-10 right-[-15%] size-[36rem] rounded-full bg-primary/15 blur-3xl"
+        className="pointer-events-none absolute top-10 right-[-15%] size-144 rounded-full bg-primary/15 blur-3xl"
       />
 
       <div className="container-page relative grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr]">
@@ -40,22 +40,6 @@ export function Hero() {
             </a>
           </div>
 
-          <ul className="mt-8 flex flex-wrap gap-x-5 gap-y-2">
-            {assurances.map((item) => (
-              <li
-                key={item}
-                className="flex items-center gap-1.5 text-sm font-bold text-muted-foreground"
-              >
-                <HugeiconsIcon
-                  icon={CheckmarkCircle02Icon}
-                  size={18}
-                  strokeWidth={2.2}
-                  className="text-green"
-                />
-                {item}
-              </li>
-            ))}
-          </ul>
         </div>
 
         <HeroPreview />

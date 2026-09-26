@@ -192,7 +192,7 @@ export const circlePreview = {
   title: "shop restock circle",
   frequency: "weekly",
   amount: 10000,
-  cycle: 2,
+  cycle: 3,
   cycles: 5,
   vendor: "adeola provisions",
   members: [
