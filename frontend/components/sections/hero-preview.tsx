@@ -1,3 +1,7 @@
+"use client"
+
+import { useLayoutEffect, useRef, useState } from "react"
+import { gsap } from "gsap"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Store01Icon, Tick02Icon, Ticket01Icon } from "@hugeicons/core-free-icons"
 import { circlePreview, scorePreview } from "@/config/landing"
@@ -6,38 +10,115 @@ import { cn } from "@/lib/utils"
 
 const avatarColors = ["bg-primary", "bg-orange", "bg-green", "bg-primary-deep", "bg-orange-deep"]
 
-// an illustrative, static snapshot of a circle and a score, not live data
+const initialPaid = circlePreview.members.map((m) => m.paid)
+
+// an illustrative, animated snapshot of a circle and a score, not live data
 export function HeroPreview() {
   const { members, amount, cycle, cycles } = circlePreview
-  const paidCount = members.filter((m) => m.paid).length
+  const [paid, setPaid] = useState(initialPaid)
+  const paidCount = initialPaid.filter(Boolean).length
   const pot = amount * members.length
   const progress = Math.round((paidCount / members.length) * 100)
 
+  const rootRef = useRef<HTMLDivElement>(null)
+  const barRef = useRef<HTMLDivElement>(null)
+  const collectedRef = useRef<HTMLSpanElement>(null)
+  const percentRef = useRef<HTMLSpanElement>(null)
+  const cycleRef = useRef<HTMLSpanElement>(null)
+  const cycleBadgeRef = useRef<HTMLSpanElement>(null)
+
+  useLayoutEffect(() => {
+    const mm = gsap.matchMedia(rootRef)
+
+    mm.add("(prefers-reduced-motion: no-preference)", () => {
+      // one proxy drives the bar width, the naira total, the percentage and the cycle together
+      const state = { paid: 0 }
+      let shownCycle = 0
+      const render = () => {
+        const fill = state.paid / members.length
+        gsap.set(barRef.current, { width: `${fill * 100}%` })
+        if (collectedRef.current) collectedRef.current.textContent = formatNaira(Math.round(state.paid * amount))
+        if (percentRef.current) percentRef.current.textContent = `${Math.round(fill * 100)}%`
+
+        // cycle climbs from 1 to the last cycle as the bar fills, popping on each step
+        const nextCycle = Math.round(1 + (cycles - 1) * fill)
+        if (nextCycle !== shownCycle && cycleRef.current) {
+          cycleRef.current.textContent = String(nextCycle)
+          if (shownCycle) {
+            gsap.fromTo(cycleBadgeRef.current, { scale: 1.18 }, { scale: 1, duration: 0.4, ease: "back.out(3)" })
+          }
+          shownCycle = nextCycle
+        }
+      }
+      render()
+
+      const tl = gsap.timeline({ defaults: { ease: "power3.out" } })
+
+      tl.from("[data-anim=card]", { y: 40, autoAlpha: 0, duration: 0.8 })
+        .from("[data-anim=head]", { y: 12, autoAlpha: 0, stagger: 0.08, duration: 0.5 }, "-=0.45")
+        .from("[data-anim=member]", { x: -16, autoAlpha: 0, stagger: 0.07, duration: 0.45 }, "-=0.3")
+        .from("[data-anim=vendor]", { y: 12, autoAlpha: 0, duration: 0.45 }, "-=0.2")
+        .from("[data-anim=float]", { y: 24, autoAlpha: 0, scale: 0.94, stagger: 0.12, duration: 0.6, ease: "back.out(1.6)" }, "-=0.35")
+        .to(state, { paid: paidCount, duration: 1.2, ease: "power2.inOut", onUpdate: render }, 0.5)
+
+      // the remaining members pay in one by one until the pot is full
+      members.forEach((member, i) => {
+        if (member.paid) return
+        tl.to(state, { paid: "+=1", duration: 0.9, ease: "power2.inOut", onUpdate: render }, "+=0.5")
+          .call(() => setPaid((prev) => prev.map((p, j) => (j === i ? true : p))), undefined, "-=0.15")
+      })
+
+      tl.fromTo(
+        barRef.current,
+        { boxShadow: "0 0 0 0 rgb(34 181 115 / 0.55)" },
+        { boxShadow: "0 0 0 8px rgb(34 181 115 / 0)", duration: 0.9, ease: "power2.out" }
+      )
+
+      tl.from("[data-anim=score-total]", {
+        textContent: 0,
+        snap: { textContent: 1 },
+        duration: 1.4,
+        ease: "power2.out",
+      }, 1.2)
+        .from("[data-anim=pillar]", { width: 0, stagger: 0.1, duration: 0.8, ease: "power2.out" }, 1.3)
+    })
+
+    return () => mm.revert()
+  }, [members, amount, paidCount, cycles])
+
   return (
-    <div className="relative mx-auto w-full max-w-md lg:max-w-none">
-      <div className="card-raised rounded-[2rem] p-5 sm:p-7">
-        <div className="flex items-start justify-between gap-4">
+    <div ref={rootRef} className="relative mx-auto w-full max-w-md lg:max-w-none">
+      <div data-anim="card" className="card-raised rounded-[2rem] p-5 sm:p-7">
+        <div data-anim="head" className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-extrabold tracking-wide text-muted-foreground">
               rotating circle · {circlePreview.frequency}
             </p>
             <h3 className="mt-1 text-xl font-black">{circlePreview.title}</h3>
           </div>
-          <span className="rounded-full bg-blue-soft px-3 py-1 text-xs font-extrabold text-link">
-            cycle {cycle} of {cycles}
+          <span
+            ref={cycleBadgeRef}
+            className="rounded-full bg-blue-soft px-3 py-1 text-xs font-extrabold text-link tabular-nums"
+          >
+            cycle <span ref={cycleRef}>{cycle}</span> of {cycles}
           </span>
         </div>
 
-        <div className="mt-6">
+        <div data-anim="head" className="mt-6">
           <div className="flex items-baseline justify-between text-sm font-bold">
             <span>
-              {formatNaira(paidCount * amount)}{" "}
+              <span ref={collectedRef} className="tabular-nums">
+                {formatNaira(paidCount * amount)}
+              </span>{" "}
               <span className="text-muted-foreground">of {formatNaira(pot)}</span>
             </span>
-            <span className="text-muted-foreground">{progress}%</span>
+            <span ref={percentRef} className="text-muted-foreground tabular-nums">
+              {progress}%
+            </span>
           </div>
-          <div className="mt-2 h-4 overflow-hidden rounded-full bg-cloud">
+          <div className="mt-2 h-4 rounded-full bg-cloud">
             <div
+              ref={barRef}
               className="relative h-full rounded-full bg-green"
               style={{ width: `${progress}%` }}
             >
@@ -48,7 +129,7 @@ export function HeroPreview() {
 
         <ul className="mt-6 flex flex-col gap-2.5">
           {members.map((member, i) => (
-            <li key={member.name} className="flex items-center gap-3">
+            <li key={member.name} data-anim="member" className="flex items-center gap-3">
               <span
                 className={cn(
                   "flex size-9 items-center justify-center rounded-full text-sm font-black text-white",
@@ -65,8 +146,13 @@ export function HeroPreview() {
                   </span>
                 )}
               </span>
-              {member.paid ? (
-                <span className="flex items-center gap-1 text-xs font-extrabold text-green-deep dark:text-green">
+              {paid[i] ? (
+                <span
+                  className={cn(
+                    "flex items-center gap-1 text-xs font-extrabold text-green-deep dark:text-green",
+                    !member.paid && "animate-in duration-300 fade-in zoom-in-50"
+                  )}
+                >
                   <HugeiconsIcon icon={Tick02Icon} size={16} strokeWidth={3} />
                   paid
                 </span>
@@ -77,7 +163,7 @@ export function HeroPreview() {
           ))}
         </ul>
 
-        <div className="mt-6 flex items-center gap-3 rounded-full bg-cloud p-2 pr-4">
+        <div data-anim="vendor" className="mt-6 flex items-center gap-3 rounded-full bg-cloud p-2 pr-4">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-orange text-white">
             <HugeiconsIcon icon={Store01Icon} size={18} strokeWidth={2.2} />
           </span>
@@ -89,7 +175,7 @@ export function HeroPreview() {
       </div>
 
       <div className="relative z-10 -mt-5 flex flex-col items-stretch gap-3 px-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="card-raised flex items-center gap-2 self-start rounded-full py-2 pr-4 pl-2 sm:mt-10">
+        <div data-anim="float" className="card-raised flex items-center gap-2 self-start rounded-full py-2 pr-4 pl-2 sm:mt-10">
           <span className="flex size-8 items-center justify-center rounded-full bg-primary text-white">
             <HugeiconsIcon icon={Ticket01Icon} size={16} strokeWidth={2.2} />
           </span>
@@ -103,12 +189,14 @@ export function HeroPreview() {
 
 function ScoreCard() {
   return (
-    <div className="card-raised w-full rounded-[1.75rem] p-5 sm:max-w-[16rem]">
+    <div data-anim="float" className="card-raised w-full rounded-[1.75rem] p-5 sm:max-w-[16rem]">
       <div className="flex items-baseline justify-between">
         <p className="text-xs font-extrabold tracking-wide text-muted-foreground">sura score</p>
         <p className="text-xs font-bold text-muted-foreground">/ {scorePreview.max}</p>
       </div>
-      <p className="mt-1 text-4xl font-black tracking-tight text-primary">{scorePreview.total}</p>
+      <p data-anim="score-total" className="mt-1 text-4xl font-black tracking-tight text-primary tabular-nums">
+        {scorePreview.total}
+      </p>
       <ul className="mt-3 flex flex-col gap-2">
         {scorePreview.pillars.map((pillar) => (
           <li key={pillar.label}>
@@ -120,6 +208,7 @@ function ScoreCard() {
             </div>
             <div className="mt-1 h-2 overflow-hidden rounded-full bg-cloud">
               <div
+                data-anim="pillar"
                 className="h-full rounded-full bg-primary"
                 style={{ width: `${(pillar.points / pillar.max) * 100}%` }}
               />
