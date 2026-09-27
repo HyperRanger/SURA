@@ -1,4 +1,4 @@
-# Sura
+# SURA
 
 Sura is an infrastructure product for structured financial commitments, built for people whose income does not arrive as a monthly salary.
 
