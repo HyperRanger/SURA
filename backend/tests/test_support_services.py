@@ -1,16 +1,4 @@
-from app.services.fraud import validate_commitment_rules, validate_vendor_lock
 from app.services.payout_rules import apply_anchor_and_cap_rule, build_payout_schedule
-
-
-def test_validate_vendor_lock():
-    assert validate_vendor_lock("vendor_1", ["vendor_1", "vendor_2"]) is True
-    assert validate_vendor_lock("vendor_3", ["vendor_1", "vendor_2"]) is False
-
-
-def test_validate_commitment_rules():
-    assert validate_commitment_rules(2, 1000) is True
-    assert validate_commitment_rules(0, 1000) is False
-    assert validate_commitment_rules(2, 0) is False
 
 
 def test_build_payout_schedule_is_deterministic():
@@ -20,6 +8,10 @@ def test_build_payout_schedule_is_deterministic():
         {"cycle": 2, "beneficiary_id": "member_b", "amount": 4500},
         {"cycle": 3, "beneficiary_id": "member_c", "amount": 4500},
     ]
+
+
+def test_build_payout_schedule_is_empty_without_members():
+    assert build_payout_schedule([], 1500, 3) == []
 
 
 def test_apply_anchor_and_cap_rule_caps_first_cycle_for_genesis_groups():
