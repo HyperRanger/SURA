@@ -15,7 +15,7 @@ Sura remains non-custodial: the bank owns the customer relationship and moves mo
 | Integration engineer | Developer Hub, API keys, webhooks and delivery logs. No customer-risk actions. |
 | Demo bank user | Read-only seeded data for the live demo. |
 
-All bank routes require bank authentication and role-based access control. A bank may only view customers and records belonging to its institution. Every customer-profile lookup, key change, webhook change, and flag decision should be recorded in an audit log.
+All bank routes require bank authentication and role-based access control. A bank may only view customers and records belonging to its own `bank_id` tenant. Every customer-profile lookup, key change, webhook change, and flag decision should be recorded in an audit log.
 
 ## Security rules
 
@@ -24,6 +24,10 @@ All bank routes require bank authentication and role-based access control. A ban
 - Show an API-key secret or webhook signing secret exactly once at creation. Store only a hash afterwards.
 - Mask account identifiers in tables, exports, and routine views: `••••8241`.
 - Never expose a user's score to another member or vendor. Bank roles may see it only where their permissions allow.
+
+### Required bank JWT claims
+
+The authentication provider must issue a token containing `sub`, `role`, `bank_id`, and `permissions`. Supported Bank Portal roles are `bank_admin`, `bank_risk_analyst`, and `bank_integration_engineer`. The backend checks the `bank_id` on every portal query.
 
 ## Navigation
 
@@ -259,9 +263,9 @@ GET  /v1/bank/users/{user_id}/flags
 GET  /v1/bank/commitments
 GET  /v1/bank/commitments/{commitment_id}
 GET  /v1/bank/audit-log
-GET  /v1/flags
-GET  /v1/flags/{flag_id}
-POST /v1/flags/{flag_id}/resolve
+GET  /v1/bank/flags
+GET  /v1/bank/users/{user_id}/flags
+POST /v1/bank/flags/{flag_id}/resolve
 GET  /v1/bank/settlements
 GET  /v1/bank/api-keys
 POST /v1/bank/api-keys

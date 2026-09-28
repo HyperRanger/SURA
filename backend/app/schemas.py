@@ -59,15 +59,18 @@ class LockResponse(BaseModel):
 
 
 class ScoreBreakdown(BaseModel):
-    commitment_behaviour: float
-    repayment_behaviour: float
-    transaction_stability: float
-    institutional_verification: float
-    social_reliability: float
+    commitment_behaviour: int
+    repayment_behaviour: int
+    transaction_stability: int
+    institutional_verification: int
+    social_reliability: int
 
 
 class ScoreResponse(BaseModel):
     user_id: str
     score: int
+    tier: str
     breakdown: ScoreBreakdown
+    weights: dict[str, float]
+    score_version: str
     last_updated: datetime

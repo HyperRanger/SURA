@@ -12,6 +12,9 @@ bearer_scheme = HTTPBearer(auto_error=False)
 class AuthPrincipal:
     user_id: str
     can_verify_vendor: bool = False
+    role: str | None = None
+    bank_id: str | None = None
+    permissions: frozenset[str] = frozenset()
 
 
 def get_current_principal(
@@ -30,6 +33,12 @@ def get_current_principal(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication token.")
 
     role = claims.get("role")
-    permissions = claims.get("permissions") or []
+    permissions = frozenset(claims.get("permissions") or [])
     can_verify_vendor = role in {"admin", "verifier"} or "vendor:verify" in permissions
-    return AuthPrincipal(user_id=user_id, can_verify_vendor=can_verify_vendor)
+    return AuthPrincipal(
+        user_id=user_id,
+        can_verify_vendor=can_verify_vendor,
+        role=role,
+        bank_id=claims.get("bank_id"),
+        permissions=permissions,
+    )

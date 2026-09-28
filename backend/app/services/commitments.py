@@ -23,9 +23,10 @@ from app.models import (
 from app.schemas import ContributionRequest, LockRequest
 from app.services.contribution_engine import dump_rule_trace, evaluate_contribution
 from app.services.payout_rules import apply_anchor_and_cap_rule, build_payout_schedule
-from app.services.scoring import build_score_snapshot, serialize_score_snapshot
+from app.services.score_service import record_score_snapshot
+from app.services.scoring import ENTRY_TIER_BASELINE
 
-ENTRY_TIER_SCORE = 12
+ENTRY_TIER_SCORE = ENTRY_TIER_BASELINE
 
 
 def _record_activity(
@@ -395,50 +396,16 @@ def _refresh_score_history_for_commitment(db: Session, commitment_id: str) -> No
         .filter(CommitmentMember.commitment_id == commitment_id)
         .all()
     )
+    db.flush()
     for member in members:
-        contribution_rows = (
-            db.query(Contribution)
-            .filter(Contribution.commitment_id == commitment_id, Contribution.user_id == member.user_id)
-            .all()
-        )
-        member_cycle_totals: dict[int, int] = {}
-        for row in contribution_rows:
-            member_cycle_totals[row.cycle_number] = member_cycle_totals.get(row.cycle_number, 0) + row.amount
-        contribution_points = [
-            10 if total >= commitment.contribution_amount else 4
-            for total in member_cycle_totals.values()
-        ]
-        completed_cycles = (
-            db.query(CommitmentBeneficiary)
-            .filter(
-                CommitmentBeneficiary.commitment_id == commitment_id,
-                CommitmentBeneficiary.status == "paid",
+        if member.role != "invited":
+            record_score_snapshot(
+                db,
+                member.user_id,
+                event_type="commitment_updated",
+                reason="A Sura Lock contribution or cycle state changed.",
+                source_id=commitment_id,
             )
-            .count()
-        )
-        missed_cycles = (
-            db.query(CommitmentBeneficiary)
-            .filter(
-                CommitmentBeneficiary.commitment_id == commitment_id,
-                CommitmentBeneficiary.status == "missed",
-            )
-            .count()
-        )
-        snapshot = build_score_snapshot(
-            base_score=12,
-            contribution_history=contribution_points,
-            missed_cycles=missed_cycles,
-            completed_cycles=completed_cycles,
-        )
-        db.add(
-            ScoreHistory(
-                id=str(uuid.uuid4()),
-                user_id=member.user_id,
-                score=snapshot["score"],
-                breakdown_json=serialize_score_snapshot(snapshot),
-                computed_at=datetime.utcnow(),
-            )
-        )
 
 
 def record_contribution(

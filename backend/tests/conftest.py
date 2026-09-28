@@ -75,12 +75,19 @@ def client() -> TestClient:
 def auth_headers():
     settings = get_settings()
 
-    def _headers(user_id: str, role: str | None = None, permissions: list[str] | None = None) -> dict[str, str]:
+    def _headers(
+        user_id: str,
+        role: str | None = None,
+        permissions: list[str] | None = None,
+        bank_id: str | None = None,
+    ) -> dict[str, str]:
         claims: dict[str, object] = {"sub": user_id}
         if role:
             claims["role"] = role
         if permissions:
             claims["permissions"] = permissions
+        if bank_id:
+            claims["bank_id"] = bank_id
         token = jwt.encode(claims, settings.secret_key, algorithm=settings.jwt_algorithm)
         return {"Authorization": "Bearer " + token}
 

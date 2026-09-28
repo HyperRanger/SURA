@@ -4,12 +4,13 @@ This module is intentionally invoked by a script, never from application startup
 """
 
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
 from app.models import (
+    AccountActivitySignal,
     Commitment,
     CommitmentBeneficiary,
     CommitmentMember,
@@ -19,15 +20,19 @@ from app.models import (
     User,
     Vendor,
 )
-from app.services.scoring import build_score_snapshot, serialize_score_snapshot
+from app.bank.models import BankPartner, RiskFlag
+from app.services.score_service import record_score_snapshot
 
 DEMO_USER_IDS = ("usr_demo_amara", "usr_demo_tunde")
 DEMO_VENDOR_IDS = ("vnd_demo_electronics", "vnd_demo_education", "vnd_demo_equipment")
 DEMO_COMMITMENT_ID = "cmt_demo_laptop_rotation"
 DEMO_REDEMPTION_ID = "rdm_demo_laptop_cycle_1"
+DEMO_BANK_ID = "bank_demo_sura"
 
 
 def _reset_demo_data(db: Session) -> None:
+    db.execute(delete(RiskFlag).where(RiskFlag.bank_id == DEMO_BANK_ID))
+    db.execute(delete(AccountActivitySignal).where(AccountActivitySignal.user_id.in_(DEMO_USER_IDS)))
     db.execute(delete(Redemption).where(Redemption.commitment_id == DEMO_COMMITMENT_ID))
     db.execute(delete(Contribution).where(Contribution.commitment_id == DEMO_COMMITMENT_ID))
     db.execute(delete(CommitmentBeneficiary).where(CommitmentBeneficiary.commitment_id == DEMO_COMMITMENT_ID))
@@ -61,17 +66,29 @@ def seed_demo_data(db: Session, *, reset: bool = False) -> dict[str, object]:
             vendor.category = category
             vendor.verified_at = now
 
+    if db.get(BankPartner, DEMO_BANK_ID) is None:
+        db.add(BankPartner(id=DEMO_BANK_ID, name="Sura Demo Bank", created_at=now))
+
     for user_id, name, phone in (
         ("usr_demo_amara", "Amara Okafor", "demo-amara@sura.local"),
         ("usr_demo_tunde", "Tunde Adeyemi", "demo-tunde@sura.local"),
     ):
         user = db.get(User, user_id)
         if user is None:
-            db.add(User(id=user_id, name=name, phone=phone, verified_at=now))
+            db.add(User(
+                id=user_id,
+                name=name,
+                phone=phone,
+                verified_at=now,
+                bank_id=DEMO_BANK_ID,
+                bank_customer_id="CUST-DEMO-8241" if user_id == "usr_demo_amara" else "CUST-DEMO-8242",
+            ))
         else:
             user.name = name
             user.phone = phone
             user.verified_at = now
+            user.bank_id = DEMO_BANK_ID
+            user.bank_customer_id = "CUST-DEMO-8241" if user_id == "usr_demo_amara" else "CUST-DEMO-8242"
     db.add(
         Commitment(
             id=DEMO_COMMITMENT_ID,
@@ -90,6 +107,25 @@ def seed_demo_data(db: Session, *, reset: bool = False) -> dict[str, object]:
             created_at=now,
         )
     )
+    for user_id in DEMO_USER_IDS:
+        for offset_days in (21, 14, 7, 0):
+            db.add(AccountActivitySignal(
+                id=f"act_demo_{user_id}_{offset_days}",
+                user_id=user_id,
+                institution_id=None,
+                source="simulated_bank_rail",
+                occurred_at=now - timedelta(days=offset_days),
+            ))
+    db.add(RiskFlag(
+        id="flag_demo_tunde_review",
+        bank_id=DEMO_BANK_ID,
+        user_id="usr_demo_tunde",
+        rule="demo_account_review",
+        severity="low",
+        status="open",
+        evidence_json='{"note":"Seeded demo review flag"}',
+        created_at=now,
+    ))
     db.add_all(
         [
             CommitmentMember(commitment_id=DEMO_COMMITMENT_ID, user_id=user_id, role="contributor", joined_at=now)
@@ -131,13 +167,14 @@ def seed_demo_data(db: Session, *, reset: bool = False) -> dict[str, object]:
             voucher_code="SURA-DEMO-LAPTOP-01", status="settled", redeemed_at=now,
         )
     )
-    for user_id, score in (("usr_demo_amara", 62), ("usr_demo_tunde", 47)):
-        snapshot = build_score_snapshot(base_score=score)
-        db.add(
-            ScoreHistory(
-                id=f"scr_demo_{user_id.rsplit('_', 1)[-1]}", user_id=user_id, score=score,
-                breakdown_json=serialize_score_snapshot(snapshot), computed_at=now,
-            )
+    db.flush()
+    for user_id in DEMO_USER_IDS:
+        record_score_snapshot(
+            db,
+            user_id,
+            event_type="demo_seed",
+            reason="Seeded Sura Lock history for the demo environment.",
+            source_id=DEMO_COMMITMENT_ID,
         )
     return {
         "created": True,

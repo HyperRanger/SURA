@@ -15,6 +15,8 @@ class User(Base):
     institution_id = Column(String, ForeignKey("institutions.id"), nullable=True)
     phone = Column(String, nullable=False, unique=True)
     verified_at = Column(DateTime, nullable=True)
+    bank_customer_id = Column(String, nullable=True, index=True)
+    bank_id = Column(String, ForeignKey("bank_partners.id"), nullable=True, index=True)
 
 
 class Institution(Base):
@@ -115,6 +117,22 @@ class ScoreHistory(Base):
     score = Column(Integer, nullable=False)
     breakdown_json = Column(Text, nullable=False)
     computed_at = Column(DateTime, default=datetime.utcnow)
+    score_before = Column(Integer, nullable=True)
+    event_type = Column(String, nullable=True)
+    reason = Column(Text, nullable=True)
+    source_id = Column(String, nullable=True)
+    signals_json = Column(Text, nullable=True)
+    score_version = Column(String, nullable=True)
+
+
+class AccountActivitySignal(Base):
+    __tablename__ = "account_activity_signals"
+
+    id = Column(String, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    institution_id = Column(String, ForeignKey("institutions.id"), nullable=True, index=True)
+    source = Column(String, nullable=False)
+    occurred_at = Column(DateTime, nullable=False)
 
 
 class UserConsent(Base):
