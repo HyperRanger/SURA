@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     )
 
     database_url: str = "postgresql+psycopg://sura:sura_pass@localhost:5432/sura_dev"
-    secret_key: str = "super-secret-key"
+    secret_key: str
     jwt_algorithm: str = "HS256"
     demo_otp_code: str = "123456"
 

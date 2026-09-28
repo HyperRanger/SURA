@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
+from app.auth import AuthPrincipal, get_current_principal
 from app.database import get_db
 from app.schemas import ContributionRequest, LockRequest, LockResponse
 from app.services.commitments import create_commitment, get_commitment_details, record_contribution
@@ -15,8 +16,13 @@ def create_commitment_lock(payload: LockRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/{commitment_id}/contribute")
-def contribute_to_commitment(commitment_id: str, payload: ContributionRequest, db: Session = Depends(get_db)):
-    return record_contribution(db, commitment_id, payload)
+def contribute_to_commitment(
+    commitment_id: str,
+    payload: ContributionRequest,
+    current_user: AuthPrincipal = Depends(get_current_principal),
+    db: Session = Depends(get_db),
+):
+    return record_contribution(db, commitment_id, current_user.user_id, payload)
 
 
 @router.get("/{commitment_id}")

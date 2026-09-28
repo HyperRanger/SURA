@@ -316,13 +316,23 @@ def _refresh_score_history_for_commitment(db: Session, commitment_id: str) -> No
         )
 
 
-def record_contribution(db: Session, commitment_id: str, payload: ContributionRequest) -> dict[str, Any]:
+def record_contribution(
+    db: Session,
+    commitment_id: str,
+    contributor_user_id: str,
+    payload: ContributionRequest,
+) -> dict[str, Any]:
     if payload.amount <= 0:
         raise HTTPException(status_code=400, detail="Contribution amount must be positive.")
 
     try:
         with db.begin():
-            commitment = db.get(Commitment, commitment_id)
+            commitment = (
+                db.query(Commitment)
+                .filter(Commitment.id == commitment_id)
+                .with_for_update()
+                .one_or_none()
+            )
             if commitment is None:
                 raise HTTPException(status_code=404, detail="Commitment not found.")
             if commitment.status == "completed":
@@ -330,7 +340,7 @@ def record_contribution(db: Session, commitment_id: str, payload: ContributionRe
 
             member = (
                 db.query(CommitmentMember)
-                .filter(CommitmentMember.commitment_id == commitment_id, CommitmentMember.user_id == payload.user_id)
+                .filter(CommitmentMember.commitment_id == commitment_id, CommitmentMember.user_id == contributor_user_id)
                 .one_or_none()
             )
             if member is None:
@@ -345,7 +355,7 @@ def record_contribution(db: Session, commitment_id: str, payload: ContributionRe
                 .filter(
                     Contribution.commitment_id == commitment_id,
                     Contribution.cycle_number == current_cycle,
-                    Contribution.user_id == payload.user_id,
+                    Contribution.user_id == contributor_user_id,
                 )
                 .with_entities(func.coalesce(func.sum(Contribution.amount), 0))
                 .scalar()
@@ -369,7 +379,7 @@ def record_contribution(db: Session, commitment_id: str, payload: ContributionRe
                     id=str(uuid.uuid4()),
                     commitment_id=commitment_id,
                     cycle_number=current_cycle,
-                    user_id=payload.user_id,
+                    user_id=contributor_user_id,
                     amount=payload.amount,
                     status="full" if payload.amount == commitment.contribution_amount else "partial",
                     rule_trace_json="{}",
@@ -401,7 +411,7 @@ def record_contribution(db: Session, commitment_id: str, payload: ContributionRe
                 .filter(
                     Contribution.commitment_id == commitment_id,
                     Contribution.cycle_number == current_cycle,
-                    Contribution.user_id == payload.user_id,
+                    Contribution.user_id == contributor_user_id,
                 )
                 .order_by(Contribution.paid_at.desc(), Contribution.id.desc())
                 .first()

@@ -17,7 +17,6 @@ class LockRequest(BaseModel):
 
 
 class ContributionRequest(BaseModel):
-    user_id: str
     amount: int
 
 
@@ -25,7 +24,6 @@ class VendorVerificationRequest(BaseModel):
     vendor_id: str
     name: Optional[str] = None
     category: Optional[str] = None
-    verified: bool = True
 
 
 class PayoutScheduleItem(BaseModel):

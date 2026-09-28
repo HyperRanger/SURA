@@ -25,10 +25,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.create_unique_constraint(
-        "uq_contributions_commitment_cycle_user",
-        "contributions",
-        ["commitment_id", "cycle_number", "user_id"],
+    raise RuntimeError(
+        "Downgrade is irreversible: 0002 allows duplicate contribution rows per "
+        "(commitment_id, cycle_number, user_id), so restoring the prior uniqueness "
+        "constraint is unsafe without a manual data consolidation."
     )
-    op.drop_column("contributions", "rule_trace_json")
-    op.drop_column("contributions", "status")

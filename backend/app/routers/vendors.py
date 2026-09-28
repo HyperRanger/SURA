@@ -3,6 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.auth import AuthPrincipal, get_current_principal
 from app.database import get_db
 from app.models import Vendor
 from app.schemas import VendorVerificationRequest
@@ -11,7 +12,14 @@ router = APIRouter(prefix="/v1/vendors", tags=["vendors"])
 
 
 @router.post("/verify", status_code=status.HTTP_200_OK)
-def verify_vendor(payload: VendorVerificationRequest, db: Session = Depends(get_db)):
+def verify_vendor(
+    payload: VendorVerificationRequest,
+    current_user: AuthPrincipal = Depends(get_current_principal),
+    db: Session = Depends(get_db),
+):
+    if not current_user.can_verify_vendor:
+        raise HTTPException(status_code=403, detail="User is not authorized to verify vendors.")
+
     if not payload.vendor_id:
         raise HTTPException(status_code=400, detail="vendor_id is required.")
 
@@ -28,7 +36,7 @@ def verify_vendor(payload: VendorVerificationRequest, db: Session = Depends(get_
     if payload.category:
         vendor.category = payload.category
 
-    vendor.verified_at = datetime.utcnow() if payload.verified else None
+    vendor.verified_at = datetime.utcnow()
     db.commit()
 
     return {

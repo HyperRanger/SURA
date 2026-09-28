@@ -1,5 +1,7 @@
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi import status
 from sqlalchemy import text
 
 from app.database import get_db
@@ -34,7 +36,11 @@ def _check_database(db: Session) -> bool:
 @app.get("/health")
 def health_check(db: Session = Depends(get_db)):
     database_ok = _check_database(db)
-    return {
+    response = {
         "status": "ok",
         "database": "ok" if database_ok else "unavailable",
     }
+    if database_ok:
+        return response
+    response["status"] = "unavailable"
+    return JSONResponse(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content=response)
