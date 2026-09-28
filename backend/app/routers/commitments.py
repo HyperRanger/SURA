@@ -1,58 +1,30 @@
-import uuid
-from datetime import datetime
-
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
+from app.auth import AuthPrincipal, get_current_principal
 from app.database import get_db
-from app.schemas import ContributionRequest, LockRequest, LockResponse, PayoutScheduleItem
+from app.schemas import ContributionRequest, LockRequest, LockResponse
+from app.services.commitments import create_commitment, get_commitment_details, record_contribution
 
 router = APIRouter(prefix="/v1/commitments", tags=["commitments"])
 
 
 @router.post("/lock", response_model=LockResponse, status_code=status.HTTP_201_CREATED)
 def create_commitment_lock(payload: LockRequest, db: Session = Depends(get_db)):
-    commitment_id = str(uuid.uuid4())
-
-    if not payload.members:
-        raise HTTPException(status_code=400, detail="At least one member is required.")
-
-    payout_schedule = [
-        PayoutScheduleItem(cycle=1, beneficiary_id=payload.members[0], amount=payload.contribution_amount)
-    ]
-
-    return LockResponse(
-        commitment_id=commitment_id,
-        type=payload.type,
-        status="pending_members",
-        invite_code="SURA-" + str(uuid.uuid4())[:8].upper(),
-        payout_schedule=payout_schedule,
-    )
+    _, response = create_commitment(db, payload)
+    return response
 
 
 @router.post("/{commitment_id}/contribute")
-def contribute_to_commitment(commitment_id: str, payload: ContributionRequest, db: Session = Depends(get_db)):
-    if payload.amount <= 0:
-        raise HTTPException(status_code=400, detail="Contribution amount must be positive.")
-
-    return {
-        "commitment_id": commitment_id,
-        "user_id": payload.user_id,
-        "amount": payload.amount,
-        "status": "active",
-        "message": "Contribution recorded successfully.",
-        "completed_cycle": False,
-        "beneficiary": None,
-        "updated_at": datetime.utcnow().isoformat(),
-    }
+def contribute_to_commitment(
+    commitment_id: str,
+    payload: ContributionRequest,
+    current_user: AuthPrincipal = Depends(get_current_principal),
+    db: Session = Depends(get_db),
+):
+    return record_contribution(db, commitment_id, current_user.user_id, payload)
 
 
 @router.get("/{commitment_id}")
 def get_commitment(commitment_id: str, db: Session = Depends(get_db)):
-    return {
-        "commitment_id": commitment_id,
-        "status": "pending_members",
-        "members": [],
-        "beneficiaries": [],
-        "cycles": [],
-    }
+    return get_commitment_details(db, commitment_id)

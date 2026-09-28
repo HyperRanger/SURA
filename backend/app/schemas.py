@@ -12,16 +12,18 @@ class LockRequest(BaseModel):
     contribution_frequency: str
     cycles: int
     members: List[str]
+    payout_order: Optional[List[str]] = None
+    creator_id: Optional[str] = None
 
 
 class ContributionRequest(BaseModel):
-    user_id: str
     amount: int
 
 
 class VendorVerificationRequest(BaseModel):
     vendor_id: str
-    verified: bool = True
+    name: Optional[str] = None
+    category: Optional[str] = None
 
 
 class PayoutScheduleItem(BaseModel):

@@ -1,13 +1,14 @@
-import os
 import sys
 from logging.config import fileConfig
+from pathlib import Path
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
 
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+BASE_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(BASE_DIR))
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -22,14 +23,17 @@ from core.config import get_settings
 from app import models
 
 target_metadata = models.Base.metadata
+settings = get_settings()
+config.set_main_option("sqlalchemy.url", settings.database_url)
 
 
 def run_migrations_offline():
-    url = os.environ.get('DATABASE_URL')
     context.configure(
-        url=url,
+        url=settings.database_url,
         target_metadata=target_metadata,
         literal_binds=True,
+        compare_type=True,
+        render_as_batch=False,
     )
 
     with context.begin_transaction():
@@ -38,7 +42,7 @@ def run_migrations_offline():
 
 def run_migrations_online():
     configuration = config.get_section(config.config_ini_section) or {}
-    configuration['sqlalchemy.url'] = os.environ.get('DATABASE_URL')
+    configuration['sqlalchemy.url'] = settings.database_url
 
     connectable = engine_from_config(
         configuration,
@@ -47,7 +51,7 @@ def run_migrations_online():
     )
 
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
 
         with context.begin_transaction():
             context.run_migrations()
