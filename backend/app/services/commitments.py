@@ -413,7 +413,12 @@ def create_commitment(
         raise HTTPException(status_code=500, detail="Failed to create commitment.") from exc
 
 
-def _refresh_score_history_for_commitment(db: Session, commitment_id: str) -> None:
+def _refresh_score_history_for_commitment(
+    db: Session,
+    commitment_id: str,
+    event_id: str | None = None,
+    reason: str = "contribution_processed",
+) -> None:
     commitment = db.get(Commitment, commitment_id)
     if commitment is None:
         return
@@ -423,6 +428,12 @@ def _refresh_score_history_for_commitment(db: Session, commitment_id: str) -> No
         .filter(CommitmentMember.commitment_id == commitment_id)
         .all()
     )
+    # Sessions run with autoflush=False, so the beneficiary status the caller
+    # just set is still only in memory. Without this flush the paid/missed
+    # counts below read the database as it was before this contribution and
+    # silently drop the cycle-completion bonus from the score.
+    db.flush()
+
     for member in members:
         contribution_rows = (
             db.query(Contribution)
@@ -458,11 +469,26 @@ def _refresh_score_history_for_commitment(db: Session, commitment_id: str) -> No
             missed_cycles=missed_cycles,
             completed_cycles=completed_cycles,
         )
+        previous = (
+            db.query(ScoreHistory)
+            .filter(ScoreHistory.user_id == member.user_id)
+            .order_by(ScoreHistory.computed_at.desc(), ScoreHistory.id.desc())
+            .first()
+        )
+        previous_score = previous.score if previous is not None else None
+        if previous_score == snapshot["score"]:
+            # This member's score did not move, so there is no change to
+            # explain. Recording a row here would attribute someone else's
+            # contribution to them and pad the audit trail with no-ops.
+            continue
         db.add(
             ScoreHistory(
                 id=str(uuid.uuid4()),
                 user_id=member.user_id,
                 score=snapshot["score"],
+                old_score=previous_score,
+                event_id=event_id,
+                reason=reason,
                 breakdown_json=serialize_score_snapshot(snapshot),
                 computed_at=datetime.utcnow(),
             )
@@ -488,9 +514,6 @@ def record_contribution(
             )
             if commitment is None:
                 raise HTTPException(status_code=404, detail="Commitment not found.")
-            if commitment.status != "active":
-                raise HTTPException(status_code=400, detail="Commitment is not accepting contributions.")
-
             member = _require_member(db, commitment_id, contributor_user_id)
             if member.role == "invited":
                 raise HTTPException(status_code=400, detail="Join this commitment before contributing.")
@@ -520,6 +543,9 @@ def record_contribution(
                     }
                 )
                 return response
+
+            if commitment.status != "active":
+                raise HTTPException(status_code=400, detail="Commitment is not accepting contributions.")
 
             if payload.amount > commitment.contribution_amount:
                 raise HTTPException(status_code=400, detail="Contribution amount cannot exceed the commitment amount.")
@@ -637,7 +663,12 @@ def record_contribution(
             else:
                 commitment.status = "active"
 
-            _refresh_score_history_for_commitment(db, commitment_id)
+            _refresh_score_history_for_commitment(
+                db,
+                commitment_id,
+                event_id=payload.event_id,
+                reason="contribution_processed",
+            )
 
             updated_commitment = db.get(Commitment, commitment_id)
             response = _serialize_commitment(updated_commitment, db)
