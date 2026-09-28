@@ -16,6 +16,7 @@ def test_lock_event_persists_an_explainable_five_pillar_score(client, auth_heade
         json={"vendor_id": "score_vendor"},
         headers=auth_headers("verifier", role="verifier"),
     ).status_code == 200
+    assert client.post("/v1/consent", json={"granted": True}, headers=auth_headers("score_creator")).status_code == 200
     created = client.post(
         "/v1/commitments/lock",
         json={
@@ -32,6 +33,7 @@ def test_lock_event_persists_an_explainable_five_pillar_score(client, auth_heade
     )
     assert created.status_code == 201
     commitment_id = created.json()["commitment_id"]
+    assert client.post("/v1/consent", json={"granted": True}, headers=auth_headers("score_member")).status_code == 200
     assert client.post(
         "/v1/commitments/join",
         json={"invite_code": created.json()["invite_code"]},
@@ -50,7 +52,7 @@ def test_lock_event_persists_an_explainable_five_pillar_score(client, auth_heade
         assert snapshot is not None
         assert snapshot.score == 295
         assert snapshot.score_before == 120
-        assert snapshot.event_type == "commitment_updated"
+        assert snapshot.event_type == "contribution_processed"
         assert snapshot.score_version == "trd-5.2-v1"
         assert snapshot.signals_json is not None
     finally:

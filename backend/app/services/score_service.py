@@ -46,6 +46,8 @@ def record_score_snapshot(db: Session, user_id: str, *, event_type: str, reason:
     signals = build_score_signals(db, user_id)
     report = build_score_report(signals)
     previous = latest_score_history(db, user_id)
+    if previous is not None and previous.score == report["score"]:
+        return previous
     snapshot = {**report, "signals": asdict(signals), "event_type": event_type, "reason": reason, "source_id": source_id}
     row = ScoreHistory(id=str(uuid.uuid4()), user_id=user_id, score=report["score"], score_before=previous.score if previous else None, event_type=event_type, reason=reason, source_id=source_id, signals_json=json.dumps(asdict(signals)), breakdown_json=json.dumps(snapshot), score_version=report["score_version"], computed_at=datetime.utcnow())
     db.add(row)

@@ -74,3 +74,19 @@ class ScoreResponse(BaseModel):
     weights: dict[str, float]
     score_version: str
     last_updated: datetime
+
+
+class ScoreHistoryEntry(BaseModel):
+    score: int
+    score_before: Optional[int] = None
+    event_type: Optional[str] = None
+    source_id: Optional[str] = None
+    reason: Optional[str] = None
+    computed_at: datetime
+    breakdown: Optional[ScoreBreakdown] = None
+
+
+class ScoreHistoryResponse(BaseModel):
+    user_id: str
+    current_score: int
+    entries: List[ScoreHistoryEntry]

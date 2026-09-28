@@ -66,6 +66,20 @@ def _serialize_voucher(voucher: Voucher) -> dict[str, Any]:
     }
 
 
+def _serialize_voucher_state(voucher: Voucher) -> dict[str, Any]:
+    return {
+        "voucher_id": voucher.id,
+        "commitment_id": voucher.commitment_id,
+        "beneficiary_id": voucher.beneficiary_id,
+        "vendor_id": voucher.vendor_id,
+        "cycle_number": voucher.cycle_number,
+        "amount": voucher.amount,
+        "status": voucher.status,
+        "issued_at": voucher.issued_at.isoformat() if voucher.issued_at else None,
+        "redeemed_at": voucher.redeemed_at.isoformat() if voucher.redeemed_at else None,
+    }
+
+
 def _issue_voucher_if_needed(
     db: Session,
     commitment: Commitment,
@@ -146,6 +160,19 @@ def _ensure_user(db: Session, user_id: str) -> None:
     )
 
 
+def _require_score_processing_consent(db: Session, user_id: str) -> None:
+    consent = (
+        db.query(UserConsent)
+        .filter(UserConsent.user_id == user_id, UserConsent.consent_type == "score_processing")
+        .one_or_none()
+    )
+    if consent is None or not consent.granted:
+        raise HTTPException(
+            status_code=400,
+            detail="Score-processing consent is required before creating or joining a commitment.",
+        )
+
+
 def _latest_score_by_user(db: Session, member_ids: list[str]) -> dict[str, int]:
     if not member_ids:
         return {}
@@ -167,17 +194,17 @@ def _latest_score_by_user(db: Session, member_ids: list[str]) -> dict[str, int]:
 def _build_payout_order(
     db: Session, member_ids: list[str], requested_order: list[str] | None
 ) -> tuple[list[str], bool]:
+    if requested_order is not None and requested_order != member_ids:
+        raise HTTPException(
+            status_code=400,
+            detail="payout_order must match members in the same order.",
+        )
     scores = _latest_score_by_user(db, member_ids)
     if not scores:
         if requested_order is None:
             raise HTTPException(
                 status_code=400,
                 detail="Genesis commitments require a payout_order chosen by the group.",
-            )
-        if len(requested_order) != len(member_ids) or set(requested_order) != set(member_ids):
-            raise HTTPException(
-                status_code=400,
-                detail="payout_order must contain every member exactly once.",
             )
         return requested_order, True
 
@@ -277,7 +304,7 @@ def _serialize_commitment(commitment: Commitment, db: Session) -> dict[str, Any]
             }
             for contribution in contributions
         ],
-        "vouchers": [_serialize_voucher(voucher) for voucher in vouchers],
+        "vouchers": [_serialize_voucher_state(voucher) for voucher in vouchers],
     }
 
 
@@ -309,6 +336,7 @@ def create_commitment(
         with db.begin():
             for member_id in member_ids:
                 _ensure_user(db, member_id)
+            _require_score_processing_consent(db, creator_id)
             vendor = db.get(Vendor, payload.vendor_id)
             if vendor is None or vendor.verified_at is None:
                 raise HTTPException(status_code=400, detail="Commitment vendor must be verified before it can be locked.")
@@ -352,6 +380,10 @@ def create_commitment(
                     )
                 )
 
+            # A one-member rotating commitment has no invitations to accept.
+            # Activate it immediately so its first contribution is valid.
+            _activate_if_fully_joined(db, commitment)
+
             for cycle in payout_schedule:
                 db.add(
                     CommitmentBeneficiary(
@@ -386,7 +418,12 @@ def create_commitment(
         raise HTTPException(status_code=500, detail="Failed to create commitment.") from exc
 
 
-def _refresh_score_history_for_commitment(db: Session, commitment_id: str) -> None:
+def _refresh_score_history_for_commitment(
+    db: Session,
+    commitment_id: str,
+    event_id: str | None = None,
+    reason: str = "contribution_processed",
+) -> None:
     commitment = db.get(Commitment, commitment_id)
     if commitment is None:
         return
@@ -396,15 +433,19 @@ def _refresh_score_history_for_commitment(db: Session, commitment_id: str) -> No
         .filter(CommitmentMember.commitment_id == commitment_id)
         .all()
     )
+    # Sessions run with autoflush=False, so the beneficiary status the caller
+    # just set is still only in memory. Without this flush the paid/missed
+    # counts below read the database as it was before this contribution and
+    # silently drop the cycle-completion bonus from the score.
     db.flush()
     for member in members:
         if member.role != "invited":
             record_score_snapshot(
                 db,
                 member.user_id,
-                event_type="commitment_updated",
-                reason="A Sura Lock contribution or cycle state changed.",
-                source_id=commitment_id,
+                event_type="contribution_processed",
+                reason=reason,
+                source_id=event_id or commitment_id,
             )
 
 
@@ -427,9 +468,6 @@ def record_contribution(
             )
             if commitment is None:
                 raise HTTPException(status_code=404, detail="Commitment not found.")
-            if commitment.status == "completed":
-                raise HTTPException(status_code=400, detail="Commitment is not accepting contributions.")
-
             member = _require_member(db, commitment_id, contributor_user_id)
             if member.role == "invited":
                 raise HTTPException(status_code=400, detail="Join this commitment before contributing.")
@@ -459,6 +497,9 @@ def record_contribution(
                     }
                 )
                 return response
+
+            if commitment.status != "active":
+                raise HTTPException(status_code=400, detail="Commitment is not accepting contributions.")
 
             if payload.amount > commitment.contribution_amount:
                 raise HTTPException(status_code=400, detail="Contribution amount cannot exceed the commitment amount.")
@@ -554,7 +595,6 @@ def record_contribution(
             if evaluation.cycle_complete:
                 if beneficiary_row is not None:
                     beneficiary_row.status = "paid"
-                    _issue_voucher_if_needed(db, commitment, beneficiary_row)
                     _record_activity(
                         db,
                         commitment_id,
@@ -562,6 +602,7 @@ def record_contribution(
                         cycle_number=current_cycle,
                         details={"beneficiary_id": beneficiary_row.user_id, "amount": beneficiary_row.payout_amount},
                     )
+                    _issue_voucher_if_needed(db, commitment, beneficiary_row)
 
                 commitment.completed_cycle_count += 1
                 if current_cycle >= commitment.cycles:
@@ -576,7 +617,12 @@ def record_contribution(
             else:
                 commitment.status = "active"
 
-            _refresh_score_history_for_commitment(db, commitment_id)
+            _refresh_score_history_for_commitment(
+                db,
+                commitment_id,
+                event_id=payload.event_id,
+                reason="contribution_processed",
+            )
 
             updated_commitment = db.get(Commitment, commitment_id)
             response = _serialize_commitment(updated_commitment, db)
@@ -639,6 +685,7 @@ def preview_commitment_by_code(db: Session, invite_code: str, user_id: str) -> d
 
 def join_commitment(db: Session, invite_code: str, user_id: str) -> dict[str, Any]:
     with db.begin():
+        _require_score_processing_consent(db, user_id)
         commitment = (
             db.query(Commitment)
             .filter(Commitment.invite_code == invite_code)
@@ -736,58 +783,63 @@ def cancel_pending_commitment(db: Session, commitment_id: str, requester_user_id
 def get_cycle_voucher(
     db: Session, commitment_id: str, cycle_number: int, requester_user_id: str
 ) -> dict[str, Any]:
-    commitment = db.get(Commitment, commitment_id)
-    if commitment is None:
-        raise HTTPException(status_code=404, detail="Commitment not found.")
-    _require_member(db, commitment_id, requester_user_id)
-    beneficiary = (
-        db.query(CommitmentBeneficiary)
-        .filter(
-            CommitmentBeneficiary.commitment_id == commitment_id,
-            CommitmentBeneficiary.cycle_number == cycle_number,
-        )
-        .one_or_none()
-    )
-    if beneficiary is None:
-        raise HTTPException(status_code=404, detail="Cycle not found.")
-    if beneficiary.user_id != requester_user_id:
-        raise HTTPException(status_code=403, detail="Only this cycle's beneficiary may view its voucher.")
-    voucher = (
-        db.query(Voucher)
-        .filter(Voucher.commitment_id == commitment_id, Voucher.cycle_number == cycle_number)
-        .one_or_none()
-    )
-    if voucher is not None:
-        return _serialize_voucher(voucher)
-    if beneficiary.status == "redeemed":
-        redemption = (
-            db.query(Redemption)
-            .filter(Redemption.commitment_id == commitment_id, Redemption.cycle_number == cycle_number)
+    with db.begin():
+        commitment = db.get(Commitment, commitment_id)
+        if commitment is None:
+            raise HTTPException(status_code=404, detail="Commitment not found.")
+        _require_member(db, commitment_id, requester_user_id)
+        beneficiary = (
+            db.query(CommitmentBeneficiary)
+            .filter(
+                CommitmentBeneficiary.commitment_id == commitment_id,
+                CommitmentBeneficiary.cycle_number == cycle_number,
+            )
             .one_or_none()
         )
-        if redemption is not None:
-            return {
-                "commitment_id": commitment_id,
-                "beneficiary_id": beneficiary.user_id,
-                "vendor_id": redemption.vendor_id,
-                "cycle_number": cycle_number,
-                "amount": redemption.amount,
-                "voucher_code": redemption.voucher_code,
-                "status": "redeemed",
-                "issued_at": None,
-                "redeemed_at": redemption.redeemed_at.isoformat() if redemption.redeemed_at else None,
-            }
-    return {
-        "commitment_id": commitment_id,
-        "beneficiary_id": beneficiary.user_id,
-        "vendor_id": commitment.vendor_id,
-        "cycle_number": cycle_number,
-        "amount": beneficiary.payout_amount,
-        "voucher_code": None,
-        "status": "locked",
-        "issued_at": None,
-        "redeemed_at": None,
-    }
+        if beneficiary is None:
+            raise HTTPException(status_code=404, detail="Cycle not found.")
+        if beneficiary.user_id != requester_user_id:
+            raise HTTPException(status_code=403, detail="Only this cycle's beneficiary may view its voucher.")
+        voucher = (
+            db.query(Voucher)
+            .filter(Voucher.commitment_id == commitment_id, Voucher.cycle_number == cycle_number)
+            .one_or_none()
+        )
+        if voucher is not None:
+            return _serialize_voucher(voucher)
+        if beneficiary.status == "paid":
+            voucher = _issue_voucher_if_needed(db, commitment, beneficiary)
+            db.flush()
+            return _serialize_voucher(voucher)
+        if beneficiary.status == "redeemed":
+            redemption = (
+                db.query(Redemption)
+                .filter(Redemption.commitment_id == commitment_id, Redemption.cycle_number == cycle_number)
+                .one_or_none()
+            )
+            if redemption is not None:
+                return {
+                    "commitment_id": commitment_id,
+                    "beneficiary_id": beneficiary.user_id,
+                    "vendor_id": redemption.vendor_id,
+                    "cycle_number": cycle_number,
+                    "amount": redemption.amount,
+                    "voucher_code": redemption.voucher_code,
+                    "status": "redeemed",
+                    "issued_at": None,
+                    "redeemed_at": redemption.redeemed_at.isoformat() if redemption.redeemed_at else None,
+                }
+        return {
+            "commitment_id": commitment_id,
+            "beneficiary_id": beneficiary.user_id,
+            "vendor_id": commitment.vendor_id,
+            "cycle_number": cycle_number,
+            "amount": beneficiary.payout_amount,
+            "voucher_code": None,
+            "status": "locked",
+            "issued_at": None,
+            "redeemed_at": None,
+        }
 
 
 def validate_vendor_voucher(db: Session, voucher_code: str, vendor_id: str) -> dict[str, Any]:
@@ -853,7 +905,7 @@ def redeem_vendor_voucher(db: Session, voucher_code: str, vendor_id: str) -> dic
             db,
             voucher.commitment_id,
             "voucher_redeemed",
-            actor_user_id=vendor_id,
+            actor_user_id=None,
             cycle_number=voucher.cycle_number,
             details={"vendor_id": vendor_id, "amount": voucher.amount, "voucher_code": voucher.code},
         )

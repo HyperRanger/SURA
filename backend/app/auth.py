@@ -11,10 +11,17 @@ bearer_scheme = HTTPBearer(auto_error=False)
 @dataclass
 class AuthPrincipal:
     user_id: str
-    can_verify_vendor: bool = False
     role: str | None = None
     bank_id: str | None = None
     permissions: frozenset[str] = frozenset()
+
+    @property
+    def can_verify_vendor(self) -> bool:
+        return self.role in {"admin", "verifier"} or "vendor:verify" in self.permissions
+
+    @property
+    def can_redeem_vendor_vouchers(self) -> bool:
+        return self.role == "vendor" or "vendor:redeem" in self.permissions
 
 
 def get_current_principal(
@@ -34,10 +41,8 @@ def get_current_principal(
 
     role = claims.get("role")
     permissions = frozenset(claims.get("permissions") or [])
-    can_verify_vendor = role in {"admin", "verifier"} or "vendor:verify" in permissions
     return AuthPrincipal(
         user_id=user_id,
-        can_verify_vendor=can_verify_vendor,
         role=role,
         bank_id=claims.get("bank_id"),
         permissions=permissions,
