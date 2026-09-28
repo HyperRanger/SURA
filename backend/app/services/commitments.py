@@ -340,9 +340,6 @@ def record_contribution(
             )
             if commitment is None:
                 raise HTTPException(status_code=404, detail="Commitment not found.")
-            if commitment.status == "completed":
-                raise HTTPException(status_code=400, detail="Commitment is not accepting contributions.")
-
             member = (
                 db.query(CommitmentMember)
                 .filter(CommitmentMember.commitment_id == commitment_id, CommitmentMember.user_id == contributor_user_id)
@@ -376,6 +373,13 @@ def record_contribution(
                     }
                 )
                 return response
+
+            # The event_id replay check runs before the status guard: a retry of an
+            # already-recorded contribution must return its stored result even
+            # after the commitment completed, otherwise a client that times out
+            # on its final contribution sees a rejection instead of a safe replay.
+            if commitment.status == "completed":
+                raise HTTPException(status_code=400, detail="Commitment is not accepting contributions.")
 
             if payload.amount > commitment.contribution_amount:
                 raise HTTPException(status_code=400, detail="Contribution amount cannot exceed the commitment amount.")
