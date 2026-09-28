@@ -11,7 +11,13 @@ bearer_scheme = HTTPBearer(auto_error=False)
 @dataclass
 class AuthPrincipal:
     user_id: str
+    role: str | None = None
+    permissions: tuple[str, ...] = ()
     can_verify_vendor: bool = False
+
+    @property
+    def can_redeem_vendor_vouchers(self) -> bool:
+        return self.role == "vendor" or "vendor:redeem" in self.permissions
 
 
 def get_current_principal(
@@ -32,4 +38,9 @@ def get_current_principal(
     role = claims.get("role")
     permissions = claims.get("permissions") or []
     can_verify_vendor = role in {"admin", "verifier"} or "vendor:verify" in permissions
-    return AuthPrincipal(user_id=user_id, can_verify_vendor=can_verify_vendor)
+    return AuthPrincipal(
+        user_id=user_id,
+        role=role,
+        permissions=tuple(permissions),
+        can_verify_vendor=can_verify_vendor,
+    )

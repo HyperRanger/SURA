@@ -38,6 +38,7 @@ def test_contribution_flow_uses_row_lock(client, auth_headers, monkeypatch):
         json={"vendor_id": "vendor_lock"},
         headers=auth_headers("verifier_user", role="verifier"),
     ).status_code == 200
+    assert client.post("/v1/consent", json={"granted": True}, headers=auth_headers("lock_a")).status_code == 200
     lock_response = client.post(
         "/v1/commitments/lock",
         json={
@@ -53,6 +54,12 @@ def test_contribution_flow_uses_row_lock(client, auth_headers, monkeypatch):
         headers=auth_headers("lock_a"),
     )
     commitment_id = lock_response.json()["commitment_id"]
+    assert client.post("/v1/consent", json={"granted": True}, headers=auth_headers("lock_b")).status_code == 200
+    assert client.post(
+        "/v1/commitments/join",
+        json={"invite_code": lock_response.json()["invite_code"]},
+        headers=auth_headers("lock_b"),
+    ).status_code == 200
 
     response = client.post(
         f"/v1/commitments/{commitment_id}/contribute",

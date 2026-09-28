@@ -18,6 +18,7 @@ from app.services.commitments import (
 )
 
 router = APIRouter(prefix="/v1/commitments", tags=["commitments"])
+consent_router = APIRouter(prefix="/v1", tags=["commitments"])
 
 
 @router.post("/lock", response_model=LockResponse, status_code=status.HTTP_201_CREATED)
@@ -56,7 +57,7 @@ def join_commitment_from_invite(
     return join_commitment(db, payload.invite_code, current_user.user_id)
 
 
-@router.post("/consent")
+@consent_router.post("/consent")
 def record_consent(
     payload: ConsentRequest,
     current_user: AuthPrincipal = Depends(get_current_principal),
