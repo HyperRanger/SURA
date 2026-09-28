@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -75,15 +75,36 @@ class CommitmentBeneficiary(Base):
 
 class Contribution(Base):
     __tablename__ = "contributions"
+    __table_args__ = (
+        UniqueConstraint("commitment_id", "user_id", "event_id", name="uq_contributions_commitment_user_event"),
+    )
 
     id = Column(String, primary_key=True)
     commitment_id = Column(String, ForeignKey("commitments.id"), nullable=False)
     cycle_number = Column(Integer, nullable=False)
     user_id = Column(String, ForeignKey("users.id"), nullable=False)
     amount = Column(Integer, nullable=False)
+    event_id = Column(String, nullable=False)
     status = Column(String, nullable=False, default="full")
     rule_trace_json = Column(Text, nullable=False)
     paid_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Redemption(Base):
+    __tablename__ = "redemptions"
+    __table_args__ = (
+        UniqueConstraint("commitment_id", "cycle_number", name="uq_redemptions_commitment_cycle"),
+    )
+
+    id = Column(String, primary_key=True)
+    commitment_id = Column(String, ForeignKey("commitments.id"), nullable=False)
+    beneficiary_id = Column(String, ForeignKey("users.id"), nullable=False)
+    vendor_id = Column(String, ForeignKey("vendors.id"), nullable=False)
+    cycle_number = Column(Integer, nullable=False)
+    amount = Column(Integer, nullable=False)
+    voucher_code = Column(String, nullable=False, unique=True)
+    status = Column(String, nullable=False, default="settled")
+    redeemed_at = Column(DateTime, default=datetime.utcnow)
 
 
 class ScoreHistory(Base):

@@ -11,6 +11,15 @@ from app.schemas import VendorVerificationRequest
 router = APIRouter(prefix="/v1/vendors", tags=["vendors"])
 
 
+@router.get("")
+def list_verified_vendors(db: Session = Depends(get_db)):
+    vendors = db.query(Vendor).filter(Vendor.verified_at.is_not(None)).order_by(Vendor.name.asc()).all()
+    return [
+        {"vendor_id": vendor.id, "name": vendor.name, "category": vendor.category, "verified": True}
+        for vendor in vendors
+    ]
+
+
 @router.post("/verify", status_code=status.HTTP_200_OK)
 def verify_vendor(
     payload: VendorVerificationRequest,
