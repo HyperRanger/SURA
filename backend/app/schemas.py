@@ -59,3 +59,18 @@ class ScoreResponse(BaseModel):
     score: int
     breakdown: ScoreBreakdown
     last_updated: datetime
+
+
+class ScoreHistoryEntry(BaseModel):
+    score: int
+    old_score: Optional[int] = None
+    event_id: Optional[str] = None
+    reason: Optional[str] = None
+    computed_at: datetime
+    breakdown: Optional[ScoreBreakdown] = None
+
+
+class ScoreHistoryResponse(BaseModel):
+    user_id: str
+    current_score: int
+    entries: List[ScoreHistoryEntry]

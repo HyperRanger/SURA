@@ -115,3 +115,6 @@ class ScoreHistory(Base):
     score = Column(Integer, nullable=False)
     breakdown_json = Column(Text, nullable=False)
     computed_at = Column(DateTime, default=datetime.utcnow)
+    old_score = Column(Integer, nullable=True)
+    event_id = Column(String, nullable=True)
+    reason = Column(String, nullable=True)
