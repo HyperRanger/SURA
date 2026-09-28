@@ -19,6 +19,8 @@ if backend_path not in sys.path:
 
 os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite://")
 os.environ.setdefault("SECRET_KEY", "test-secret-key")
+os.environ.setdefault("JWT_ALGORITHM", "HS256")
+os.environ.setdefault("DEMO_OTP_CODE", "123456")
 
 from app.database import Base, get_db
 from app.main import app
@@ -49,6 +51,7 @@ def client() -> TestClient:
     )
     testing_session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     Base.metadata.create_all(bind=engine)
+    app.state.testing_session = testing_session
 
     def override_get_db():
         db = testing_session()
@@ -63,6 +66,7 @@ def client() -> TestClient:
             yield test_client
     finally:
         app.dependency_overrides.clear()
+        del app.state.testing_session
         Base.metadata.drop_all(bind=engine)
         engine.dispose()
 

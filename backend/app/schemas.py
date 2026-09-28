@@ -18,6 +18,12 @@ class LockRequest(BaseModel):
 
 class ContributionRequest(BaseModel):
     amount: int
+    event_id: str = Field(min_length=1, max_length=128, description="Stable client ID reused for retries of this contribution.")
+
+
+class DemoTokenRequest(BaseModel):
+    user_id: str = Field(min_length=1, max_length=128)
+    otp_code: str = Field(min_length=1, max_length=32)
 
 
 class VendorVerificationRequest(BaseModel):

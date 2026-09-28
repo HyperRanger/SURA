@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models import Commitment, CommitmentBeneficiary, CommitmentMember, Contribution, ScoreHistory, User, Vendor
+from app.models import Commitment, CommitmentBeneficiary, CommitmentMember, Contribution, Redemption, ScoreHistory, User, Vendor
 from app.schemas import ContributionRequest, LockRequest
 from app.services.contribution_engine import dump_rule_trace, evaluate_contribution
 from app.services.payout_rules import apply_anchor_and_cap_rule, build_payout_schedule
@@ -124,6 +124,7 @@ def _serialize_commitment(commitment: Commitment, db: Session) -> dict[str, Any]
                 "contributions": [
                     {
                         "id": contribution.id,
+                        "event_id": contribution.event_id,
                         "user_id": contribution.user_id,
                         "amount": contribution.amount,
                         "paid_at": contribution.paid_at.isoformat() if contribution.paid_at else None,
@@ -167,7 +168,9 @@ def _serialize_commitment(commitment: Commitment, db: Session) -> dict[str, Any]
     }
 
 
-def create_commitment(db: Session, payload: LockRequest) -> tuple[dict[str, Any], dict[str, Any]]:
+def create_commitment(
+    db: Session, payload: LockRequest, authenticated_creator_id: str
+) -> tuple[dict[str, Any], dict[str, Any]]:
     if payload.type != "rotating":
         raise HTTPException(status_code=400, detail="Only rotating commitments are supported.")
     if not payload.members:
@@ -178,7 +181,9 @@ def create_commitment(db: Session, payload: LockRequest) -> tuple[dict[str, Any]
         raise HTTPException(status_code=400, detail="Cycles must be positive.")
 
     member_ids = _normalize_member_ids(payload.members)
-    creator_id = payload.creator_id or member_ids[0]
+    if payload.creator_id and payload.creator_id != authenticated_creator_id:
+        raise HTTPException(status_code=403, detail="creator_id must match the authenticated user.")
+    creator_id = authenticated_creator_id
     if creator_id not in member_ids:
         member_ids = _normalize_member_ids([creator_id, *member_ids])
     if payload.cycles != len(member_ids):
@@ -346,6 +351,32 @@ def record_contribution(
             if member is None:
                 raise HTTPException(status_code=400, detail="User is not a member of this commitment.")
 
+            prior_event = (
+                db.query(Contribution)
+                .filter(
+                    Contribution.commitment_id == commitment_id,
+                    Contribution.user_id == contributor_user_id,
+                    Contribution.event_id == payload.event_id,
+                )
+                .one_or_none()
+            )
+            if prior_event is not None:
+                if prior_event.amount != payload.amount:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="event_id was already used with a different contribution amount.",
+                    )
+                response = _serialize_commitment(commitment, db)
+                response.update(
+                    {
+                        "idempotent_replay": True,
+                        "event_id": prior_event.event_id,
+                        "contribution_status": prior_event.status,
+                        "rule_trace": json.loads(prior_event.rule_trace_json),
+                    }
+                )
+                return response
+
             if payload.amount > commitment.contribution_amount:
                 raise HTTPException(status_code=400, detail="Contribution amount cannot exceed the commitment amount.")
 
@@ -381,6 +412,7 @@ def record_contribution(
                     cycle_number=current_cycle,
                     user_id=contributor_user_id,
                     amount=payload.amount,
+                    event_id=payload.event_id,
                     status="full" if payload.amount == commitment.contribution_amount else "partial",
                     rule_trace_json="{}",
                     paid_at=datetime.utcnow(),
@@ -453,6 +485,8 @@ def record_contribution(
                 {
                     "status": updated_commitment.status,
                     "contribution_status": evaluation.contribution_status,
+                    "event_id": payload.event_id,
+                    "idempotent_replay": False,
                     "cycle_status": evaluation.cycle_status,
                     "completed_cycle": evaluation.cycle_complete,
                     "beneficiary": None,
@@ -480,3 +514,37 @@ def get_commitment_details(db: Session, commitment_id: str) -> dict[str, Any]:
     if commitment is None:
         raise HTTPException(status_code=404, detail="Commitment not found.")
     return _serialize_commitment(commitment, db)
+
+
+def redeem_cycle(db: Session, commitment_id: str, beneficiary_id: str) -> dict[str, Any]:
+    with db.begin():
+        commitment = db.get(Commitment, commitment_id)
+        if commitment is None:
+            raise HTTPException(status_code=404, detail="Commitment not found.")
+        vendor = db.get(Vendor, commitment.vendor_id)
+        if vendor is None or vendor.verified_at is None:
+            raise HTTPException(status_code=400, detail="Commitment vendor is not verified.")
+        beneficiary = (db.query(CommitmentBeneficiary)
+            .filter(CommitmentBeneficiary.commitment_id == commitment_id,
+                    CommitmentBeneficiary.user_id == beneficiary_id)
+            .order_by(CommitmentBeneficiary.cycle_number.asc()).first())
+        if beneficiary is None:
+            raise HTTPException(status_code=403, detail="No cycle is available for this beneficiary.")
+        existing = (db.query(Redemption)
+            .filter(Redemption.commitment_id == commitment_id,
+                    Redemption.cycle_number == beneficiary.cycle_number).one_or_none())
+        if existing is not None:
+            raise HTTPException(status_code=409, detail="This cycle has already been redeemed.")
+        if beneficiary.status != "paid":
+            raise HTTPException(status_code=400, detail="This beneficiary cycle is not ready for redemption.")
+        voucher_code = f"SURA-{uuid.uuid4().hex[:10].upper()}"
+        redemption = Redemption(id=str(uuid.uuid4()), commitment_id=commitment_id,
+            beneficiary_id=beneficiary_id, vendor_id=commitment.vendor_id,
+            cycle_number=beneficiary.cycle_number, amount=beneficiary.payout_amount,
+            voucher_code=voucher_code, status="settled", redeemed_at=datetime.utcnow())
+        db.add(redemption)
+        beneficiary.status = "redeemed"
+        return {"redemption_id": redemption.id, "commitment_id": commitment_id,
+            "vendor_id": redemption.vendor_id, "cycle_number": redemption.cycle_number,
+            "amount": redemption.amount, "voucher_code": voucher_code,
+            "status": redemption.status, "redeemed_at": redemption.redeemed_at.isoformat()}

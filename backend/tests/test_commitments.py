@@ -50,12 +50,13 @@ def test_contribution_flow_uses_row_lock(client, auth_headers, monkeypatch):
             "members": ["lock_a", "lock_b"],
             "payout_order": ["lock_a", "lock_b"],
         },
+        headers=auth_headers("lock_a"),
     )
     commitment_id = lock_response.json()["commitment_id"]
 
     response = client.post(
         f"/v1/commitments/{commitment_id}/contribute",
-        json={"amount": 1000},
+        json={"amount": 1000, "event_id": "evt_row_lock_1"},
         headers=auth_headers("lock_a"),
     )
     assert response.status_code == 200

@@ -4,6 +4,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.auth import AuthPrincipal, get_current_principal
 from app.database import get_db
 from app.models import ScoreHistory
 from app.schemas import ScoreBreakdown, ScoreResponse
@@ -13,7 +14,11 @@ router = APIRouter(prefix="/v1", tags=["score"])
 
 
 @router.get("/score/{user_id}", response_model=ScoreResponse)
-def get_score(user_id: str, db: Session = Depends(get_db)):
+def get_score(
+    user_id: str,
+    current_user: AuthPrincipal = Depends(get_current_principal),
+    db: Session = Depends(get_db),
+):
     latest = (
         db.query(ScoreHistory)
         .filter(ScoreHistory.user_id == user_id)

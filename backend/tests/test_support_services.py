@@ -10,7 +10,7 @@ def lock_commitment(client, auth_headers, payload):
         headers=auth_headers("verifier_user", role="verifier"),
     )
     assert vendor_response.status_code == 200
-    return client.post("/v1/commitments/lock", json=payload)
+    return client.post("/v1/commitments/lock", json=payload, headers=auth_headers(payload["members"][0]))
 
 
 def test_lock_endpoint_creates_commitment(client, auth_headers):
@@ -50,7 +50,7 @@ def test_commitment_lifecycle_persists_and_advances_cycle(client, auth_headers):
 
     first_contribution = client.post(
         f"/v1/commitments/{commitment_id}/contribute",
-        json={"amount": 1500},
+        json={"amount": 1500, "event_id": "evt_lifecycle_a_1"},
         headers=auth_headers("user_lifecycle_a"),
     )
     assert first_contribution.status_code == 200
@@ -60,7 +60,7 @@ def test_commitment_lifecycle_persists_and_advances_cycle(client, auth_headers):
 
     second_contribution = client.post(
         f"/v1/commitments/{commitment_id}/contribute",
-        json={"amount": 1500},
+        json={"amount": 1500, "event_id": "evt_lifecycle_b_1"},
         headers=auth_headers("user_lifecycle_b"),
     )
     assert second_contribution.status_code == 200
@@ -68,7 +68,7 @@ def test_commitment_lifecycle_persists_and_advances_cycle(client, auth_headers):
     assert second_body["completed_cycle"] is True
     assert second_body["beneficiary"]["user_id"] == "user_lifecycle_a"
 
-    commitment_response = client.get(f"/v1/commitments/{commitment_id}")
+    commitment_response = client.get(f"/v1/commitments/{commitment_id}", headers=auth_headers("user_lifecycle_a"))
     assert commitment_response.status_code == 200
     commitment_body = commitment_response.json()
     assert commitment_body["completed_cycle_count"] == 1
@@ -92,7 +92,7 @@ def test_unauthenticated_contribution_is_rejected(client, auth_headers):
     )
     commitment_id = lock_response.json()["commitment_id"]
 
-    response = client.post(f"/v1/commitments/{commitment_id}/contribute", json={"amount": 900})
+    response = client.post(f"/v1/commitments/{commitment_id}/contribute", json={"amount": 900, "event_id": "evt_unauthenticated"})
     assert response.status_code == 401
 
 
@@ -114,7 +114,7 @@ def test_contribution_actor_is_bound_to_authenticated_user(client, auth_headers)
 
     response = client.post(
         f"/v1/commitments/{commitment_id}/contribute",
-        json={"amount": 1000, "user_id": "member_b"},
+        json={"amount": 1000, "event_id": "evt_bound_actor", "user_id": "member_b"},
         headers=auth_headers("member_a"),
     )
     assert response.status_code == 200
@@ -140,7 +140,7 @@ def test_contribution_rejects_non_member(client, auth_headers):
 
     response = client.post(
         f"/v1/commitments/{commitment_id}/contribute",
-        json={"amount": 900},
+        json={"amount": 900, "event_id": "evt_non_member"},
         headers=auth_headers("outsider"),
     )
     assert response.status_code == 400
@@ -164,17 +164,96 @@ def test_member_cannot_over_contribute_in_cycle(client, auth_headers):
 
     first_response = client.post(
         f"/v1/commitments/{commitment_id}/contribute",
-        json={"amount": 600},
+        json={"amount": 600, "event_id": "evt_guard_partial"},
         headers=auth_headers("guard_a"),
     )
     assert first_response.status_code == 200
 
     second_response = client.post(
         f"/v1/commitments/{commitment_id}/contribute",
-        json={"amount": 500},
+        json={"amount": 500, "event_id": "evt_guard_over"},
         headers=auth_headers("guard_a"),
     )
     assert second_response.status_code == 400
+
+
+def test_contribution_event_id_replays_without_a_second_charge(client, auth_headers):
+    lock_response = lock_commitment(
+        client,
+        auth_headers,
+        {
+            "type": "rotating",
+            "title": "Retry-safe contribution",
+            "vendor_id": "vendor_idempotency",
+            "contribution_amount": 1000,
+            "contribution_frequency": "weekly",
+            "cycles": 2,
+            "members": ["retry_a", "retry_b"],
+        },
+    )
+    commitment_id = lock_response.json()["commitment_id"]
+    payload = {"amount": 1000, "event_id": "evt_retry_a_cycle_1"}
+
+    first = client.post(
+        f"/v1/commitments/{commitment_id}/contribute", json=payload, headers=auth_headers("retry_a")
+    )
+    assert first.status_code == 200
+    assert first.json()["idempotent_replay"] is False
+
+    replay = client.post(
+        f"/v1/commitments/{commitment_id}/contribute", json=payload, headers=auth_headers("retry_a")
+    )
+    assert replay.status_code == 200
+    assert replay.json()["idempotent_replay"] is True
+    assert len(replay.json()["contributions"]) == 1
+
+
+def test_contribution_event_id_cannot_be_reused_with_a_different_amount(client, auth_headers):
+    lock_response = lock_commitment(
+        client,
+        auth_headers,
+        {
+            "type": "rotating",
+            "title": "Retry conflict",
+            "vendor_id": "vendor_idempotency_conflict",
+            "contribution_amount": 1000,
+            "contribution_frequency": "weekly",
+            "cycles": 2,
+            "members": ["retry_conflict_a", "retry_conflict_b"],
+        },
+    )
+    commitment_id = lock_response.json()["commitment_id"]
+    headers = auth_headers("retry_conflict_a")
+    assert client.post(
+        f"/v1/commitments/{commitment_id}/contribute",
+        json={"amount": 600, "event_id": "evt_conflict"}, headers=headers,
+    ).status_code == 200
+    conflict = client.post(
+        f"/v1/commitments/{commitment_id}/contribute",
+        json={"amount": 500, "event_id": "evt_conflict"}, headers=headers,
+    )
+    assert conflict.status_code == 409
+
+
+def test_contribution_requires_an_event_id(client, auth_headers):
+    lock_response = lock_commitment(
+        client,
+        auth_headers,
+        {
+            "type": "rotating",
+            "title": "Event ID required",
+            "vendor_id": "vendor_event_required",
+            "contribution_amount": 1000,
+            "contribution_frequency": "weekly",
+            "cycles": 2,
+            "members": ["event_a", "event_b"],
+        },
+    )
+    response = client.post(
+        f"/v1/commitments/{lock_response.json()['commitment_id']}/contribute",
+        json={"amount": 1000}, headers=auth_headers("event_a"),
+    )
+    assert response.status_code == 422
 
 
 def test_unauthorized_user_cannot_verify_vendor(client, auth_headers):

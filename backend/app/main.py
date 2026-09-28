@@ -5,6 +5,7 @@ from fastapi import status
 from sqlalchemy import text
 
 from app.database import get_db
+from app.routers.auth import router as auth_router
 from sqlalchemy.orm import Session
 from app.routers.commitments import router as commitments_router
 from app.routers.score import router as score_router
@@ -21,6 +22,7 @@ app.add_middleware(
 )
 
 app.include_router(commitments_router)
+app.include_router(auth_router)
 app.include_router(vendors_router)
 app.include_router(score_router)
 
