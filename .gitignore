@@ -1,0 +1,54 @@
+# Project docs and generated artifacts
+docs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+.python-version
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Virtualenv / env files
+.env
+.env.*
+*.env
+!.env.example
+!**/.env.example
+
+# Build / packaging
+build/
+dist/
+site/
+node_modules/
+.npm/
+.pnpm-store/
+.parcel-cache/
+.next/
+.nuxt/
+.svelte-kit/
+
+# Databases / local state
+*.sqlite3
+*.db
+*.sqlite
+
+# Logs / temp
+*.log
+tmp/
+temp/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
