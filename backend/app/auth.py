@@ -13,7 +13,10 @@ class AuthPrincipal:
     user_id: str
     role: str | None = None
     permissions: tuple[str, ...] = ()
-    can_verify_vendor: bool = False
+
+    @property
+    def can_verify_vendor(self) -> bool:
+        return self.role in {"admin", "verifier"} or "vendor:verify" in self.permissions
 
     @property
     def can_redeem_vendor_vouchers(self) -> bool:
@@ -37,10 +40,8 @@ def get_current_principal(
 
     role = claims.get("role")
     permissions = claims.get("permissions") or []
-    can_verify_vendor = role in {"admin", "verifier"} or "vendor:verify" in permissions
     return AuthPrincipal(
         user_id=user_id,
         role=role,
         permissions=tuple(permissions),
-        can_verify_vendor=can_verify_vendor,
     )
