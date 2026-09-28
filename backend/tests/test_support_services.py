@@ -48,6 +48,13 @@ def test_commitment_lifecycle_persists_and_advances_cycle(client, auth_headers):
     assert lock_response.status_code == 201
     commitment_id = lock_response.json()["commitment_id"]
 
+    join_response = client.post(
+        "/v1/commitments/join",
+        json={"invite_code": lock_response.json()["invite_code"]},
+        headers=auth_headers("user_lifecycle_b"),
+    )
+    assert join_response.status_code == 200
+
     first_contribution = client.post(
         f"/v1/commitments/{commitment_id}/contribute",
         json={"amount": 1500, "event_id": "evt_lifecycle_a_1"},
@@ -143,7 +150,7 @@ def test_contribution_rejects_non_member(client, auth_headers):
         json={"amount": 900, "event_id": "evt_non_member"},
         headers=auth_headers("outsider"),
     )
-    assert response.status_code == 400
+    assert response.status_code == 403
 
 
 def test_member_cannot_over_contribute_in_cycle(client, auth_headers):

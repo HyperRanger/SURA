@@ -7,13 +7,118 @@ from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models import Commitment, CommitmentBeneficiary, CommitmentMember, Contribution, Redemption, ScoreHistory, User, Vendor
+from app.models import (
+    Commitment,
+    CommitmentActivity,
+    CommitmentBeneficiary,
+    CommitmentMember,
+    Contribution,
+    Redemption,
+    ScoreHistory,
+    User,
+    UserConsent,
+    Vendor,
+    Voucher,
+)
 from app.schemas import ContributionRequest, LockRequest
 from app.services.contribution_engine import dump_rule_trace, evaluate_contribution
 from app.services.payout_rules import apply_anchor_and_cap_rule, build_payout_schedule
 from app.services.scoring import build_score_snapshot, serialize_score_snapshot
 
 ENTRY_TIER_SCORE = 12
+
+
+def _record_activity(
+    db: Session,
+    commitment_id: str,
+    event_type: str,
+    *,
+    actor_user_id: str | None = None,
+    cycle_number: int | None = None,
+    details: dict[str, Any] | None = None,
+) -> None:
+    db.add(
+        CommitmentActivity(
+            id=str(uuid.uuid4()),
+            commitment_id=commitment_id,
+            event_type=event_type,
+            actor_user_id=actor_user_id,
+            cycle_number=cycle_number,
+            detail_json=json.dumps(details or {}),
+            occurred_at=datetime.utcnow(),
+        )
+    )
+
+
+def _serialize_voucher(voucher: Voucher) -> dict[str, Any]:
+    return {
+        "voucher_id": voucher.id,
+        "commitment_id": voucher.commitment_id,
+        "beneficiary_id": voucher.beneficiary_id,
+        "vendor_id": voucher.vendor_id,
+        "cycle_number": voucher.cycle_number,
+        "amount": voucher.amount,
+        "voucher_code": voucher.code,
+        "status": voucher.status,
+        "issued_at": voucher.issued_at.isoformat() if voucher.issued_at else None,
+        "redeemed_at": voucher.redeemed_at.isoformat() if voucher.redeemed_at else None,
+    }
+
+
+def _issue_voucher_if_needed(
+    db: Session,
+    commitment: Commitment,
+    beneficiary: CommitmentBeneficiary,
+) -> Voucher:
+    voucher = (
+        db.query(Voucher)
+        .filter(Voucher.commitment_id == commitment.id, Voucher.cycle_number == beneficiary.cycle_number)
+        .one_or_none()
+    )
+    if voucher is not None:
+        return voucher
+    voucher = Voucher(
+        id=str(uuid.uuid4()),
+        commitment_id=commitment.id,
+        beneficiary_id=beneficiary.user_id,
+        vendor_id=commitment.vendor_id,
+        cycle_number=beneficiary.cycle_number,
+        amount=beneficiary.payout_amount,
+        code=f"SURA-{uuid.uuid4().hex[:10].upper()}",
+        status="ready",
+        issued_at=datetime.utcnow(),
+    )
+    db.add(voucher)
+    _record_activity(
+        db,
+        commitment.id,
+        "voucher_issued",
+        cycle_number=beneficiary.cycle_number,
+        details={"beneficiary_id": beneficiary.user_id, "vendor_id": commitment.vendor_id, "amount": beneficiary.payout_amount},
+    )
+    return voucher
+
+
+def _require_member(db: Session, commitment_id: str, user_id: str) -> CommitmentMember:
+    member = (
+        db.query(CommitmentMember)
+        .filter(CommitmentMember.commitment_id == commitment_id, CommitmentMember.user_id == user_id)
+        .one_or_none()
+    )
+    if member is None:
+        raise HTTPException(status_code=403, detail="You are not a member of this commitment.")
+    return member
+
+
+def _activate_if_fully_joined(db: Session, commitment: Commitment) -> None:
+    db.flush()
+    invited_count = (
+        db.query(CommitmentMember)
+        .filter(CommitmentMember.commitment_id == commitment.id, CommitmentMember.role == "invited")
+        .count()
+    )
+    if invited_count == 0 and commitment.status == "pending_members":
+        commitment.status = "active"
 
 
 def _normalize_member_ids(member_ids: list[str]) -> list[str]:
@@ -101,6 +206,12 @@ def _serialize_commitment(commitment: Commitment, db: Session) -> dict[str, Any]
         .order_by(Contribution.cycle_number.asc(), Contribution.paid_at.asc(), Contribution.user_id.asc())
         .all()
     )
+    vouchers = (
+        db.query(Voucher)
+        .filter(Voucher.commitment_id == commitment.id)
+        .order_by(Voucher.cycle_number.asc())
+        .all()
+    )
 
     return {
         "commitment_id": commitment.id,
@@ -165,6 +276,7 @@ def _serialize_commitment(commitment: Commitment, db: Session) -> dict[str, Any]
             }
             for contribution in contributions
         ],
+        "vouchers": [_serialize_voucher(voucher) for voucher in vouchers],
     }
 
 
@@ -234,7 +346,7 @@ def create_commitment(
                     CommitmentMember(
                         commitment_id=commitment.id,
                         user_id=member_id,
-                        role="contributor",
+                        role="creator" if member_id == creator_id else "invited",
                         joined_at=datetime.utcnow(),
                     )
                 )
@@ -250,6 +362,14 @@ def create_commitment(
                         status="scheduled",
                     )
                 )
+
+            _record_activity(
+                db,
+                commitment.id,
+                "commitment_created",
+                actor_user_id=creator_id,
+                details={"title": commitment.title, "vendor_id": commitment.vendor_id, "member_count": len(member_ids)},
+            )
 
             return _serialize_commitment(commitment, db), {
                 "commitment_id": commitment.id,
@@ -343,13 +463,9 @@ def record_contribution(
             if commitment.status == "completed":
                 raise HTTPException(status_code=400, detail="Commitment is not accepting contributions.")
 
-            member = (
-                db.query(CommitmentMember)
-                .filter(CommitmentMember.commitment_id == commitment_id, CommitmentMember.user_id == contributor_user_id)
-                .one_or_none()
-            )
-            if member is None:
-                raise HTTPException(status_code=400, detail="User is not a member of this commitment.")
+            member = _require_member(db, commitment_id, contributor_user_id)
+            if member.role == "invited":
+                raise HTTPException(status_code=400, detail="Join this commitment before contributing.")
 
             prior_event = (
                 db.query(Contribution)
@@ -450,6 +566,14 @@ def record_contribution(
             )
             contribution_row.status = evaluation.contribution_status
             contribution_row.rule_trace_json = dump_rule_trace(evaluation)
+            _record_activity(
+                db,
+                commitment_id,
+                "contribution_recorded",
+                actor_user_id=contributor_user_id,
+                cycle_number=current_cycle,
+                details={"amount": payload.amount, "status": evaluation.contribution_status, "event_id": payload.event_id},
+            )
 
             beneficiary_row = (
                 db.query(CommitmentBeneficiary)
@@ -463,6 +587,14 @@ def record_contribution(
             if evaluation.cycle_complete:
                 if beneficiary_row is not None:
                     beneficiary_row.status = "paid"
+                    _issue_voucher_if_needed(db, commitment, beneficiary_row)
+                    _record_activity(
+                        db,
+                        commitment_id,
+                        "cycle_paid",
+                        cycle_number=current_cycle,
+                        details={"beneficiary_id": beneficiary_row.user_id, "amount": beneficiary_row.payout_amount},
+                    )
 
                 commitment.completed_cycle_count += 1
                 if current_cycle >= commitment.cycles:
@@ -509,42 +641,284 @@ def record_contribution(
         raise HTTPException(status_code=500, detail="Failed to record contribution.") from exc
 
 
-def get_commitment_details(db: Session, commitment_id: str) -> dict[str, Any]:
+def get_commitment_details(db: Session, commitment_id: str, requester_user_id: str) -> dict[str, Any]:
     commitment = db.get(Commitment, commitment_id)
     if commitment is None:
         raise HTTPException(status_code=404, detail="Commitment not found.")
+    _require_member(db, commitment_id, requester_user_id)
     return _serialize_commitment(commitment, db)
 
 
-def redeem_cycle(db: Session, commitment_id: str, beneficiary_id: str) -> dict[str, Any]:
+def list_member_commitments(db: Session, user_id: str) -> list[dict[str, Any]]:
+    commitments = (
+        db.query(Commitment)
+        .join(CommitmentMember, CommitmentMember.commitment_id == Commitment.id)
+        .filter(CommitmentMember.user_id == user_id)
+        .order_by(Commitment.created_at.desc(), Commitment.id.desc())
+        .all()
+    )
+    return [_serialize_commitment(commitment, db) for commitment in commitments]
+
+
+def preview_commitment_by_code(db: Session, invite_code: str, user_id: str) -> dict[str, Any]:
+    commitment = db.query(Commitment).filter(Commitment.invite_code == invite_code).one_or_none()
+    if commitment is None or commitment.status == "cancelled":
+        raise HTTPException(status_code=404, detail="Commitment invite was not found.")
+    member = _require_member(db, commitment.id, user_id)
+    preview = _serialize_commitment(commitment, db)
+    preview["join_status"] = "joined" if member.role != "invited" else "invited"
+    return preview
+
+
+def join_commitment(db: Session, invite_code: str, user_id: str) -> dict[str, Any]:
     with db.begin():
-        commitment = db.get(Commitment, commitment_id)
+        commitment = (
+            db.query(Commitment)
+            .filter(Commitment.invite_code == invite_code)
+            .with_for_update()
+            .one_or_none()
+        )
+        if commitment is None or commitment.status == "cancelled":
+            raise HTTPException(status_code=404, detail="Commitment invite was not found.")
+        if commitment.status not in {"pending_members", "active"}:
+            raise HTTPException(status_code=400, detail="This commitment is no longer accepting members.")
+        member = _require_member(db, commitment.id, user_id)
+        if member.role == "invited":
+            member.role = "contributor"
+            member.joined_at = datetime.utcnow()
+            _record_activity(
+                db,
+                commitment.id,
+                "member_joined",
+                actor_user_id=user_id,
+                details={"user_id": user_id},
+            )
+            _activate_if_fully_joined(db, commitment)
+        response = _serialize_commitment(commitment, db)
+        response["join_status"] = "joined"
+        return response
+
+
+def record_score_consent(db: Session, user_id: str, granted: bool) -> dict[str, Any]:
+    with db.begin():
+        consent = (
+            db.query(UserConsent)
+            .filter(UserConsent.user_id == user_id, UserConsent.consent_type == "score_processing")
+            .one_or_none()
+        )
+        if consent is None:
+            consent = UserConsent(
+                id=str(uuid.uuid4()),
+                user_id=user_id,
+                consent_type="score_processing",
+                granted=granted,
+                recorded_at=datetime.utcnow(),
+            )
+            db.add(consent)
+        else:
+            consent.granted = granted
+            consent.recorded_at = datetime.utcnow()
+        return {
+            "user_id": user_id,
+            "consent_type": consent.consent_type,
+            "granted": consent.granted,
+            "recorded_at": consent.recorded_at.isoformat() if consent.recorded_at else None,
+        }
+
+
+def get_commitment_activity(db: Session, commitment_id: str, requester_user_id: str) -> list[dict[str, Any]]:
+    _require_member(db, commitment_id, requester_user_id)
+    activity_rows = (
+        db.query(CommitmentActivity)
+        .filter(CommitmentActivity.commitment_id == commitment_id)
+        .order_by(CommitmentActivity.occurred_at.asc(), CommitmentActivity.id.asc())
+        .all()
+    )
+    return [
+        {
+            "id": item.id,
+            "event_type": item.event_type,
+            "actor_user_id": item.actor_user_id,
+            "cycle_number": item.cycle_number,
+            "details": json.loads(item.detail_json),
+            "occurred_at": item.occurred_at.isoformat() if item.occurred_at else None,
+        }
+        for item in activity_rows
+    ]
+
+
+def cancel_pending_commitment(db: Session, commitment_id: str, requester_user_id: str) -> dict[str, Any]:
+    with db.begin():
+        commitment = (
+            db.query(Commitment)
+            .filter(Commitment.id == commitment_id)
+            .with_for_update()
+            .one_or_none()
+        )
         if commitment is None:
             raise HTTPException(status_code=404, detail="Commitment not found.")
-        vendor = db.get(Vendor, commitment.vendor_id)
-        if vendor is None or vendor.verified_at is None:
-            raise HTTPException(status_code=400, detail="Commitment vendor is not verified.")
-        beneficiary = (db.query(CommitmentBeneficiary)
-            .filter(CommitmentBeneficiary.commitment_id == commitment_id,
-                    CommitmentBeneficiary.user_id == beneficiary_id)
-            .order_by(CommitmentBeneficiary.cycle_number.asc()).first())
-        if beneficiary is None:
-            raise HTTPException(status_code=403, detail="No cycle is available for this beneficiary.")
-        existing = (db.query(Redemption)
-            .filter(Redemption.commitment_id == commitment_id,
-                    Redemption.cycle_number == beneficiary.cycle_number).one_or_none())
-        if existing is not None:
-            raise HTTPException(status_code=409, detail="This cycle has already been redeemed.")
-        if beneficiary.status != "paid":
-            raise HTTPException(status_code=400, detail="This beneficiary cycle is not ready for redemption.")
-        voucher_code = f"SURA-{uuid.uuid4().hex[:10].upper()}"
-        redemption = Redemption(id=str(uuid.uuid4()), commitment_id=commitment_id,
-            beneficiary_id=beneficiary_id, vendor_id=commitment.vendor_id,
-            cycle_number=beneficiary.cycle_number, amount=beneficiary.payout_amount,
-            voucher_code=voucher_code, status="settled", redeemed_at=datetime.utcnow())
+        if commitment.creator_id != requester_user_id:
+            raise HTTPException(status_code=403, detail="Only the commitment creator can cancel it.")
+        if commitment.status != "pending_members":
+            raise HTTPException(status_code=400, detail="Only pending commitments can be cancelled.")
+        commitment.status = "cancelled"
+        _record_activity(db, commitment_id, "commitment_cancelled", actor_user_id=requester_user_id)
+        return _serialize_commitment(commitment, db)
+
+
+def get_cycle_voucher(
+    db: Session, commitment_id: str, cycle_number: int, requester_user_id: str
+) -> dict[str, Any]:
+    commitment = db.get(Commitment, commitment_id)
+    if commitment is None:
+        raise HTTPException(status_code=404, detail="Commitment not found.")
+    _require_member(db, commitment_id, requester_user_id)
+    beneficiary = (
+        db.query(CommitmentBeneficiary)
+        .filter(
+            CommitmentBeneficiary.commitment_id == commitment_id,
+            CommitmentBeneficiary.cycle_number == cycle_number,
+        )
+        .one_or_none()
+    )
+    if beneficiary is None:
+        raise HTTPException(status_code=404, detail="Cycle not found.")
+    if beneficiary.user_id != requester_user_id:
+        raise HTTPException(status_code=403, detail="Only this cycle's beneficiary may view its voucher.")
+    voucher = (
+        db.query(Voucher)
+        .filter(Voucher.commitment_id == commitment_id, Voucher.cycle_number == cycle_number)
+        .one_or_none()
+    )
+    if voucher is not None:
+        return _serialize_voucher(voucher)
+    if beneficiary.status == "redeemed":
+        redemption = (
+            db.query(Redemption)
+            .filter(Redemption.commitment_id == commitment_id, Redemption.cycle_number == cycle_number)
+            .one_or_none()
+        )
+        if redemption is not None:
+            return {
+                "commitment_id": commitment_id,
+                "beneficiary_id": beneficiary.user_id,
+                "vendor_id": redemption.vendor_id,
+                "cycle_number": cycle_number,
+                "amount": redemption.amount,
+                "voucher_code": redemption.voucher_code,
+                "status": "redeemed",
+                "issued_at": None,
+                "redeemed_at": redemption.redeemed_at.isoformat() if redemption.redeemed_at else None,
+            }
+    return {
+        "commitment_id": commitment_id,
+        "beneficiary_id": beneficiary.user_id,
+        "vendor_id": commitment.vendor_id,
+        "cycle_number": cycle_number,
+        "amount": beneficiary.payout_amount,
+        "voucher_code": None,
+        "status": "locked",
+        "issued_at": None,
+        "redeemed_at": None,
+    }
+
+
+def validate_vendor_voucher(db: Session, voucher_code: str, vendor_id: str) -> dict[str, Any]:
+    voucher = db.query(Voucher).filter(Voucher.code == voucher_code).one_or_none()
+    if voucher is None:
+        raise HTTPException(status_code=404, detail="Voucher is invalid.")
+    if voucher.vendor_id != vendor_id:
+        raise HTTPException(status_code=403, detail="Voucher is locked to a different vendor.")
+    if voucher.status == "redeemed":
+        raise HTTPException(status_code=409, detail="Voucher has already been redeemed.")
+    if voucher.status != "ready":
+        raise HTTPException(status_code=400, detail="Voucher is not ready for redemption.")
+    commitment = db.get(Commitment, voucher.commitment_id)
+    return {
+        "voucher": _serialize_voucher(voucher),
+        "commitment_title": commitment.title if commitment else None,
+        "beneficiary_id": voucher.beneficiary_id,
+    }
+
+
+def redeem_vendor_voucher(db: Session, voucher_code: str, vendor_id: str) -> dict[str, Any]:
+    with db.begin():
+        voucher = (
+            db.query(Voucher)
+            .filter(Voucher.code == voucher_code)
+            .with_for_update()
+            .one_or_none()
+        )
+        if voucher is None:
+            raise HTTPException(status_code=404, detail="Voucher is invalid.")
+        if voucher.vendor_id != vendor_id:
+            raise HTTPException(status_code=403, detail="Voucher is locked to a different vendor.")
+        if voucher.status == "redeemed":
+            raise HTTPException(status_code=409, detail="Voucher has already been redeemed.")
+        if voucher.status != "ready":
+            raise HTTPException(status_code=400, detail="Voucher is not ready for redemption.")
+        beneficiary = (
+            db.query(CommitmentBeneficiary)
+            .filter(
+                CommitmentBeneficiary.commitment_id == voucher.commitment_id,
+                CommitmentBeneficiary.cycle_number == voucher.cycle_number,
+            )
+            .one_or_none()
+        )
+        if beneficiary is None or beneficiary.status != "paid":
+            raise HTTPException(status_code=400, detail="Voucher cycle is not ready for redemption.")
+        redemption = Redemption(
+            id=str(uuid.uuid4()),
+            commitment_id=voucher.commitment_id,
+            beneficiary_id=voucher.beneficiary_id,
+            vendor_id=voucher.vendor_id,
+            cycle_number=voucher.cycle_number,
+            amount=voucher.amount,
+            voucher_code=voucher.code,
+            status="settled",
+            redeemed_at=datetime.utcnow(),
+        )
         db.add(redemption)
         beneficiary.status = "redeemed"
-        return {"redemption_id": redemption.id, "commitment_id": commitment_id,
-            "vendor_id": redemption.vendor_id, "cycle_number": redemption.cycle_number,
-            "amount": redemption.amount, "voucher_code": voucher_code,
-            "status": redemption.status, "redeemed_at": redemption.redeemed_at.isoformat()}
+        voucher.status = "redeemed"
+        voucher.redeemed_at = redemption.redeemed_at
+        _record_activity(
+            db,
+            voucher.commitment_id,
+            "voucher_redeemed",
+            actor_user_id=vendor_id,
+            cycle_number=voucher.cycle_number,
+            details={"vendor_id": vendor_id, "amount": voucher.amount, "voucher_code": voucher.code},
+        )
+        return {
+            "redemption_id": redemption.id,
+            "commitment_id": voucher.commitment_id,
+            "vendor_id": redemption.vendor_id,
+            "cycle_number": redemption.cycle_number,
+            "amount": redemption.amount,
+            "voucher_code": voucher.code,
+            "status": redemption.status,
+            "redeemed_at": redemption.redeemed_at.isoformat(),
+        }
+
+
+def list_vendor_redemptions(db: Session, vendor_id: str) -> list[dict[str, Any]]:
+    rows = (
+        db.query(Redemption)
+        .filter(Redemption.vendor_id == vendor_id)
+        .order_by(Redemption.redeemed_at.desc(), Redemption.id.desc())
+        .all()
+    )
+    return [
+        {
+            "redemption_id": redemption.id,
+            "commitment_id": redemption.commitment_id,
+            "beneficiary_id": redemption.beneficiary_id,
+            "cycle_number": redemption.cycle_number,
+            "amount": redemption.amount,
+            "voucher_code": redemption.voucher_code,
+            "status": redemption.status,
+            "redeemed_at": redemption.redeemed_at.isoformat() if redemption.redeemed_at else None,
+        }
+        for redemption in rows
+    ]

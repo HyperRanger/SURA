@@ -32,6 +32,18 @@ class VendorVerificationRequest(BaseModel):
     category: Optional[str] = None
 
 
+class ConsentRequest(BaseModel):
+    granted: bool
+
+
+class JoinCommitmentRequest(BaseModel):
+    invite_code: str = Field(min_length=1, max_length=64)
+
+
+class VendorRedeemRequest(BaseModel):
+    voucher_code: str = Field(min_length=1, max_length=64)
+
+
 class PayoutScheduleItem(BaseModel):
     cycle: int
     beneficiary_id: str
