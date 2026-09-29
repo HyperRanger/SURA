@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -24,6 +24,44 @@ class ContributionRequest(BaseModel):
 class DemoTokenRequest(BaseModel):
     user_id: str = Field(min_length=1, max_length=128)
     otp_code: str = Field(min_length=1, max_length=32)
+
+
+INDIVIDUAL_CONTEXTS = {"student", "trader", "freelancer", "other"}
+
+
+class SignupRequest(BaseModel):
+    """P2. The role is one of the two a person may pick for themselves; bank and
+    admin accounts are provisioned and are rejected here."""
+
+    role: Literal["individual", "vendor"]
+    phone: str = Field(min_length=7, max_length=32)
+    name: str = Field(min_length=1, max_length=200)
+
+    context: Optional[Literal["student", "trader", "freelancer", "other"]] = None
+    terms_accepted: bool = False
+
+    business_name: Optional[str] = Field(default=None, max_length=200)
+    business_category: Optional[str] = Field(default=None, max_length=120)
+    business_phone: Optional[str] = Field(default=None, max_length=32)
+
+
+class LoginRequest(BaseModel):
+    """P3."""
+
+    phone: str = Field(min_length=7, max_length=32)
+
+
+class VerifyOtpRequest(BaseModel):
+    """P4."""
+
+    challenge_id: str = Field(min_length=1, max_length=64)
+    code: str = Field(min_length=4, max_length=12)
+
+
+class DemoLoginAsRequest(BaseModel):
+    """P8. Non-production only."""
+
+    role: Literal["individual", "vendor", "bank"] = "individual"
 
 
 class VendorVerificationRequest(BaseModel):

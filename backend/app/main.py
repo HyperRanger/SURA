@@ -6,6 +6,8 @@ from sqlalchemy import text
 
 from app.database import get_db
 from app.routers.auth import router as auth_router
+from app.routers.auth import demo_router as demo_router
+from app.routers.auth import profile_router as profile_router
 from sqlalchemy.orm import Session
 from app.routers.commitments import consent_router, router as commitments_router
 from app.routers.score import router as score_router
@@ -28,6 +30,8 @@ app.include_router(auth_router)
 app.include_router(vendors_router)
 app.include_router(score_router)
 app.include_router(bank_router)
+app.include_router(profile_router)
+app.include_router(demo_router)
 
 
 def _check_database(db: Session) -> bool:
