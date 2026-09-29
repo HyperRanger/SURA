@@ -56,7 +56,7 @@ app.include_router(auth_router)
 app.include_router(vendors_router)
 app.include_router(score_router)
 app.include_router(bank_router)
-app.include_router(bank_auth_router)
+app.include_router(bank_integration_router)
 app.include_router(profile_router)
 app.include_router(demo_router)
 

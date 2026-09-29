@@ -19,6 +19,12 @@ Sura helps banks and fintechs offer a more transparent and more usable alternati
 
 This repository is the project home for the full Sura vision, but the current implementation scope is deliberately backend first. The core product logic, API layer, schema design, scoring engine, and deployment ready backend structure live here.
 
+## October 8 demo boundary
+
+The live demo proves one rotating Sura Lock from four perspectives: members create and fund it, the matching vendor redeems its vendor-locked voucher, and the bank sees the same commitment, settlement, score movement, and audit evidence.
+
+Sura Float is roadmap-only for this demo. Bank settlement and account-rail activity are simulated; Sura does not custody money, execute real transfers, replace the bank's lender-of-record role, or take ownership of the customer relationship.
+
 ## Contents
 
 - Why Sura exists
@@ -110,14 +116,12 @@ PostgreSQL   via SQLAlchemy models and Alembic migrations
 
 | Area | State |
 |---|---|
-| Score rule engine (`app/services/scoring.py`) | Implemented and tested |
-| Score golden set tests (`app/tests/test_scoring.py`) | 16 cases passing |
-| `GET /v1/score/{user_id}` | Stubbed, returns a hardcoded score, not wired to real events yet |
-| `POST /v1/commitments/lock`, `.../contribute` | In progress, owned by Backend Core |
-| Vendor verify and redemption | Not started |
-| Idempotency keys | Helper exists in `core/idempotency.py`, not yet called by any endpoint |
-
-Do not demo the score endpoint until it is wired to real contribution events. PRD section 6 requires the score shown on stage to be computed from actions taken during the demo, not seeded in advance.
+| Sura Lock: consent, invite, contribution, payout, idempotency | Implemented and tested |
+| Vendor verification, voucher issuance, and redemption | Implemented and tested |
+| Sura Score 0–1000 and explainable score history | Implemented and tested |
+| Bank Portal: tenant search, score audit, flags, and settlements | Implemented and tested |
+| Developer Hub: scoped keys and machine score/commitment API; signed webhook test deliveries and logs | In progress; outbound event delivery worker remains |
+| Sura Float | Roadmap only; intentionally not implemented for October 8 |
 
 ## Quick start
 
@@ -322,14 +326,14 @@ These are the numbers the test suite asserts, so a change to any weight or rule 
 
 | Area | State |
 |---|---|
-| Score rule engine (`app/services/scoring.py`) | Implemented and tested |
-| Score golden-set tests (`app/tests/test_scoring.py`) | 16 cases passing |
-| `GET /v1/score/{user_id}` | Stubbed, returns a hardcoded score. Not wired to real events yet |
-| `POST /v1/commitments/lock`, `.../contribute` | In progress, owned by Backend Core |
-| Vendor verify and redemption | Not started |
-| Idempotency keys | Helper exists in `core/idempotency.py`, not yet called by any endpoint |
+| Sura Lock: consent, invite, contribution, payout, idempotency | Implemented and tested |
+| Vendor verification, voucher issuance, and redemption | Implemented and tested |
+| Sura Score 0–1000 and explainable score history | Implemented and tested |
+| Bank Portal: tenant search, score audit, flags, and settlements | Implemented and tested |
+| Developer Hub: scoped keys and machine score/commitment API; signed webhook test deliveries and logs | In progress; outbound event delivery worker remains |
+| Sura Float | Roadmap only; intentionally not implemented for October 8 |
 
-Do not demo the score endpoint until it is wired to real contribution events. PRD section 6 requires the score shown on stage to be computed from actions taken during the demo, not seeded in advance.
+The score endpoint is driven by real Lock events. The demo must show score changes caused by the live commitment flow, not a hardcoded value.
 
 ## Running the tests
 

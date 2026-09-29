@@ -1,18 +1,39 @@
 """HTTP contract consumed by the Bank Portal frontend."""
 
-from pydantic import BaseModel, Field
-from fastapi import APIRouter, Depends, Query
+from datetime import datetime
+
+from pydantic import AnyHttpUrl, BaseModel, Field
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.auth import AuthPrincipal
 from app.bank.dependencies import require_bank_permission
 from app.bank import service
+from app.bank import developer_service
 from app.database import get_db
 
 
 class FlagResolutionRequest(BaseModel):
     action: str = Field(pattern="^(dismissed|confirmed|escalated)$")
     note: str = Field(min_length=1, max_length=1000)
+
+
+class ApiKeyCreateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    scopes: list[str] = Field(min_length=1)
+    environment: str = Field(default="sandbox", pattern="^(sandbox|live)$")
+    expires_at: datetime | None = None
+
+
+class WebhookCreateRequest(BaseModel):
+    url: AnyHttpUrl
+    events: list[str] = Field(min_length=1)
+
+
+class WebhookUpdateRequest(BaseModel):
+    url: AnyHttpUrl | None = None
+    events: list[str] | None = Field(default=None, min_length=1)
+    status: str | None = Field(default=None, pattern="^(active|disabled)$")
 
 
 router = APIRouter(prefix="/v1/bank", tags=["bank portal"])
@@ -144,3 +165,102 @@ def bank_settlements(
     db: Session = Depends(get_db),
 ):
     return service.settlements(db, current.institution_id)
+
+
+@router.get("/api-keys")
+def bank_api_keys(
+    current: AuthPrincipal = Depends(require_bank_permission("bank:developer:write")),
+    db: Session = Depends(get_db),
+):
+    return developer_service.list_api_keys(db, current.institution_id)
+
+
+@router.post("/api-keys", status_code=status.HTTP_201_CREATED)
+def bank_create_api_key(
+    payload: ApiKeyCreateRequest,
+    current: AuthPrincipal = Depends(require_bank_permission("bank:developer:write")),
+    db: Session = Depends(get_db),
+):
+    return developer_service.create_api_key(
+        db, current.institution_id, current.user_id, payload.name, payload.scopes, payload.environment, payload.expires_at
+    )
+
+
+@router.post("/api-keys/{key_id}/rotate")
+def bank_rotate_api_key(
+    key_id: str,
+    current: AuthPrincipal = Depends(require_bank_permission("bank:developer:write")),
+    db: Session = Depends(get_db),
+):
+    return developer_service.rotate_api_key(db, current.institution_id, current.user_id, key_id)
+
+
+@router.delete("/api-keys/{key_id}", status_code=status.HTTP_204_NO_CONTENT)
+def bank_revoke_api_key(
+    key_id: str,
+    current: AuthPrincipal = Depends(require_bank_permission("bank:developer:write")),
+    db: Session = Depends(get_db),
+):
+    developer_service.revoke_api_key(db, current.institution_id, current.user_id, key_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/webhooks")
+def bank_webhooks(
+    current: AuthPrincipal = Depends(require_bank_permission("bank:developer:write")),
+    db: Session = Depends(get_db),
+):
+    return developer_service.list_webhooks(db, current.institution_id)
+
+
+@router.post("/webhooks", status_code=status.HTTP_201_CREATED)
+def bank_create_webhook(
+    payload: WebhookCreateRequest,
+    current: AuthPrincipal = Depends(require_bank_permission("bank:developer:write")),
+    db: Session = Depends(get_db),
+):
+    return developer_service.create_webhook(db, current.institution_id, current.user_id, str(payload.url), payload.events)
+
+
+@router.patch("/webhooks/{webhook_id}")
+def bank_update_webhook(
+    webhook_id: str,
+    payload: WebhookUpdateRequest,
+    current: AuthPrincipal = Depends(require_bank_permission("bank:developer:write")),
+    db: Session = Depends(get_db),
+):
+    return developer_service.update_webhook(db, current.institution_id, current.user_id, webhook_id, str(payload.url) if payload.url else None, payload.events, payload.status)
+
+
+@router.post("/webhooks/{webhook_id}/test")
+def bank_test_webhook(
+    webhook_id: str,
+    current: AuthPrincipal = Depends(require_bank_permission("bank:developer:write")),
+    db: Session = Depends(get_db),
+):
+    return developer_service.test_webhook(db, current.institution_id, current.user_id, webhook_id)
+
+
+@router.post("/webhooks/{webhook_id}/rotate-secret")
+def bank_rotate_webhook_secret(
+    webhook_id: str,
+    current: AuthPrincipal = Depends(require_bank_permission("bank:developer:write")),
+    db: Session = Depends(get_db),
+):
+    return developer_service.rotate_webhook_secret(db, current.institution_id, current.user_id, webhook_id)
+
+
+@router.get("/webhooks/{webhook_id}/deliveries")
+def bank_webhook_deliveries(
+    webhook_id: str,
+    current: AuthPrincipal = Depends(require_bank_permission("bank:developer:write")),
+    db: Session = Depends(get_db),
+):
+    return developer_service.list_deliveries(db, current.institution_id, webhook_id)
+
+
+@router.get("/events")
+def bank_events(
+    current: AuthPrincipal = Depends(require_bank_permission("bank:developer:write")),
+):
+    return developer_service.event_catalogue()
