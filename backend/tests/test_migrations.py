@@ -16,7 +16,7 @@ from pathlib import Path
 from alembic.config import Config
 from alembic.script import ScriptDirectory
 
-from app.bank.models import BankAuditEvent, BankPartner, BankStaff, RiskFlag
+from app.bank.models import BankApiKey, BankAuditEvent, BankPartner, BankStaff, RiskFlag, WebhookDelivery, WebhookSubscription
 from app.database import Base
 
 
@@ -26,7 +26,11 @@ ENV_PY = BACKEND_DIR / "alembic" / "env.py"
 
 
 def _script_directory() -> ScriptDirectory:
-    return ScriptDirectory.from_config(Config(str(ALEMBIC_INI)))
+    config = Config(str(ALEMBIC_INI))
+    # CI runs from backend, while local checks often run from the repository
+    # root. Resolve this explicitly so both validate the same revision graph.
+    config.set_main_option("script_location", str(BACKEND_DIR / "alembic"))
+    return ScriptDirectory.from_config(config)
 
 
 def test_there_is_exactly_one_migration_head():
@@ -39,13 +43,13 @@ def test_there_is_exactly_one_migration_head():
     assert len(heads) == 1, f"expected a single head, found {heads}"
 
 
-def test_the_new_bank_staff_revision_is_in_the_chain():
+def test_bank_migration_paths_merge_at_the_expected_head():
     heads = _script_directory().get_heads()
-    assert heads == ["0010_bank_staff_login"]
+    assert heads == ["0011_merge_bank_staff_and_developer_hub"]
 
 
 def test_bank_tables_are_present_in_the_orm_metadata():
-    for table in (BankPartner, RiskFlag, BankAuditEvent, BankStaff):
+    for table in (BankPartner, RiskFlag, BankAuditEvent, BankStaff, BankApiKey, WebhookSubscription, WebhookDelivery):
         assert table.__tablename__ in Base.metadata.tables
 
 
