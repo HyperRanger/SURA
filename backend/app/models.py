@@ -15,6 +15,8 @@ class User(Base):
     institution_id = Column(String, ForeignKey("institutions.id"), nullable=True)
     phone = Column(String, nullable=False, unique=True)
     verified_at = Column(DateTime, nullable=True)
+    bank_customer_id = Column(String, nullable=True, index=True)
+    bank_id = Column(String, ForeignKey("bank_partners.id"), nullable=True, index=True)
 
 
 class Institution(Base):
@@ -115,6 +117,62 @@ class ScoreHistory(Base):
     score = Column(Integer, nullable=False)
     breakdown_json = Column(Text, nullable=False)
     computed_at = Column(DateTime, default=datetime.utcnow)
-    old_score = Column(Integer, nullable=True)
-    event_id = Column(String, nullable=True)
-    reason = Column(String, nullable=True)
+    score_before = Column(Integer, nullable=True)
+    event_type = Column(String, nullable=True)
+    reason = Column(Text, nullable=True)
+    source_id = Column(String, nullable=True)
+    signals_json = Column(Text, nullable=True)
+    score_version = Column(String, nullable=True)
+
+
+class AccountActivitySignal(Base):
+    __tablename__ = "account_activity_signals"
+
+    id = Column(String, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    institution_id = Column(String, ForeignKey("institutions.id"), nullable=True, index=True)
+    source = Column(String, nullable=False)
+    occurred_at = Column(DateTime, nullable=False)
+
+
+class UserConsent(Base):
+    __tablename__ = "user_consents"
+    __table_args__ = (
+        UniqueConstraint("user_id", "consent_type", name="uq_user_consents_user_type"),
+    )
+
+    id = Column(String, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    consent_type = Column(String, nullable=False)
+    granted = Column(Boolean, nullable=False)
+    recorded_at = Column(DateTime, default=datetime.utcnow)
+
+
+class CommitmentActivity(Base):
+    __tablename__ = "commitment_activities"
+
+    id = Column(String, primary_key=True)
+    commitment_id = Column(String, ForeignKey("commitments.id"), nullable=False)
+    event_type = Column(String, nullable=False)
+    actor_user_id = Column(String, ForeignKey("users.id"), nullable=True)
+    cycle_number = Column(Integer, nullable=True)
+    detail_json = Column(Text, nullable=False, default="{}")
+    occurred_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Voucher(Base):
+    __tablename__ = "vouchers"
+    __table_args__ = (
+        UniqueConstraint("commitment_id", "cycle_number", name="uq_vouchers_commitment_cycle"),
+    )
+
+    id = Column(String, primary_key=True)
+    commitment_id = Column(String, ForeignKey("commitments.id"), nullable=False)
+    beneficiary_id = Column(String, ForeignKey("users.id"), nullable=False)
+    vendor_id = Column(String, ForeignKey("vendors.id"), nullable=False)
+    cycle_number = Column(Integer, nullable=False)
+    amount = Column(Integer, nullable=False)
+    code = Column(String, nullable=False, unique=True)
+    status = Column(String, nullable=False, default="ready")
+    issued_at = Column(DateTime, default=datetime.utcnow)
+    redeemed_at = Column(DateTime, nullable=True)

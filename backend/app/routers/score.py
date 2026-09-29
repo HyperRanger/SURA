@@ -1,14 +1,14 @@
 import json
 from datetime import datetime
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.auth import AuthPrincipal, get_current_principal
 from app.database import get_db
 from app.models import ScoreHistory
 from app.schemas import ScoreBreakdown, ScoreHistoryEntry, ScoreHistoryResponse, ScoreResponse
-from app.services.scoring import score_breakdown
+from app.services.score_service import get_score_report
 
 router = APIRouter(prefix="/v1", tags=["score"])
 
@@ -19,27 +19,18 @@ def get_score(
     current_user: AuthPrincipal = Depends(get_current_principal),
     db: Session = Depends(get_db),
 ):
-    latest = (
-        db.query(ScoreHistory)
-        .filter(ScoreHistory.user_id == user_id)
-        .order_by(ScoreHistory.computed_at.desc(), ScoreHistory.id.desc())
-        .first()
-    )
-
-    breakdown_payload = score_breakdown()
-    score = 12
-    last_updated = datetime.utcnow()
-    if latest is not None:
-        score = latest.score
-        last_updated = latest.computed_at or last_updated
-        if latest.breakdown_json:
-            stored_snapshot = json.loads(latest.breakdown_json)
-            breakdown_payload = stored_snapshot.get("breakdown", stored_snapshot)
+    if current_user.user_id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You may only view your own score.")
+    report = get_score_report(db, user_id)
+    last_updated = report.get("last_updated") or datetime.utcnow()
 
     return ScoreResponse(
         user_id=user_id,
-        score=score,
-        breakdown=ScoreBreakdown(**breakdown_payload),
+        score=report["score"],
+        tier=report["tier"],
+        breakdown=ScoreBreakdown(**report["breakdown"]),
+        weights=report["weights"],
+        score_version=report["score_version"],
         last_updated=last_updated,
     )
 
@@ -56,6 +47,8 @@ def get_score_history(
     full paper trail behind the current score: the score before and after each
     change, the event that caused it, and the weighted breakdown.
     """
+    if current_user.user_id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You may only view your own score history.")
     rows = (
         db.query(ScoreHistory)
         .filter(ScoreHistory.user_id == user_id)
@@ -73,8 +66,9 @@ def get_score_history(
         entries.append(
             ScoreHistoryEntry(
                 score=row.score,
-                old_score=row.old_score,
-                event_id=row.event_id,
+                score_before=row.score_before,
+                event_type=row.event_type,
+                source_id=row.source_id,
                 reason=row.reason,
                 computed_at=row.computed_at or datetime.utcnow(),
                 breakdown=breakdown,
@@ -83,6 +77,6 @@ def get_score_history(
 
     return ScoreHistoryResponse(
         user_id=user_id,
-        current_score=entries[0].score if entries else 12,
+        current_score=entries[0].score if entries else get_score_report(db, user_id)["score"],
         entries=entries,
     )

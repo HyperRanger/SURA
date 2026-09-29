@@ -32,6 +32,18 @@ class VendorVerificationRequest(BaseModel):
     category: Optional[str] = None
 
 
+class ConsentRequest(BaseModel):
+    granted: bool
+
+
+class JoinCommitmentRequest(BaseModel):
+    invite_code: str = Field(min_length=1, max_length=64)
+
+
+class VendorRedeemRequest(BaseModel):
+    voucher_code: str = Field(min_length=1, max_length=64)
+
+
 class PayoutScheduleItem(BaseModel):
     cycle: int
     beneficiary_id: str
@@ -47,24 +59,28 @@ class LockResponse(BaseModel):
 
 
 class ScoreBreakdown(BaseModel):
-    commitment_behaviour: float
-    repayment_behaviour: float
-    transaction_stability: float
-    institutional_verification: float
-    social_reliability: float
+    commitment_behaviour: int
+    repayment_behaviour: int
+    transaction_stability: int
+    institutional_verification: int
+    social_reliability: int
 
 
 class ScoreResponse(BaseModel):
     user_id: str
     score: int
+    tier: str
     breakdown: ScoreBreakdown
+    weights: dict[str, float]
+    score_version: str
     last_updated: datetime
 
 
 class ScoreHistoryEntry(BaseModel):
     score: int
-    old_score: Optional[int] = None
-    event_id: Optional[str] = None
+    score_before: Optional[int] = None
+    event_type: Optional[str] = None
+    source_id: Optional[str] = None
     reason: Optional[str] = None
     computed_at: datetime
     breakdown: Optional[ScoreBreakdown] = None

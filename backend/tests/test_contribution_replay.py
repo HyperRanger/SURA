@@ -13,6 +13,7 @@ def _lock_commitment(client, auth_headers, vendor_id: str, member: str) -> str:
         json={"vendor_id": vendor_id},
         headers=auth_headers("verifier_user", role="verifier"),
     ).status_code == 200
+    assert client.post("/v1/consent", json={"granted": True}, headers=auth_headers(member)).status_code == 200
 
     response = client.post(
         "/v1/commitments/lock",
