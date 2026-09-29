@@ -13,6 +13,21 @@ Companion to PRD.md and TRD.md. This document exists for one reason: so no two p
 
 ## Phase 0 — September 22 to 23: Setup
 
+## Current backend milestone status
+
+This section is the current backend source of truth. The dated sections below remain the original team schedule.
+
+- [x] Sura Lock: rotating commitments, consent, invites, contribution idempotency, deterministic payouts, vouchers, and vendor-locked redemption.
+- [x] Sura Score: real 0–1000 five-pillar score, Lock-event updates, explainable history, and bank-visible audit data.
+- [x] Bank Portal foundation: tenant isolation, bank customer search, score/commitment/activity views, flags, and simulated settlements.
+- [x] Demo data: reproducible member, vendor, commitment, redemption, and bank data.
+- [~] Developer Hub: tenant-scoped API keys and scoped machine score/commitment reads are complete. Signed webhook test deliveries and logs are complete; the outbound event delivery worker remains.
+- [ ] Final online verification: Render deploy from `Master`, migrations through `0009_bank_developer_hub`, `/docs` smoke test, and one shared end-to-end demo run.
+
+**Demo boundary:** October 8 shows Sura Lock and Sura Score. Sura Float, real bank settlement rails, and production SSO remain out of scope.
+
+---
+
 Nothing here waits on anything else. All four of you can work in parallel today.
 
 - [ ] Backend Core: Postgres running locally, schema migrated from TRD section 3

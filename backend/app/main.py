@@ -11,6 +11,7 @@ from app.routers.commitments import consent_router, router as commitments_router
 from app.routers.score import router as score_router
 from app.routers.vendors import router as vendors_router
 from app.bank.router import router as bank_router
+from app.bank.integration_router import router as bank_integration_router
 
 app = FastAPI(title="Sura API", version="1.0.0")
 
@@ -28,6 +29,7 @@ app.include_router(auth_router)
 app.include_router(vendors_router)
 app.include_router(score_router)
 app.include_router(bank_router)
+app.include_router(bank_integration_router)
 
 
 def _check_database(db: Session) -> bool:
