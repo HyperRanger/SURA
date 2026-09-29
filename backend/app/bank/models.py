@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from sqlalchemy import Column, DateTime, ForeignKey, String, Text
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text
 
 from app.database import Base
 
@@ -42,3 +42,35 @@ class BankAuditEvent(Base):
     subject_id = Column(String, nullable=False)
     detail_json = Column(Text, nullable=False, default="{}")
     occurred_at = Column(DateTime, default=datetime.utcnow)
+
+
+class BankStaff(Base):
+    """A person who signs in to the Bank Portal with an email and password.
+
+    Deliberately not a role on ``users``. Signup authenticates by phone and
+    assigns its own role, so a bank login stored there would either be
+    unreachable or reachable by the wrong flow. Keeping credentials, the role and
+    the permission set in one row owned by the bank domain also means a staff
+    account is revoked by changing this table, not by editing a customer row.
+    """
+
+    __tablename__ = "bank_staff"
+
+    id = Column(String, primary_key=True)
+    bank_id = Column(String, ForeignKey("bank_partners.id"), nullable=False, index=True)
+    # A staff member is still a user record, so the session subject, the audit
+    # actor and the profile endpoints all resolve the same way as any other login.
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, unique=True)
+    email = Column(String, nullable=False, unique=True, index=True)
+    password_hash = Column(String, nullable=False)
+    role = Column(String, nullable=False)
+    permissions_json = Column(Text, nullable=False, default="[]")
+    # Where the second factor is sent. Null means this account has no second
+    # factor available, which the login flow refuses rather than silently skipping.
+    mfa_phone = Column(String, nullable=True)
+    status = Column(String, nullable=False, default="active")
+    failed_password_attempts = Column(Integer, nullable=False, default=0)
+    locked_until = Column(DateTime, nullable=True)
+    last_login_at = Column(DateTime, nullable=True)
+    password_changed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)

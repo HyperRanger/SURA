@@ -64,6 +64,20 @@ class DemoLoginAsRequest(BaseModel):
     role: Literal["individual", "vendor", "bank"] = "individual"
 
 
+class BankLoginRequest(BaseModel):
+    """B1. Email and password for a provisioned Bank Portal staff account."""
+
+    email: str = Field(min_length=3, max_length=320)
+    password: str = Field(min_length=1, max_length=128)
+
+
+class BankVerifyMfaRequest(BaseModel):
+    """B1. Second factor issued by the bank login step."""
+
+    challenge_id: str = Field(min_length=1, max_length=64)
+    code: str = Field(min_length=4, max_length=12)
+
+
 class VendorVerificationRequest(BaseModel):
     vendor_id: str
     name: Optional[str] = None

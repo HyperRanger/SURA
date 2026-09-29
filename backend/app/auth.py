@@ -1,9 +1,11 @@
+import json
 from dataclasses import dataclass
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from app.bank.models import BankStaff
 from app.database import get_db
 from app.models import User
 from core.security import is_local_session, verify_token
@@ -53,10 +55,29 @@ def get_current_principal(
         user = db.get(User, user_id)
         if user is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Account is no longer active.")
+
+        # A Bank Portal sign-in stores its role and permissions on the staff
+        # record, not on the user row, so revoking or re-roling staff takes
+        # effect on the next request instead of at token expiry.
+        staff = db.query(BankStaff).filter(BankStaff.user_id == user.id).one_or_none()
+        if staff is not None:
+            if staff.status != "active":
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Account is no longer active.")
+            return AuthPrincipal(
+                user_id=user.id,
+                role=staff.role,
+                # The bank tenant, which is the value the external provider puts in
+                # the `institution_id` claim. It is not `users.institution_id`,
+                # which is the school or employer on the customer record and has
+                # nothing to do with bank scoping.
+                institution_id=staff.bank_id,
+                permissions=frozenset(json.loads(staff.permissions_json)),
+            )
+
         return AuthPrincipal(
             user_id=user.id,
             role=user.role,
-            institution_id=user.institution_id,
+            institution_id=user.bank_id,
             permissions=frozenset(),
         )
 
