@@ -14,10 +14,10 @@ class Settings(BaseSettings):
         env_file_encoding="utf-8",
     )
 
-    database_url: str = "postgresql+psycopg://sura:sura_pass@localhost:5432/sura_dev"
-    secret_key: str = "super-secret-key"
-    jwt_algorithm: str = "HS256"
-    demo_otp_code: str = "123456"
+    database_url: str
+    secret_key: str
+    jwt_algorithm: str
+    demo_otp_code: str
 
     @field_validator("database_url", mode="before")
     @classmethod

@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat AGENTS.md CLAUDE.md package.json app/globals.css app/layout.tsx tsconfig.json next.config.ts)",
+      "Bash(ls node_modules/next/dist/docs)",
+      "WebFetch(domain:streakme.vercel.app)",
+      "Bash(curl -sL https://streakme.vercel.app/ -o /tmp/streak.html)",
+      "Read(//tmp/**)",
+      "Read(//c/tmp/**)",
+      "Bash(grep -oE 'className:\"[^\"]{20,}\"' index-DrMhIo7N.js)",
+      "Bash(grep -oE 'className:`[^`]{25,}`' index-DrMhIo7N.js)",
+      "Bash(grep -oE '\"[a-z][^\"]{3,120}\"' index-DrMhIo7N.js)",
+      "Bash(grep -oE '`[^`]*shadow-\\\\[0_[^`]*`' index-DrMhIo7N.js)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(**/.env*)",
+      "Edit(./.env)",
+      "Edit(./.env.*)",
+      "Edit(**/.env*)",
+      "Bash(cat .env)",
+      "Bash(cat .env.*)",
+      "Bash(rm .env)",
+      "Bash(rm .env.*)"
+    ]
+  }
+}

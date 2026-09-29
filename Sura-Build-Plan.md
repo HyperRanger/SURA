@@ -17,7 +17,8 @@ Nothing here waits on anything else. All four of you can work in parallel today.
 
 - [ ] Backend Core: Postgres running locally, schema migrated from TRD section 3
 - [ ] Backend Core: confirm all four teammates have repo access and can clone it
-- [ ] Backend AI/ML: score formula from TRD section 5.2 written as a standalone function, tested by hand against fake numbers, not wired to any API yet
+- [x] Backend AI/ML: score formula from TRD section 5.2 written as a standalone function, tested by hand against fake numbers, not wired to any API yet
+  - Done in `app/services/scoring.py` with a 16-case golden set in `app/tests/test_scoring.py`. Still not wired to any API.
 - [ ] Frontend: React project scaffolded, routing stubbed for the four screens in PRD section 7, no API calls yet
 - [ ] UI/UX: wireframes for create, contribute, redeem, and score screens
 

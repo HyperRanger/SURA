@@ -17,15 +17,31 @@ class LockRequest(BaseModel):
 
 
 class ContributionRequest(BaseModel):
-    user_id: str
     amount: int
+    event_id: str = Field(min_length=1, max_length=128, description="Stable client ID reused for retries of this contribution.")
+
+
+class DemoTokenRequest(BaseModel):
+    user_id: str = Field(min_length=1, max_length=128)
+    otp_code: str = Field(min_length=1, max_length=32)
 
 
 class VendorVerificationRequest(BaseModel):
     vendor_id: str
     name: Optional[str] = None
     category: Optional[str] = None
-    verified: bool = True
+
+
+class ConsentRequest(BaseModel):
+    granted: bool
+
+
+class JoinCommitmentRequest(BaseModel):
+    invite_code: str = Field(min_length=1, max_length=64)
+
+
+class VendorRedeemRequest(BaseModel):
+    voucher_code: str = Field(min_length=1, max_length=64)
 
 
 class PayoutScheduleItem(BaseModel):
@@ -43,15 +59,34 @@ class LockResponse(BaseModel):
 
 
 class ScoreBreakdown(BaseModel):
-    commitment_behaviour: float
-    repayment_behaviour: float
-    transaction_stability: float
-    institutional_verification: float
-    social_reliability: float
+    commitment_behaviour: int
+    repayment_behaviour: int
+    transaction_stability: int
+    institutional_verification: int
+    social_reliability: int
 
 
 class ScoreResponse(BaseModel):
     user_id: str
     score: int
+    tier: str
     breakdown: ScoreBreakdown
+    weights: dict[str, float]
+    score_version: str
     last_updated: datetime
+
+
+class ScoreHistoryEntry(BaseModel):
+    score: int
+    score_before: Optional[int] = None
+    event_type: Optional[str] = None
+    source_id: Optional[str] = None
+    reason: Optional[str] = None
+    computed_at: datetime
+    breakdown: Optional[ScoreBreakdown] = None
+
+
+class ScoreHistoryResponse(BaseModel):
+    user_id: str
+    current_score: int
+    entries: List[ScoreHistoryEntry]
