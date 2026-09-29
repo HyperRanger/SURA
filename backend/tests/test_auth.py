@@ -21,3 +21,7 @@ def test_lock_and_score_routes_require_authentication(client):
     )
     assert lock_response.status_code == 401
     assert client.get("/v1/score/auth_member").status_code == 401
+
+
+def test_vendor_directory_requires_authentication(client):
+    assert client.get("/v1/vendors").status_code == 401

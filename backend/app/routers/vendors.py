@@ -18,7 +18,10 @@ def _require_vendor_principal(current_user: AuthPrincipal) -> None:
 
 
 @router.get("")
-def list_verified_vendors(db: Session = Depends(get_db)):
+def list_verified_vendors(
+    current_user: AuthPrincipal = Depends(get_current_principal),
+    db: Session = Depends(get_db),
+):
     vendors = db.query(Vendor).filter(Vendor.verified_at.is_not(None)).order_by(Vendor.name.asc()).all()
     return [
         {"vendor_id": vendor.id, "name": vendor.name, "category": vendor.category, "verified": True}
