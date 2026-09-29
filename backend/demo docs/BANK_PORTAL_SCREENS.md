@@ -15,19 +15,19 @@ Sura remains non-custodial: the bank owns the customer relationship and moves mo
 | Integration engineer | Developer Hub, API keys, webhooks and delivery logs. No customer-risk actions. |
 | Demo bank user | Read-only seeded data for the live demo. |
 
-All bank routes require bank authentication and role-based access control. A bank may only view customers and records belonging to its own `bank_id` tenant. Every customer-profile lookup, key change, webhook change, and flag decision should be recorded in an audit log.
+All bank routes require bank authentication and role-based access control. A bank may only view customers and records belonging to its own internal `bank_id` tenant. Every customer-profile lookup, key change, webhook change, and flag decision should be recorded in an audit log.
 
 ## Security rules
 
 - Use bank SSO/OAuth plus MFA in production. The MVP may use a clearly-labelled demo login only.
 - Dashboard sessions are human credentials. API keys are machine credentials and must be separate.
-- Show an API-key secret or webhook signing secret exactly once at creation. Store only a hash afterwards.
+- Show an API-key secret or webhook signing secret exactly once at creation. API keys are stored only as hashes; webhook signing material is encrypted at rest so Sura can sign deliveries without re-exposing it.
 - Mask account identifiers in tables, exports, and routine views: `••••8241`.
 - Never expose a user's score to another member or vendor. Bank roles may see it only where their permissions allow.
 
 ### Required bank JWT claims
 
-The authentication provider must issue a token containing `sub`, `role`, `bank_id`, and `permissions`. Supported Bank Portal roles are `bank_admin`, `bank_risk_analyst`, and `bank_integration_engineer`. The backend checks the `bank_id` on every portal query.
+The authentication provider must issue a token containing `sub`, `role`, `institution_id`, and `permissions`. Supported Bank Portal roles are `bank_admin`, `bank_risk_analyst`, and `bank_integration_engineer`. The backend maps the external `institution_id` claim to the internal `bank_id` tenant on every portal query.
 
 ## Navigation
 
@@ -188,7 +188,7 @@ The authentication provider must issue a token containing `sub`, `role`, `bank_i
 **Route:** `/bank/developers`
 
 - Link to live API documentation (`/docs`).
-- Integration overview, base URL, authentication method, sample request, and environment status.
+- Integration overview, base URL, `X-Sura-API-Key` authentication, sample request, and environment status.
 - Quick links to API keys, webhooks, event catalogue, and delivery logs.
 
 ### B12 — API keys
@@ -218,7 +218,7 @@ The authentication provider must issue a token containing `sub`, `role`, `bank_i
 
 **Route:** `/bank/developers/webhooks/:id`
 
-- Endpoint URL, event subscriptions, retry policy, status, and signing-secret rotation action.
+- Endpoint URL, event subscriptions, status, and signing-secret rotation action. Outbound delivery and retry policy are not part of the MVP yet.
 - Test delivery action with confirmation.
 - Link to delivery logs.
 
@@ -227,7 +227,7 @@ The authentication provider must issue a token containing `sub`, `role`, `bank_i
 **Route:** `/bank/developers/webhooks/:id/deliveries`
 
 - Delivery time, event ID/type, response code, attempts, and final state.
-- Redacted payload preview, response summary, and retry action for authorised users.
+- Redacted payload preview and response summary. The MVP records signed test deliveries; production retry controls arrive with the outbound delivery worker.
 
 ### B17 — Event catalogue
 
@@ -252,7 +252,7 @@ The authentication provider must issue a token containing `sub`, `role`, `bank_i
 
 Bank staff JWTs use the external `institution_id` claim. It identifies the bank tenant internally stored as `bank_id` on customer and score records.
 
-The following customer, score, monitoring, and settlement endpoints are implemented for portal integration. Developer Hub endpoints remain the next phase:
+The following customer, score, monitoring, and settlement endpoints are implemented for portal integration:
 
 ```text
 GET  /v1/bank/overview
@@ -271,7 +271,7 @@ POST /v1/bank/flags/{flag_id}/resolve
 GET  /v1/bank/settlements
 ```
 
-Developer Hub endpoints planned for the next phase:
+The following Developer Hub endpoints are implemented. Webhook test deliveries are signed and persisted but deliberately simulated in this MVP: no external bank URL is called until the production delivery worker, retry policy, and bank-network controls are approved.
 
 ```text
 GET  /v1/bank/api-keys
@@ -286,4 +286,13 @@ POST /v1/bank/webhooks/{webhook_id}/rotate-secret
 GET  /v1/bank/webhooks/{webhook_id}/deliveries
 GET  /v1/bank/events
 ```
+
+Machine integrations use a generated key in the `X-Sura-API-Key` header. The available scopes and endpoints are:
+
+```text
+score:read        GET /v1/integrations/customers/{user_id}/score
+commitments:read  GET /v1/integrations/customers/{user_id}/commitments
+```
+
+Each request is restricted to the bank tenant recorded on the API key. A key cannot retrieve another bank's customer record.
 
