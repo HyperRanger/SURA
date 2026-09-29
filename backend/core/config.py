@@ -19,6 +19,21 @@ class Settings(BaseSettings):
     jwt_algorithm: str
     demo_otp_code: str
 
+    environment: str = "development"
+
+    # One-time codes are short-lived and single-use. The resend cooldown is what
+    # P4's resend timer reflects, and it is also what stops this endpoint being
+    # used to bill someone's phone with SMS.
+    otp_ttl_seconds: int = 300
+    otp_max_attempts: int = 5
+    otp_resend_cooldown_seconds: int = 60
+
+    access_token_ttl_seconds: int = 60 * 60 * 24
+
+    @property
+    def is_production(self) -> bool:
+        return self.environment.strip().lower() in {"production", "prod"}
+
     @field_validator("database_url", mode="before")
     @classmethod
     def use_psycopg_dialect(cls, value: str) -> str:

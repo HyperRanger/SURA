@@ -17,14 +17,29 @@ backend_path = str(BACKEND_DIR)
 if backend_path not in sys.path:
     sys.path.insert(0, backend_path)
 
-os.environ.setdefault("DATABASE_URL", "sqlite+pysqlite://")
-os.environ.setdefault("SECRET_KEY", "test-secret-key")
-os.environ.setdefault("JWT_ALGORITHM", "HS256")
-os.environ.setdefault("DEMO_OTP_CODE", "123456")
+# Forced, not defaulted. `setdefault` let an ambient DATABASE_URL/SECRET_KEY or a
+# developer's .env change what the suite ran against, which made
+# test_auth.py::test_demo_token_issues_a_token_for_the_online_demo fail with a 401
+# for anyone whose DEMO_OTP_CODE was not 123456. The client fixture below already
+# pins the database to in-memory SQLite, so pinning the rest keeps the suite
+# hermetic and its results reproducible on any machine.
+TEST_ENV = {
+    "DATABASE_URL": "sqlite+pysqlite://",
+    "SECRET_KEY": "test-secret-key",
+    "JWT_ALGORITHM": "HS256",
+    "DEMO_OTP_CODE": "123456",
+    "ENVIRONMENT": "test",
+}
+for _key, _value in TEST_ENV.items():
+    os.environ[_key] = _value
 
 from app.database import Base, get_db
 from app.main import app
 from core.config import get_settings
+
+# Settings are lru_cached, so the forced values above have to be picked up after
+# anything that may already have built a Settings instance.
+get_settings.cache_clear()
 
 
 def pytest_configure() -> None:

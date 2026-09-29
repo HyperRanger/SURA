@@ -18,6 +18,38 @@ class User(Base):
     bank_customer_id = Column(String, nullable=True, index=True)
     bank_id = Column(String, ForeignKey("bank_partners.id"), nullable=True, index=True)
 
+    # Assigned by the backend at signup and carried in the token. The frontend
+    # route is never trusted for this; every protected endpoint reads the claim.
+    role = Column(String, nullable=False, default="individual")
+    # Set when role is vendor, so the account resolves to one exact vendor
+    # record rather than guessing by business name.
+    vendor_id = Column(String, ForeignKey("vendors.id"), nullable=True)
+    # Student / trader / freelancer / other. Personalises onboarding only, and
+    # grants no extra permission.
+    context = Column(String, nullable=True)
+    terms_accepted_at = Column(DateTime, nullable=True)
+    phone_verified_at = Column(DateTime, nullable=True)
+
+
+class AuthChallenge(Base):
+    """A pending one-time code for signup or login.
+
+    Only a salted hash of the code is stored, and a challenge is consumed on
+    first successful use, so a leaked database row cannot be replayed as a login.
+    """
+
+    __tablename__ = "auth_challenges"
+
+    id = Column(String, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    purpose = Column(String, nullable=False)
+    code_hash = Column(String, nullable=False)
+    salt = Column(String, nullable=False)
+    attempts = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
+    consumed_at = Column(DateTime, nullable=True)
+
 
 class Institution(Base):
     __tablename__ = "institutions"
