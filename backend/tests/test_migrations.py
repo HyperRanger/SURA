@@ -26,7 +26,11 @@ ENV_PY = BACKEND_DIR / "alembic" / "env.py"
 
 
 def _script_directory() -> ScriptDirectory:
-    return ScriptDirectory.from_config(Config(str(ALEMBIC_INI)))
+    config = Config(str(ALEMBIC_INI))
+    # CI runs from backend, while local checks often run from the repository
+    # root. Resolve this explicitly so both validate the same revision graph.
+    config.set_main_option("script_location", str(BACKEND_DIR / "alembic"))
+    return ScriptDirectory.from_config(config)
 
 
 def test_there_is_exactly_one_migration_head():
