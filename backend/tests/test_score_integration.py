@@ -1,12 +1,14 @@
 from datetime import datetime
 
+from app.bank.models import BankPartner
 from app.models import ScoreHistory, User
 
 
 def test_lock_event_persists_an_explainable_five_pillar_score(client, auth_headers):
     db = client.app.state.testing_session()
     try:
-        db.add(User(id="score_creator", name="Score Creator", phone="score-creator@sura.local", verified_at=datetime.utcnow()))
+        db.add(BankPartner(id="bank_score", name="Score Demo Bank"))
+        db.add(User(id="score_creator", name="Score Creator", phone="score-creator@sura.local", verified_at=datetime.utcnow(), bank_id="bank_score"))
         db.commit()
     finally:
         db.close()
@@ -55,6 +57,7 @@ def test_lock_event_persists_an_explainable_five_pillar_score(client, auth_heade
         assert snapshot.event_type == "contribution_processed"
         assert snapshot.score_version == "trd-5.2-v1"
         assert snapshot.signals_json is not None
+        assert snapshot.bank_id == "bank_score"
     finally:
         db.close()
 

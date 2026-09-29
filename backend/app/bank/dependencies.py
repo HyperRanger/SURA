@@ -5,7 +5,7 @@ from app.bank.contracts import BANK_PORTAL_ROLES
 
 
 def get_bank_principal(current: AuthPrincipal = Depends(get_current_principal)) -> AuthPrincipal:
-    if current.role not in BANK_PORTAL_ROLES or not current.bank_id:
+    if current.role not in BANK_PORTAL_ROLES or not current.institution_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Bank Portal access is required.")
     return current
 

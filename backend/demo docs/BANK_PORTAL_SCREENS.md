@@ -248,13 +248,15 @@ The authentication provider must issue a token containing `sub`, `role`, `bank_i
 
 - Institution profile, supported vendor network, sandbox/live configuration, retention notices, and security settings.
 
-## Backend contract required
+## Backend contract
 
-The current backend has only the beginnings of B2–B11. These endpoints are required before real portal integration:
+Bank staff JWTs use the external `institution_id` claim. It identifies the bank tenant internally stored as `bank_id` on customer and score records.
+
+The following customer, score, monitoring, and settlement endpoints are implemented for portal integration. Developer Hub endpoints remain the next phase:
 
 ```text
 GET  /v1/bank/overview
-GET  /v1/bank/users?q=&bank_customer_id=&tier=&flag_status=
+GET  /v1/bank/users?q=&bank_customer_id=&score_tier=&flag_status=
 GET  /v1/bank/users/{user_id}
 GET  /v1/bank/users/{user_id}/commitments
 GET  /v1/bank/users/{user_id}/score
@@ -267,6 +269,11 @@ GET  /v1/bank/flags
 GET  /v1/bank/users/{user_id}/flags
 POST /v1/bank/flags/{flag_id}/resolve
 GET  /v1/bank/settlements
+```
+
+Developer Hub endpoints planned for the next phase:
+
+```text
 GET  /v1/bank/api-keys
 POST /v1/bank/api-keys
 POST /v1/bank/api-keys/{key_id}/rotate

@@ -4,8 +4,8 @@ from app.bank.models import BankPartner, RiskFlag
 from app.models import Redemption, User
 
 
-def _bank_headers(auth_headers, bank_id="bank_demo"):
-    return auth_headers("bank_admin_1", role="bank_admin", bank_id=bank_id)
+def _bank_headers(auth_headers, institution_id="bank_demo"):
+    return auth_headers("bank_admin_1", role="bank_admin", institution_id=institution_id)
 
 
 def _seed_bank_data(client):
@@ -33,6 +33,17 @@ def test_bank_search_profile_and_customer_isolation(client, auth_headers):
     assert [user["user_id"] for user in search.json()] == ["bank_amara"]
     assert search.json()[0]["bank_customer_id"].endswith("8241")
     assert search.json()[0]["bank_customer_id"] != "CUST-0008241"
+
+    customer_reference = client.get(
+        "/v1/bank/users?bank_customer_id=CUST-0008241", headers=headers
+    )
+    assert [user["user_id"] for user in customer_reference.json()] == ["bank_amara"]
+
+    entry_tier = client.get("/v1/bank/users?score_tier=entry", headers=headers)
+    assert [user["user_id"] for user in entry_tier.json()] == ["bank_amara"]
+
+    open_flag = client.get("/v1/bank/users?flag_status=open", headers=headers)
+    assert [user["user_id"] for user in open_flag.json()] == ["bank_amara"]
 
     profile = client.get("/v1/bank/users/bank_amara", headers=headers)
     assert profile.status_code == 200

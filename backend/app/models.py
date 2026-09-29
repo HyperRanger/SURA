@@ -123,6 +123,7 @@ class ScoreHistory(Base):
     source_id = Column(String, nullable=True)
     signals_json = Column(Text, nullable=True)
     score_version = Column(String, nullable=True)
+    bank_id = Column(String, ForeignKey("bank_partners.id"), nullable=True, index=True)
 
 
 class AccountActivitySignal(Base):

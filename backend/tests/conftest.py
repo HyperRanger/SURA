@@ -79,15 +79,15 @@ def auth_headers():
         user_id: str,
         role: str | None = None,
         permissions: list[str] | None = None,
-        bank_id: str | None = None,
+        institution_id: str | None = None,
     ) -> dict[str, str]:
         claims: dict[str, object] = {"sub": user_id}
         if role:
             claims["role"] = role
         if permissions:
             claims["permissions"] = permissions
-        if bank_id:
-            claims["bank_id"] = bank_id
+        if institution_id:
+            claims["institution_id"] = institution_id
         token = jwt.encode(claims, settings.secret_key, algorithm=settings.jwt_algorithm)
         return {"Authorization": "Bearer " + token}
 
