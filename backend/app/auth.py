@@ -12,7 +12,7 @@ bearer_scheme = HTTPBearer(auto_error=False)
 class AuthPrincipal:
     user_id: str
     role: str | None = None
-    bank_id: str | None = None
+    institution_id: str | None = None
     permissions: frozenset[str] = frozenset()
 
     @property
@@ -44,6 +44,6 @@ def get_current_principal(
     return AuthPrincipal(
         user_id=user_id,
         role=role,
-        bank_id=claims.get("bank_id"),
+        institution_id=claims.get("institution_id"),
         permissions=permissions,
     )

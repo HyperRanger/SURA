@@ -10,7 +10,11 @@ from sqlalchemy.orm import Session
 
 from app.bank.models import BankAuditEvent, RiskFlag
 from app.models import Commitment, CommitmentActivity, CommitmentMember, Contribution, Redemption, ScoreHistory, User
-from app.services.score_service import get_score_report, latest_score_history
+from app.services.score_service import get_score_report
+
+
+SCORE_TIERS = frozenset({"unverified", "entry", "building", "established"})
+FLAG_STATUSES = frozenset({"open", "dismissed", "confirmed", "escalated"})
 
 
 def _masked(value: str | None) -> str | None:
@@ -52,15 +56,40 @@ def _user_summary(db: Session, user: User) -> dict:
     }
 
 
-def list_users(db: Session, bank_id: str, query: str | None = None) -> list[dict]:
+def list_users(
+    db: Session,
+    bank_id: str,
+    query: str | None = None,
+    bank_customer_id: str | None = None,
+    score_tier: str | None = None,
+    flag_status: str | None = None,
+) -> list[dict]:
+    if score_tier is not None and score_tier not in SCORE_TIERS:
+        raise HTTPException(status_code=400, detail="Unknown score tier.")
+    if flag_status is not None and flag_status not in FLAG_STATUSES:
+        raise HTTPException(status_code=400, detail="Unknown flag status.")
+
     users = db.query(User).filter(User.bank_id == bank_id)
+    if bank_customer_id:
+        users = users.filter(User.bank_customer_id == bank_customer_id.strip())
     if query:
         token = f"%{query.strip()}%"
         users = users.outerjoin(CommitmentMember, CommitmentMember.user_id == User.id).filter(or_(
             User.id.ilike(token), User.name.ilike(token), User.phone.ilike(token),
             User.bank_customer_id.ilike(token), CommitmentMember.commitment_id.ilike(token),
         )).distinct()
-    return [_user_summary(db, user) for user in users.order_by(User.name.asc(), User.id.asc()).all()]
+    summaries = [_user_summary(db, user) for user in users.order_by(User.name.asc(), User.id.asc()).all()]
+    if score_tier is not None:
+        summaries = [summary for summary in summaries if summary["tier"] == score_tier]
+    if flag_status is not None:
+        matching_user_ids = {
+            row.user_id
+            for row in db.query(RiskFlag.user_id)
+            .filter(RiskFlag.bank_id == bank_id, RiskFlag.status == flag_status)
+            .all()
+        }
+        summaries = [summary for summary in summaries if summary["user_id"] in matching_user_ids]
+    return summaries
 
 
 def get_user_profile(db: Session, bank_id: str, actor_id: str, user_id: str) -> dict:
@@ -138,7 +167,7 @@ def overview(db: Session, bank_id: str) -> dict:
 
 
 def audit_log(db: Session, bank_id: str) -> list[dict]:
-    scores = db.query(ScoreHistory).join(User, User.id == ScoreHistory.user_id).filter(User.bank_id == bank_id).all()
+    scores = db.query(ScoreHistory).filter(ScoreHistory.bank_id == bank_id).all()
     access = db.query(BankAuditEvent).filter(BankAuditEvent.bank_id == bank_id).all()
     events = [{"type": "score", "id": row.id, "user_id": row.user_id, "event_type": row.event_type, "reason": row.reason, "occurred_at": row.computed_at} for row in scores]
     events.extend({"type": "bank_access", "id": row.id, "actor_id": row.actor_id, "event_type": row.event_type, "subject_id": row.subject_id, "occurred_at": row.occurred_at} for row in access)
