@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -13,9 +15,32 @@ from app.routers.commitments import consent_router, router as commitments_router
 from app.routers.score import router as score_router
 from app.routers.vendors import router as vendors_router
 from app.bank.router import router as bank_router
-from app.bank.integration_router import router as bank_integration_router
+from app.routers.bank_auth import router as bank_auth_router
+from core.config import get_settings
 
-app = FastAPI(title="Sura API", version="1.0.0")
+
+def _validate_production_settings() -> None:
+    """Refuse to serve production without a way to deliver one-time codes.
+
+    With no SMS provider, signup still returns a challenge but no code ever
+    arrives, so every new account is unverifiable. That is a support queue that
+    looks like a working signup, which is worse than not starting.
+    """
+    settings = get_settings()
+    if settings.is_production and not settings.is_sms_configured:
+        raise RuntimeError(
+            "TERMII_API_KEY must be set in production: without it no one-time code "
+            "can be delivered and no account can be verified."
+        )
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    _validate_production_settings()
+    yield
+
+
+app = FastAPI(title="Sura API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
