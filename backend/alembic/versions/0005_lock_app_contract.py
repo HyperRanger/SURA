@@ -1,7 +1,7 @@
 """add Sura Lock app consent, activity, and voucher records
 
 Revision ID: 0005_lock_app_contract
-Revises: 0004_contribution_event_id
+Revises: 0005_score_history_audit
 """
 
 from alembic import op
@@ -9,7 +9,7 @@ import sqlalchemy as sa
 
 
 revision = "0005_lock_app_contract"
-down_revision = "0004_contribution_event_id"
+down_revision = "0005_score_history_audit"
 branch_labels = None
 depends_on = None
 
