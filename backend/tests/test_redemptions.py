@@ -66,6 +66,17 @@ def test_paid_cycle_issues_a_voucher_and_vendor_confirms_redemption(client, auth
     commitment = client.get(f"/v1/commitments/{commitment_id}", headers=auth_headers("redeemer")).json()
     assert commitment["beneficiaries"][0]["status"] == "redeemed"
 
+    activity = client.get(
+        f"/v1/commitments/{commitment_id}/activity", headers=auth_headers("redeemer")
+    )
+    assert activity.status_code == 200
+    events = activity.json()
+    event_types = [event["event_type"] for event in events]
+    assert event_types.index("cycle_paid") < event_types.index("voucher_issued")
+    redeemed_event = next(event for event in events if event["event_type"] == "voucher_redeemed")
+    assert redeemed_event["actor_user_id"] is None
+    assert "voucher_code" not in redeemed_event["details"]
+
 
 def test_redemption_cannot_be_repeated(client, auth_headers):
     commitment_id, _ = _create_paid_cycle(client, auth_headers)

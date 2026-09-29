@@ -907,7 +907,10 @@ def redeem_vendor_voucher(db: Session, voucher_code: str, vendor_id: str) -> dic
             "voucher_redeemed",
             actor_user_id=None,
             cycle_number=voucher.cycle_number,
-            details={"vendor_id": vendor_id, "amount": voucher.amount, "voucher_code": voucher.code},
+            # Activity is visible to every commitment member. The voucher code
+            # is a redemption credential and must only appear in the
+            # beneficiary and authenticated-vendor flows.
+            details={"vendor_id": vendor_id, "amount": voucher.amount},
         )
         return {
             "redemption_id": redemption.id,
