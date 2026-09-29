@@ -21,6 +21,10 @@ if config.config_file_name is not None:
 # Import settings and metadata
 from core.config import get_settings
 from app import models
+# The bank domain keeps its tables in a separate module. Without this import they
+# are absent from the metadata, and the next `alembic revision --autogenerate`
+# reads them as tables it should drop.
+from app.bank import models as bank_models  # noqa: F401
 
 target_metadata = models.Base.metadata
 settings = get_settings()
