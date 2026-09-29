@@ -322,7 +322,12 @@ def record_contribution(db: Session, commitment_id: str, payload: ContributionRe
 
     try:
         with db.begin():
-            commitment = db.get(Commitment, commitment_id)
+            commitment = (
+                db.query(Commitment)
+                .filter(Commitment.id == commitment_id)
+                .with_for_update()
+                .one_or_none()
+            )
             if commitment is None:
                 raise HTTPException(status_code=404, detail="Commitment not found.")
             if commitment.status == "completed":
