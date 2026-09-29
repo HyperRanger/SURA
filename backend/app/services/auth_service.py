@@ -105,17 +105,28 @@ def _issue_challenge(db: Session, user: User, purpose: str) -> tuple[AuthChallen
     return challenge, code
 
 
-def _challenge_response(challenge: AuthChallenge, code: str, expires_in: int) -> dict[str, Any]:
+def _challenge_envelope(challenge_id: str, purpose: str, code: str | None) -> dict[str, Any]:
+    """The shape every challenge response uses.
+
+    `code` is only ever included outside production, so the demo can show it
+    without a real SMS provider. It is filled in for unknown numbers too:
+    a field that appears for some callers and not others is itself a tell.
+    """
+    settings = get_settings()
     payload: dict[str, Any] = {
-        "challenge_id": challenge.id,
-        "purpose": challenge.purpose,
-        "expires_in_seconds": expires_in,
-        "resend_after_seconds": get_settings().otp_resend_cooldown_seconds,
+        "challenge_id": challenge_id,
+        "purpose": purpose,
+        "expires_in_seconds": settings.otp_ttl_seconds,
+        "resend_after_seconds": settings.otp_resend_cooldown_seconds,
     }
-    if not get_settings().is_production:
-        # P4 shows the code on screen in non-production so the demo does not need
-        # a real SMS provider. Never emitted in production.
+    if code is not None and not settings.is_production:
         payload["demo_code"] = code
+    return payload
+
+
+def _challenge_response(challenge: AuthChallenge, code: str, expires_in: int) -> dict[str, Any]:
+    payload = _challenge_envelope(challenge.id, challenge.purpose, code)
+    payload["expires_in_seconds"] = expires_in
     return payload
 
 
@@ -172,11 +183,18 @@ def signup(
 
 
 def login(db: Session, phone: str) -> dict[str, Any]:
+    """Always answers in the same shape, so this cannot be used to discover
+    who has an account.
+
+    An unknown number gets a syntactically valid but unverifiable challenge
+    rather than a 404. A distinguishable response is itself the leak, so the
+    caller cannot tell the two cases apart from the body, the status, or the
+    field set.
+    """
     user = _get_by_phone(db, _normalize_phone(phone))
+
     if user is None:
-        # Say the same thing whether the account is missing or not, so this
-        # cannot be used to enumerate who has an account.
-        raise HTTPException(status_code=404, detail="No account found for that phone number.")
+        return _challenge_envelope(str(uuid.uuid4()), PURPOSE_LOGIN, generate_otp())
 
     challenge, code = _issue_challenge(db, user, PURPOSE_LOGIN)
     return _challenge_response(challenge, code, get_settings().otp_ttl_seconds)
@@ -186,7 +204,10 @@ def verify_otp(db: Session, challenge_id: str, code: str) -> dict[str, Any]:
     settings = get_settings()
     challenge = db.get(AuthChallenge, challenge_id)
     if challenge is None:
-        raise HTTPException(status_code=404, detail="Unknown verification request.")
+        # login() hands back a well-formed challenge_id for numbers we do not
+        # know, so a distinct 404 here would tell an attacker which numbers
+        # exist. Answer exactly as we do for a wrong code.
+        raise HTTPException(status_code=401, detail="Incorrect code.")
 
     if challenge.consumed_at is not None:
         raise HTTPException(status_code=400, detail="This code has already been used.")
@@ -204,7 +225,10 @@ def verify_otp(db: Session, challenge_id: str, code: str) -> dict[str, Any]:
 
     user = db.get(User, challenge.user_id)
     if user is None:
-        raise HTTPException(status_code=404, detail="Account not found.")
+        # The account went away between the code being issued and being used.
+        # 404 here would confirm the challenge was genuine, which is the
+        # enumeration signal login() is careful not to give away.
+        raise HTTPException(status_code=401, detail="Incorrect code.")
 
     # Single use: consumed before the token is issued, so a replay of the same
     # code cannot mint a second session.

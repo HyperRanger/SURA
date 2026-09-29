@@ -11,6 +11,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.database import get_db
 from app.main import app
+from app.models import User
 from core.config import get_settings
 
 
@@ -212,11 +213,116 @@ def test_login_issues_a_code_for_an_existing_account(client):
         object.__setattr__(settings, "environment", original)
 
 
-def test_login_for_an_unknown_number_says_the_same_thing(client):
-    _signup(client, phone="+234 803 000 0015")
-    response = client.post("/v1/auth/login", json={"phone": "+234 803 000 9999"})
-    assert response.status_code == 404
-    assert "no account" in response.json()["detail"].lower()
+def test_login_for_an_unknown_number_looks_identical_to_a_known_one(client):
+    """Login must not be usable to discover who has an account.
+
+    An unknown number gets the same status, the same field set, and a
+    challenge_id that verifies the same way, so nothing in the response says
+    whether the number is registered.
+    """
+    settings = get_settings()
+    original_cooldown = settings.otp_resend_cooldown_seconds
+    object.__setattr__(settings, "otp_resend_cooldown_seconds", 0)
+    try:
+        _signup(client, phone="+234 803 000 0015")
+
+        known = client.post("/v1/auth/login", json={"phone": "+234 803 000 0015"})
+        unknown = client.post("/v1/auth/login", json={"phone": "+234 803 000 9999"})
+
+        assert known.status_code == 200, known.text
+        assert unknown.status_code == known.status_code
+        assert set(unknown.json()) == set(known.json())
+
+        # And the fake challenge cannot be turned into a session.
+        verify_unknown = _verify(client, unknown.json()["challenge_id"], "000000")
+        verify_known_wrong = _verify(client, known.json()["challenge_id"], "000000")
+        assert verify_unknown.status_code == verify_known_wrong.status_code == 401
+        assert verify_unknown.json()["detail"] == verify_known_wrong.json()["detail"]
+    finally:
+        object.__setattr__(settings, "otp_resend_cooldown_seconds", original_cooldown)
+
+
+def test_legacy_demo_token_is_refused_in_production(client):
+    """The pre-existing demo issuer mints a session for any user_id, so it must
+    be shut off outside the demo the same way the role switcher is."""
+    settings = get_settings()
+    original = settings.environment
+    object.__setattr__(settings, "environment", "production")
+    try:
+        response = client.post(
+            "/v1/auth/demo-token",
+            json={"user_id": "usr_demo_individual", "otp_code": settings.demo_otp_code},
+        )
+        assert response.status_code == 404
+    finally:
+        object.__setattr__(settings, "environment", original)
+
+
+def test_a_role_change_takes_effect_before_the_token_expires(client):
+    """The role in the token is only a record of sign-in. The database decides
+    what is allowed now, so a demotion applies on the next request."""
+    challenge = _signup(client, phone="+234 803 000 0018")
+    verified = _verify(client, challenge["challenge_id"], challenge["demo_code"])
+    assert verified.status_code == 200, verified.text
+    assert verified.json()["role"] == "individual"
+    headers = {"Authorization": f"Bearer {verified.json()['access_token']}"}
+
+    assert client.get("/v1/me", headers=headers).json()["role"] == "individual"
+
+    # Someone edits the role in the database, without touching the token.
+    db = client.app.state.testing_session()
+    try:
+        user = db.get(User, verified.json()["user_id"])
+        user.role = "vendor"
+        db.commit()
+    finally:
+        db.close()
+
+    assert client.get("/v1/me", headers=headers).json()["role"] == "vendor"
+
+
+def test_a_token_for_a_deleted_account_stops_working(client):
+    challenge = _signup(client, phone="+234 803 000 0019")
+    verified = _verify(client, challenge["challenge_id"], challenge["demo_code"])
+    headers = {"Authorization": f"Bearer {verified.json()['access_token']}"}
+    assert client.get("/v1/me", headers=headers).status_code == 200
+
+    db = client.app.state.testing_session()
+    try:
+        db.delete(db.get(User, verified.json()["user_id"]))
+        db.commit()
+    finally:
+        db.close()
+
+    assert client.get("/v1/me", headers=headers).status_code == 401
+
+
+def test_a_forged_role_claim_does_not_survive_a_signature_check(client):
+    """Escalation attempt: a valid member token with the role edited in place.
+
+    Editing the payload invalidates the signature, so this is rejected outright.
+    """
+    import base64
+    import json as jsonlib
+
+    challenge = _signup(client, phone="+234 803 000 0020")
+    verified = _verify(client, challenge["challenge_id"], challenge["demo_code"])
+    token = verified.json()["access_token"]
+    header, payload, signature = token.split(".")
+
+    def decode(segment: str) -> dict:
+        padded = segment + "=" * (-len(segment) % 4)
+        return jsonlib.loads(base64.urlsafe_b64decode(padded))
+
+    claims = decode(payload)
+    assert claims["role"] == "individual"
+    claims["role"] = "bank_admin"
+    claims["bank_id"] = "bank_demo"
+    forged_payload = base64.urlsafe_b64encode(jsonlib.dumps(claims).encode()).rstrip(b"=").decode()
+    forged = f"{header}.{forged_payload}.{signature}"
+
+    response = client.get("/v1/me", headers={"Authorization": f"Bearer {forged}"})
+    assert response.status_code == 401
 
 
 def test_requesting_a_second_code_too_quickly_is_refused(client):

@@ -34,7 +34,14 @@ def _require_not_production() -> None:
 
 @router.post("/demo-token")
 def create_demo_token(payload: DemoTokenRequest):
-    """Demo-only token issuer; replace with the bank's identity provider in production."""
+    """Demo-only token issuer; replace with the bank's identity provider in production.
+
+    Gated like every other demo affordance. It hands out a session for an
+    arbitrary user_id with no credential check beyond a shared code, so leaving
+    it open in production would let anyone impersonate any seeded account.
+    """
+    _require_not_production()
+
     settings = get_settings()
     if not secrets.compare_digest(payload.otp_code, settings.demo_otp_code):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid demo OTP.")
