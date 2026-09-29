@@ -6,6 +6,7 @@ the client, and the issued token carries the role so protected endpoints can
 re-check it. A challenge is single-use, time-limited and attempt-capped.
 """
 
+import logging
 import uuid
 from datetime import datetime, timedelta
 from typing import Any
@@ -15,8 +16,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import AuthChallenge, User, Vendor
+from app.services.sms import SmsDeliveryError, send_otp
 from core.config import get_settings
 from core.security import create_token, generate_otp, hash_otp, new_otp_salt, otp_matches
+
+logger = logging.getLogger(__name__)
 
 INDIVIDUAL_ROLE = "individual"
 VENDOR_ROLE = "vendor"
@@ -27,6 +31,7 @@ ASSIGNABLE_ROLES = {INDIVIDUAL_ROLE, VENDOR_ROLE}
 
 PURPOSE_SIGNUP = "signup"
 PURPOSE_LOGIN = "login"
+PURPOSE_BANK_MFA = "bank_mfa"
 
 
 NIGERIA_COUNTRY_CODE = "234"
@@ -52,7 +57,9 @@ def _get_by_phone(db: Session, phone: str) -> User | None:
     return db.execute(select(User).where(User.phone == phone)).scalars().first()
 
 
-def _issue_challenge(db: Session, user: User, purpose: str) -> tuple[AuthChallenge, str]:
+def _issue_challenge(
+    db: Session, user: User, purpose: str, deliver_to: str | None = None
+) -> tuple[AuthChallenge, str]:
     """Create a pending challenge, returning it with the plaintext code.
 
     The code is returned for the SMS gateway to send. It is never persisted: only
@@ -102,7 +109,41 @@ def _issue_challenge(db: Session, user: User, purpose: str) -> tuple[AuthChallen
     )
     db.add(challenge)
     db.commit()
+    _deliver(db, challenge, deliver_to or user.phone, code)
     return challenge, code
+
+
+def issue_otp_challenge(
+    db: Session, user: User, purpose: str, deliver_to: str | None = None
+) -> tuple[AuthChallenge, str]:
+    """Public entry point for other domains that verify a code by SMS.
+
+    Bank staff use it to prove possession of a second factor. `deliver_to` exists
+    because that is not always the account's phone number.
+    """
+    return _issue_challenge(db, user, purpose, deliver_to=deliver_to)
+
+
+def _deliver(db: Session, challenge: AuthChallenge, to: str, code: str) -> None:
+    """Hand the code to the SMS provider, absorbing any failure.
+
+    A send that failed only for numbers we hold would be a way to learn who has
+    an account, so the caller gets the same response either way and the code is
+    simply never delivered. The operator signal is the log line.
+
+    The challenge is deliberately left pending rather than consumed or deleted.
+    Consuming it would clear the resend cooldown, because the cooldown is
+    measured from the newest unconsumed challenge, and a provider outage would
+    then let anyone hammer the SMS gateway without limit. Deleting it would
+    clear it too. Leaving it is inert: the code was never sent, so nobody can
+    present it, and the next request supersedes it.
+    """
+    try:
+        send_otp(to=to, code=code)
+    except SmsDeliveryError:
+        logger.error(
+            "OTP delivery failed for challenge %s; code was not delivered.", challenge.id
+        )
 
 
 def _challenge_envelope(challenge_id: str, purpose: str, code: str | None) -> dict[str, Any]:

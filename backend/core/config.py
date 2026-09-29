@@ -30,9 +30,36 @@ class Settings(BaseSettings):
 
     access_token_ttl_seconds: int = 60 * 60 * 24
 
+    # Termii sends the codes. The host and sender are account-specific, so they
+    # are settings rather than constants. `dnd` is the transactional channel:
+    # `generic` is marketing traffic and must never carry a login code.
+    termii_api_key: str | None = None
+    termii_base_url: str = "https://api.termii.com"
+    termii_sender_id: str = "Sura"
+    termii_channel: str = "dnd"
+    termii_timeout_seconds: int = 10
+
+    otp_message_template: str = "{code} is your Sura verification code. It expires in {ttl_seconds} seconds. Never share it."
+
+    # Bank staff get a second factor on top of the password. Turning this off is
+    # a deployment decision for the demo, not a per-account setting.
+    bank_mfa_required: bool = True
+    bank_login_max_password_attempts: int = 5
+    bank_login_lockout_seconds: int = 900
+
     @property
     def is_production(self) -> bool:
         return self.environment.strip().lower() in {"production", "prod"}
+
+    @property
+    def is_sms_configured(self) -> bool:
+        """Whether a real message can be sent.
+
+        False means codes are generated and returned in the response instead, so
+        the demo works without an account. Production refuses to start without
+        one, because a signup that can never be verified is a support queue.
+        """
+        return bool(self.termii_api_key)
 
     @field_validator("database_url", mode="before")
     @classmethod
