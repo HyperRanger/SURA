@@ -82,6 +82,11 @@ def _serialize_voucher_state(voucher: Voucher) -> dict[str, Any]:
     }
 
 
+def _first_name(user: User | None) -> str | None:
+    """Return the smallest member-display field the PWA needs."""
+    return user.name.split(maxsplit=1)[0] if user is not None and user.name else None
+
+
 def _issue_voucher_if_needed(
     db: Session,
     commitment: Commitment,
@@ -302,12 +307,44 @@ def _serialize_commitment(commitment: Commitment, db: Session) -> dict[str, Any]
         .order_by(Voucher.cycle_number.asc())
         .all()
     )
+    member_ids = [member.user_id for member in members]
+    users_by_id = {
+        user.id: user
+        for user in db.query(User).filter(User.id.in_(member_ids)).all()
+    } if member_ids else {}
+    vendor = db.get(Vendor, commitment.vendor_id)
+
+    current_cycle_contributions = [
+        contribution
+        for contribution in contributions
+        if contribution.cycle_number == commitment.current_cycle_number
+    ]
+    current_member_totals = {
+        member_id: sum(
+            contribution.amount
+            for contribution in current_cycle_contributions
+            if contribution.user_id == member_id
+        )
+        for member_id in member_ids
+    }
+    required_cycle_total = commitment.contribution_amount * len(members)
+    current_cycle_total = sum(current_member_totals.values())
+    current_beneficiary = next(
+        (item for item in beneficiaries if item.cycle_number == commitment.current_cycle_number),
+        None,
+    )
 
     return {
         "commitment_id": commitment.id,
         "type": commitment.type,
         "title": commitment.title,
         "vendor_id": commitment.vendor_id,
+        "vendor": {
+            "vendor_id": commitment.vendor_id,
+            "name": vendor.name if vendor is not None else None,
+            "category": vendor.category if vendor is not None else None,
+            "verified": bool(vendor and vendor.verified_at),
+        },
         "contribution_amount": commitment.contribution_amount,
         "contribution_frequency": commitment.frequency,
         "cycles": commitment.cycles,
@@ -320,6 +357,7 @@ def _serialize_commitment(commitment: Commitment, db: Session) -> dict[str, Any]
             {
                 "cycle_number": beneficiary.cycle_number,
                 "beneficiary_id": beneficiary.user_id,
+                "beneficiary_first_name": _first_name(users_by_id.get(beneficiary.user_id)),
                 "payout_amount": beneficiary.payout_amount,
                 "status": beneficiary.status,
                 "contributions": [
@@ -327,6 +365,7 @@ def _serialize_commitment(commitment: Commitment, db: Session) -> dict[str, Any]
                         "id": contribution.id,
                         "event_id": contribution.event_id,
                         "user_id": contribution.user_id,
+                        "member_first_name": _first_name(users_by_id.get(contribution.user_id)),
                         "amount": contribution.amount,
                         "paid_at": contribution.paid_at.isoformat() if contribution.paid_at else None,
                     }
@@ -339,8 +378,17 @@ def _serialize_commitment(commitment: Commitment, db: Session) -> dict[str, Any]
         "members": [
             {
                 "user_id": member.user_id,
+                "first_name": _first_name(users_by_id.get(member.user_id)),
                 "role": member.role,
                 "joined_at": member.joined_at.isoformat() if member.joined_at else None,
+                "current_cycle_contribution_total": current_member_totals[member.user_id],
+                "current_cycle_payment_status": (
+                    "paid"
+                    if current_member_totals[member.user_id] >= commitment.contribution_amount
+                    else "partial"
+                    if current_member_totals[member.user_id] > 0
+                    else "not_paid"
+                ),
             }
             for member in members
         ],
@@ -349,6 +397,7 @@ def _serialize_commitment(commitment: Commitment, db: Session) -> dict[str, Any]
                 "id": beneficiary.id,
                 "cycle_number": beneficiary.cycle_number,
                 "user_id": beneficiary.user_id,
+                "first_name": _first_name(users_by_id.get(beneficiary.user_id)),
                 "payout_amount": beneficiary.payout_amount,
                 "status": beneficiary.status,
             }
@@ -359,6 +408,7 @@ def _serialize_commitment(commitment: Commitment, db: Session) -> dict[str, Any]
                 "id": contribution.id,
                 "cycle_number": contribution.cycle_number,
                 "user_id": contribution.user_id,
+                "member_first_name": _first_name(users_by_id.get(contribution.user_id)),
                 "amount": contribution.amount,
                 "status": contribution.status,
                 "rule_trace": json.loads(contribution.rule_trace_json),
@@ -367,6 +417,25 @@ def _serialize_commitment(commitment: Commitment, db: Session) -> dict[str, Any]
             for contribution in contributions
         ],
         "vouchers": [_serialize_voucher_state(voucher) for voucher in vouchers],
+        "current_cycle": {
+            "cycle_number": commitment.current_cycle_number,
+            "required_total": required_cycle_total,
+            "contributed_total": current_cycle_total,
+            "remaining_total": max(0, required_cycle_total - current_cycle_total),
+            "paid_member_count": sum(
+                total >= commitment.contribution_amount for total in current_member_totals.values()
+            ),
+            "member_count": len(members),
+            "progress_percent": (
+                min(100, round((current_cycle_total / required_cycle_total) * 100))
+                if required_cycle_total
+                else 0
+            ),
+            "beneficiary_id": current_beneficiary.user_id if current_beneficiary else None,
+            "beneficiary_first_name": (
+                _first_name(users_by_id.get(current_beneficiary.user_id)) if current_beneficiary else None
+            ),
+        },
     }
 
 
@@ -862,17 +931,26 @@ def get_cycle_voucher(
             raise HTTPException(status_code=404, detail="Cycle not found.")
         if beneficiary.user_id != requester_user_id:
             raise HTTPException(status_code=403, detail="Only this cycle's beneficiary may view its voucher.")
+        vendor = db.get(Vendor, commitment.vendor_id)
         voucher = (
             db.query(Voucher)
             .filter(Voucher.commitment_id == commitment_id, Voucher.cycle_number == cycle_number)
             .one_or_none()
         )
         if voucher is not None:
-            return _serialize_voucher(voucher)
+            response = _serialize_voucher(voucher)
+            response["vendor_name"] = vendor.name if vendor is not None else None
+            # Sura Lock does not currently model voucher expiry. An explicit null
+            # prevents clients from inventing a deadline that the backend cannot enforce.
+            response["expires_at"] = None
+            return response
         if beneficiary.status == "paid":
             voucher = _issue_voucher_if_needed(db, commitment, beneficiary)
             db.flush()
-            return _serialize_voucher(voucher)
+            response = _serialize_voucher(voucher)
+            response["vendor_name"] = vendor.name if vendor is not None else None
+            response["expires_at"] = None
+            return response
         if beneficiary.status == "redeemed":
             redemption = (
                 db.query(Redemption)
@@ -884,23 +962,27 @@ def get_cycle_voucher(
                     "commitment_id": commitment_id,
                     "beneficiary_id": beneficiary.user_id,
                     "vendor_id": redemption.vendor_id,
+                    "vendor_name": vendor.name if vendor is not None else None,
                     "cycle_number": cycle_number,
                     "amount": redemption.amount,
                     "voucher_code": redemption.voucher_code,
                     "status": "redeemed",
                     "issued_at": None,
                     "redeemed_at": redemption.redeemed_at.isoformat() if redemption.redeemed_at else None,
+                    "expires_at": None,
                 }
         return {
             "commitment_id": commitment_id,
             "beneficiary_id": beneficiary.user_id,
             "vendor_id": commitment.vendor_id,
+            "vendor_name": vendor.name if vendor is not None else None,
             "cycle_number": cycle_number,
             "amount": beneficiary.payout_amount,
             "voucher_code": None,
             "status": "locked",
             "issued_at": None,
             "redeemed_at": None,
+            "expires_at": None,
         }
 
 
@@ -975,6 +1057,8 @@ def redeem_vendor_voucher(db: Session, voucher_code: str, vendor_id: str) -> dic
             # beneficiary and authenticated-vendor flows.
             details={"vendor_id": vendor_id, "amount": voucher.amount},
         )
+        commitment = db.get(Commitment, voucher.commitment_id)
+        beneficiary_user = db.get(User, voucher.beneficiary_id)
         return {
             "redemption_id": redemption.id,
             "commitment_id": voucher.commitment_id,
@@ -984,7 +1068,30 @@ def redeem_vendor_voucher(db: Session, voucher_code: str, vendor_id: str) -> dic
             "voucher_code": voucher.code,
             "status": redemption.status,
             "redeemed_at": redemption.redeemed_at.isoformat(),
+            "commitment_title": commitment.title if commitment is not None else None,
+            "beneficiary_first_name": _first_name(beneficiary_user),
         }
+
+
+def _serialize_vendor_redemption(
+    redemption: Redemption,
+    *,
+    commitment: Commitment | None,
+    beneficiary: User | None,
+) -> dict[str, Any]:
+    """A merchant receipt: no score, phone number, or unrelated user data."""
+    return {
+        "redemption_id": redemption.id,
+        "commitment_id": redemption.commitment_id,
+        "commitment_title": commitment.title if commitment is not None else None,
+        "beneficiary_id": redemption.beneficiary_id,
+        "beneficiary_first_name": _first_name(beneficiary),
+        "cycle_number": redemption.cycle_number,
+        "amount": redemption.amount,
+        "voucher_code": redemption.voucher_code,
+        "status": redemption.status,
+        "redeemed_at": redemption.redeemed_at.isoformat() if redemption.redeemed_at else None,
+    }
 
 
 def list_vendor_redemptions(db: Session, vendor_id: str) -> list[dict[str, Any]]:
@@ -994,16 +1101,39 @@ def list_vendor_redemptions(db: Session, vendor_id: str) -> list[dict[str, Any]]
         .order_by(Redemption.redeemed_at.desc(), Redemption.id.desc())
         .all()
     )
+    commitments_by_id = {
+        commitment.id: commitment
+        for commitment in db.query(Commitment)
+        .filter(Commitment.id.in_([row.commitment_id for row in rows]))
+        .all()
+    } if rows else {}
+    beneficiaries_by_id = {
+        user.id: user
+        for user in db.query(User)
+        .filter(User.id.in_([row.beneficiary_id for row in rows]))
+        .all()
+    } if rows else {}
     return [
-        {
-            "redemption_id": redemption.id,
-            "commitment_id": redemption.commitment_id,
-            "beneficiary_id": redemption.beneficiary_id,
-            "cycle_number": redemption.cycle_number,
-            "amount": redemption.amount,
-            "voucher_code": redemption.voucher_code,
-            "status": redemption.status,
-            "redeemed_at": redemption.redeemed_at.isoformat() if redemption.redeemed_at else None,
-        }
+        _serialize_vendor_redemption(
+            redemption,
+            commitment=commitments_by_id.get(redemption.commitment_id),
+            beneficiary=beneficiaries_by_id.get(redemption.beneficiary_id),
+        )
         for redemption in rows
     ]
+
+
+def get_vendor_redemption_detail(db: Session, vendor_id: str, redemption_id: str) -> dict[str, Any]:
+    """Return one receipt only when it belongs to the authenticated merchant."""
+    redemption = (
+        db.query(Redemption)
+        .filter(Redemption.id == redemption_id, Redemption.vendor_id == vendor_id)
+        .one_or_none()
+    )
+    if redemption is None:
+        raise HTTPException(status_code=404, detail="Redemption was not found.")
+    return _serialize_vendor_redemption(
+        redemption,
+        commitment=db.get(Commitment, redemption.commitment_id),
+        beneficiary=db.get(User, redemption.beneficiary_id),
+    )

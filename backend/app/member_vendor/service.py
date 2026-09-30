@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.services import auth_service
 from app.services.commitments import list_member_commitments, list_vendor_redemptions
 from app.services.score_service import get_score_report
+from app.models import Vendor
 
 
 def get_member_home(db: Session, user_id: str) -> dict[str, Any]:
@@ -46,6 +47,7 @@ def get_member_home(db: Session, user_id: str) -> dict[str, Any]:
 
 def get_vendor_overview(db: Session, vendor_id: str) -> dict[str, Any]:
     redemptions = list_vendor_redemptions(db, vendor_id)
+    vendor = db.get(Vendor, vendor_id)
     today = date.today()
     today_rows = [
         item
@@ -54,6 +56,16 @@ def get_vendor_overview(db: Session, vendor_id: str) -> dict[str, Any]:
     ]
     return {
         "vendor_id": vendor_id,
+        "merchant": (
+            {
+                "vendor_id": vendor.id,
+                "name": vendor.name,
+                "category": vendor.category,
+                "verified": vendor.verified_at is not None,
+            }
+            if vendor is not None
+            else None
+        ),
         "today_settled_amount": sum(item["amount"] for item in today_rows),
         "today_redemption_count": len(today_rows),
         "recent_redemptions": redemptions[:10],

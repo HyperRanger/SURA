@@ -1,17 +1,18 @@
 """PWA convenience reads, scoped to the signed-in member or vendor."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.auth import AuthPrincipal, get_current_principal
 from app.database import get_db
-from app.member_vendor.contracts import MemberHomeResponse, VendorOverviewResponse
+from app.member_vendor.contracts import MemberHomeResponse, VendorOverviewResponse, VendorRecommendationsResponse
 from app.member_vendor.service import get_member_home, get_vendor_overview
 from app.models import User
 from app.schemas import LockRequest, MemberLookupRequest
 from app.services.auth_service import normalize_phone
 from app.services.contact_lookup_rate_limit import consume_contact_lookup
 from app.services.commitments import preview_lock
+from app.services.matching import recommend_verified_vendors
 from app.services.vendor_accounts import get_authenticated_vendor_id
 
 
@@ -56,6 +57,24 @@ def lock_preview(
 ):
     _require_individual(current_user)
     return preview_lock(db, payload, current_user.user_id)
+
+
+@router.get("/recommendations/vendors", response_model=VendorRecommendationsResponse)
+def vendor_recommendations(
+    category: str | None = Query(default=None, max_length=120),
+    target_amount: int | None = Query(default=None),
+    limit: int = Query(default=5),
+    current_user: AuthPrincipal = Depends(get_current_principal),
+    db: Session = Depends(get_db),
+):
+    """Return explainable vendor options; the member still makes the choice."""
+    _require_individual(current_user)
+    return recommend_verified_vendors(
+        db,
+        category=category,
+        target_amount=target_amount,
+        limit=limit,
+    )
 
 
 @router.get("/vendor/overview", response_model=VendorOverviewResponse)

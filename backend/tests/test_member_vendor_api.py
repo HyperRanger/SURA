@@ -83,6 +83,62 @@ def test_member_can_resolve_an_exact_contact_and_preview_lock_without_writing(cl
         db.close()
 
 
+def test_commitment_detail_has_safe_display_fields_and_server_derived_cycle_progress(client, auth_headers):
+    db = app.state.testing_session()
+    try:
+        now = datetime.utcnow()
+        db.add_all(
+            [
+                User(id="detail_creator", name="Amina Bello", phone="2348000000201", role="individual"),
+                User(id="detail_member", name="Tunde Okoro", phone="2348000000202", role="individual"),
+                Vendor(id="detail_vendor", name="Detail Electronics", category="electronics", verified_at=now),
+            ]
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    creator_headers = auth_headers("detail_creator")
+    assert client.post("/v1/consent", json={"granted": True}, headers=creator_headers).status_code == 200
+    created = client.post(
+        "/v1/commitments/lock",
+        json={
+            "title": "Detail-friendly Lock",
+            "vendor_id": "detail_vendor",
+            "contribution_amount": 1000,
+            "contribution_frequency": "weekly",
+            "cycles": 2,
+            "members": ["detail_creator", "detail_member"],
+            "payout_order": ["detail_creator", "detail_member"],
+        },
+        headers=creator_headers,
+    )
+    assert created.status_code == 201
+
+    detail = client.get(f"/v1/commitments/{created.json()['commitment_id']}", headers=creator_headers)
+    assert detail.status_code == 200
+    body = detail.json()
+    assert body["vendor"] == {
+        "vendor_id": "detail_vendor",
+        "name": "Detail Electronics",
+        "category": "electronics",
+        "verified": True,
+    }
+    assert {member["first_name"] for member in body["members"]} == {"Amina", "Tunde"}
+    assert {member["current_cycle_payment_status"] for member in body["members"]} == {"not_paid"}
+    assert body["current_cycle"] == {
+        "cycle_number": 1,
+        "required_total": 2000,
+        "contributed_total": 0,
+        "remaining_total": 2000,
+        "paid_member_count": 0,
+        "member_count": 2,
+        "progress_percent": 0,
+        "beneficiary_id": "detail_creator",
+        "beneficiary_first_name": "Amina",
+    }
+
+
 def test_lock_preview_explains_a_blocking_cap_and_rejects_bank_staff(client):
     db = app.state.testing_session()
     try:
@@ -220,3 +276,23 @@ def test_vendor_session_uses_its_linked_merchant_for_redemption(client, auth_hea
     )
     assert overview.status_code == 200
     assert overview.json()["today_redemption_count"] == 1
+    assert overview.json()["merchant"] == {
+        "vendor_id": vendor_id,
+        "name": "Demo Tech Store",
+        "category": "electronics",
+        "verified": True,
+    }
+
+
+def test_beneficiary_voucher_includes_vendor_name_and_expiry_contract(client, auth_headers):
+    from tests.test_redemptions import _create_paid_cycle
+
+    commitment_id, _ = _create_paid_cycle(client, auth_headers)
+    voucher = client.get(
+        f"/v1/commitments/{commitment_id}/cycles/1/voucher",
+        headers=auth_headers("redeemer"),
+    )
+
+    assert voucher.status_code == 200
+    assert voucher.json()["vendor_name"] == "Demo Tech Store"
+    assert voucher.json()["expires_at"] is None
