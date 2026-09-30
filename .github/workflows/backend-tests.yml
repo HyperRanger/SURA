@@ -11,6 +11,26 @@ jobs:
   test:
     name: Test backend
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: sura_ci
+          POSTGRES_USER: sura_ci
+          POSTGRES_PASSWORD: sura_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U sura_ci -d sura_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://sura_ci:sura_ci@localhost:5432/sura_ci
+      SECRET_KEY: ci-only-secret-not-for-production
+      JWT_ALGORITHM: HS256
+      DEMO_OTP_CODE: "123456"
+      ENVIRONMENT: test
     defaults:
       run:
         working-directory: backend
@@ -28,6 +48,9 @@ jobs:
 
       - name: Install dependencies
         run: python -m pip install --upgrade pip && python -m pip install -r requirements.txt
+
+      - name: Verify PostgreSQL migrations
+        run: python -m alembic upgrade head
 
       - name: Run tests
         run: python -m pytest tests -q

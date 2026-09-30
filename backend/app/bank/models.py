@@ -12,7 +12,12 @@ class BankPartner(Base):
 
     id = Column(String, primary_key=True)
     name = Column(String, nullable=False)
+    environment = Column(String, nullable=False, default="sandbox")
+    supported_vendor_categories_json = Column(Text, nullable=False, default="[]")
+    retention_days = Column(Integer, nullable=False, default=365)
+    security_settings_json = Column(Text, nullable=False, default="{}")
     created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow)
 
 
 class RiskFlag(Base):

@@ -26,7 +26,11 @@ ENV_PY = BACKEND_DIR / "alembic" / "env.py"
 
 
 def _script_directory() -> ScriptDirectory:
-    return ScriptDirectory.from_config(Config(str(ALEMBIC_INI)))
+    config = Config(str(ALEMBIC_INI))
+    # CI runs from backend, while local checks often run from the repository
+    # root. Resolve this explicitly so both validate the same revision graph.
+    config.set_main_option("script_location", str(BACKEND_DIR / "alembic"))
+    return ScriptDirectory.from_config(config)
 
 
 def test_there_is_exactly_one_migration_head():
@@ -41,7 +45,7 @@ def test_there_is_exactly_one_migration_head():
 
 def test_bank_migration_paths_merge_at_the_expected_head():
     heads = _script_directory().get_heads()
-    assert heads == ["0011_merge_bank_staff_and_developer_hub"]
+    assert heads == ["0012_bank_portal_operations"]
 
 
 def test_bank_tables_are_present_in_the_orm_metadata():

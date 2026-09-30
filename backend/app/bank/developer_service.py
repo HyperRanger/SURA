@@ -14,7 +14,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.bank.contracts import BANK_API_SCOPES, WEBHOOK_EVENTS
-from app.bank.models import BankApiKey, WebhookDelivery, WebhookSubscription
+from app.bank.models import BankApiKey, BankPartner, WebhookDelivery, WebhookSubscription
 from app.bank.service import _audit
 from core.config import get_settings
 
@@ -168,6 +168,17 @@ def update_webhook(db: Session, bank_id: str, actor_id: str, webhook_id: str, ur
     return _serialize_webhook(row)
 
 
+def disable_webhook(db: Session, bank_id: str, actor_id: str, webhook_id: str) -> None:
+    row = db.query(WebhookSubscription).filter(WebhookSubscription.id == webhook_id, WebhookSubscription.bank_id == bank_id).one_or_none()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Webhook not found.")
+    if row.status != "disabled":
+        row.status = "disabled"
+        row.updated_at = datetime.utcnow()
+        _audit(db, bank_id, actor_id, "webhook_disabled", "webhook", row.id)
+        db.commit()
+
+
 def _record_delivery(db: Session, row: WebhookSubscription, event_type: str, payload: dict, *, status: str, response_summary: str | None = None) -> WebhookDelivery:
     body = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     secret = _cipher().decrypt(row.signing_secret_encrypted.encode()).decode()
@@ -214,4 +225,21 @@ def list_deliveries(db: Session, bank_id: str, webhook_id: str) -> list[dict]:
 
 
 def event_catalogue() -> list[dict]:
-    return [{"event_type": event, "delivery": "signed JSON payload", "retry": "failed deliveries remain persisted for retry"} for event in WEBHOOK_EVENTS]
+    return [{"event_type": event, "delivery": "signed JSON payload", "retry": "not available in this MVP"} for event in WEBHOOK_EVENTS]
+
+
+def developer_home(db: Session, bank_id: str) -> dict:
+    bank = db.get(BankPartner, bank_id)
+    if bank is None:
+        raise HTTPException(status_code=404, detail="Bank not found.")
+    return {
+        "bank_id": bank.id,
+        "environment": bank.environment,
+        "authentication": "X-Sura-API-Key",
+        "api_docs_path": "/docs",
+        "machine_endpoints": [
+            "GET /v1/integrations/customers/{user_id}/score",
+            "GET /v1/integrations/customers/{user_id}/commitments",
+        ],
+        "webhook_delivery": "signed test deliveries only; outbound dispatch is not part of this MVP",
+    }

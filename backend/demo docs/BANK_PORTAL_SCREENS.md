@@ -10,7 +10,7 @@ Sura remains non-custodial: the bank owns the customer relationship and moves mo
 
 | Role | Access |
 |---|---|
-| Bank administrator | All portal areas, team access, API keys and webhook configuration. |
+| Bank administrator | All portal areas, staff provisioning, API keys and webhook configuration. |
 | Risk analyst | Customers, commitments, audit log, flags and settlements. No API-key or team management. |
 | Integration engineer | Developer Hub, API keys, webhooks and delivery logs. No customer-risk actions. |
 | Demo bank user | Read-only seeded data for the live demo. |
@@ -63,7 +63,7 @@ The authentication provider must issue a token containing `sub`, `role`, `instit
 
 **Route:** `/bank/login`
 
-- Bank email or institution SSO button.
+- Bank email/password and MFA. Production SSO remains a future integration.
 - Password/MFA step where appropriate.
 - A demo-only bank sign-in option, disabled outside the demo environment.
 - Clear error, expired-session, and locked-account states.
@@ -77,14 +77,14 @@ The authentication provider must issue a token containing `sub`, `role`, `instit
 - Summary cards: active commitments, total contributed, completion rate, open fraud flags, pending settlements.
 - Recent-risk and recent-settlement activity.
 - Quick links to commitments, customer search, audit log, flags, and Developer Hub.
-- Date range selector.
+- Date range selector for contribution totals and recent settlement activity.
 
 ### B3 — Commitment monitoring
 
 **Route:** `/bank/commitments`
 
 - Search by commitment ID, title, vendor, member, or status.
-- Filters: active, pending, missed, completed, redeemed; rotating type; new-group or mixed-group.
+- Filters: status, vendor, member, title, and commitment ID.
 - Table columns: ID, title, vendor, members, cycle, status, contributed amount, created date.
 - Opens B4.
 
@@ -95,7 +95,7 @@ The authentication provider must issue a token containing `sub`, `role`, `instit
 - Read-only commitment summary and vendor lock.
 - Payout schedule and beneficiary status per cycle.
 - Contributions and payment status by member; never show one member's score to another member, but authorised bank staff may see score context in this portal.
-- Genesis/mixed-group decision, cap decision, and the explainable reason.
+- The persisted payout order and contribution activity. Genesis and cap decisions are not stored as standalone records in this MVP.
 - Activity timeline: created, joined, contributed, cycle paid, voucher issued, redeemed.
 - Links to associated customer profiles and settlement record.
 
@@ -104,7 +104,7 @@ The authentication provider must issue a token containing `sub`, `role`, `instit
 **Route:** `/bank/users`
 
 - Search by name, phone number, Sura user ID, bank customer ID/account reference, or commitment ID.
-- Filter by score tier, verification status, Float eligibility, open flag, commitment status, and institution.
+- Filter by score tier, verification status, Float eligibility, flag status, and commitment status. Institution scope is enforced by the authenticated bank tenant.
 - Masked identifiers in results.
 - Columns: customer, masked bank reference, score/tier, verification, active commitments, on-time rate, flags.
 - Opens B6.
@@ -153,8 +153,8 @@ The authentication provider must issue a token containing `sub`, `role`, `instit
 **Route:** `/bank/audit-log`
 
 - Cross-customer log of score changes and material decision events.
-- Filter by customer, commitment, pillar, date, event type, and actor.
-- Export action with confirmation and audit record.
+- Filter by customer, commitment, date, event type, and actor. Pillar-level filtering is not stored independently.
+- Export action creates a bank audit record.
 - Links to the underlying customer, commitment, or flag.
 
 ### B8 — Risk flags
@@ -162,7 +162,7 @@ The authentication provider must issue a token containing `sub`, `role`, `instit
 **Route:** `/bank/flags`
 
 - List of open, dismissed, confirmed, and escalated flags.
-- Filter by severity, rule, date, and status.
+- Filter by severity, rule, and status.
 - Columns: customer, rule, severity, created time, status, assigned analyst.
 - Opens B9.
 
@@ -240,7 +240,7 @@ The authentication provider must issue a token containing `sub`, `role`, `instit
 
 **Route:** `/bank/team`
 
-- Staff list, role, access state, last login, invite, change-role, and revoke-access actions.
+- Staff list, role, access state, last login, provision, change-role, and revoke-access actions. Email delivery of invitations is not part of this MVP.
 
 ### B19 — Institution settings
 
@@ -256,19 +256,22 @@ The following customer, score, monitoring, and settlement endpoints are implemen
 
 ```text
 GET  /v1/bank/overview
-GET  /v1/bank/users?q=&bank_customer_id=&score_tier=&flag_status=
+GET  /v1/bank/users?q=&bank_customer_id=&score_tier=&flag_status=&verified=&float_eligibility=&commitment_status=
 GET  /v1/bank/users/{user_id}
 GET  /v1/bank/users/{user_id}/commitments
 GET  /v1/bank/users/{user_id}/score
 GET  /v1/bank/users/{user_id}/activity
 GET  /v1/bank/users/{user_id}/flags
-GET  /v1/bank/commitments
+GET  /v1/bank/commitments?q=&status=&vendor_id=&member_id=
 GET  /v1/bank/commitments/{commitment_id}
-GET  /v1/bank/audit-log
-GET  /v1/bank/flags
+GET  /v1/bank/audit-log?user_id=&commitment_id=&event_type=&actor_id=&date_from=&date_to=
+POST /v1/bank/audit-log/export
+GET  /v1/bank/flags?user_id=&status=&severity=&rule=
+GET  /v1/bank/flags/{flag_id}
 GET  /v1/bank/users/{user_id}/flags
 POST /v1/bank/flags/{flag_id}/resolve
-GET  /v1/bank/settlements
+GET  /v1/bank/settlements?q=&status=&vendor_id=&user_id=&commitment_id=
+GET  /v1/bank/developers
 ```
 
 The following Developer Hub endpoints are implemented. Webhook test deliveries are signed and persisted but deliberately simulated in this MVP: no external bank URL is called until the production delivery worker, retry policy, and bank-network controls are approved.
@@ -281,10 +284,16 @@ DELETE /v1/bank/api-keys/{key_id}
 GET  /v1/bank/webhooks
 POST /v1/bank/webhooks
 PATCH /v1/bank/webhooks/{webhook_id}
+DELETE /v1/bank/webhooks/{webhook_id}              # disables; preserves delivery history
 POST /v1/bank/webhooks/{webhook_id}/test
 POST /v1/bank/webhooks/{webhook_id}/rotate-secret
 GET  /v1/bank/webhooks/{webhook_id}/deliveries
 GET  /v1/bank/events
+GET  /v1/bank/team
+POST /v1/bank/team                                # provisions a staff account; no email dispatch
+PATCH /v1/bank/team/{staff_id}
+GET  /v1/bank/settings
+PATCH /v1/bank/settings
 ```
 
 Machine integrations use a generated key in the `X-Sura-API-Key` header. The available scopes and endpoints are:

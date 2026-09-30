@@ -119,7 +119,7 @@ PostgreSQL   via SQLAlchemy models and Alembic migrations
 | Sura Lock: consent, invite, contribution, payout, idempotency | Implemented and tested |
 | Vendor verification, voucher issuance, and redemption | Implemented and tested |
 | Sura Score 0–1000 and explainable score history | Implemented and tested |
-| Bank Portal: tenant search, score audit, flags, and settlements | Implemented and tested |
+| Bank Portal: monitoring, customer/commitment detail, flags, settlements, Developer Hub, staff, and settings | Implemented and tested |
 | Developer Hub: scoped keys and machine score/commitment API; signed webhook test deliveries and logs | In progress; outbound event delivery worker remains |
 | Sura Float | Roadmap only; intentionally not implemented for October 8 |
 
@@ -131,6 +131,7 @@ python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
+python -m alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
@@ -142,6 +143,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 Copy-Item .env.example .env
+python -m alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
@@ -153,10 +155,11 @@ The score tests are pure Python and need nothing but pytest.
 
 ```bash
 cd backend
-python -m pytest app/tests/test_scoring.py -v
+python -m pytest tests/test_scoring.py -v
 ```
 
-The full suite additionally needs `pip install -r requirements.txt` and a reachable database.
+The API test suite uses an isolated in-memory database. CI also applies the full
+Alembic chain against PostgreSQL before it runs the tests.
 
 ## Project structure
 
