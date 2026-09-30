@@ -6,6 +6,7 @@ from guessing that a user ID and a vendor ID are the same thing.
 """
 
 from fastapi import HTTPException, status
+
 from app.auth import AuthPrincipal
 
 
