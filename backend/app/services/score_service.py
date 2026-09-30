@@ -26,7 +26,10 @@ def build_score_signals(db: Session, user_id: str) -> ScoreSignals:
         key = (row.commitment_id, row.cycle_number)
         paid[key] = paid.get(key, 0) + row.amount
     activity = db.query(AccountActivitySignal).filter(AccountActivitySignal.user_id == user_id).order_by(AccountActivitySignal.occurred_at).all()
-    intervals = tuple((later.occurred_at - earlier.occurred_at).total_seconds() / 86400 for earlier, later in zip(activity, activity[1:]))
+    # Pairwise gaps between consecutive activity. The two sequences are the same
+    # list and its own tail, so their lengths differ by one on purpose; this is
+    # not a strict zip.
+    intervals = tuple((later.occurred_at - earlier.occurred_at).total_seconds() / 86400 for earlier, later in zip(activity, activity[1:], strict=False))
     cosigners = db.query(CommitmentMember).join(User, User.id == CommitmentMember.user_id).filter(CommitmentMember.commitment_id.in_(commitment_ids), CommitmentMember.user_id != user_id, CommitmentMember.role != "invited", User.verified_at.is_not(None)).count() if commitment_ids else 0
     return ScoreSignals(
         locks_joined=len(commitment_ids),
