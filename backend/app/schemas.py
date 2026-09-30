@@ -92,6 +92,12 @@ class JoinCommitmentRequest(BaseModel):
     invite_code: str = Field(min_length=1, max_length=64)
 
 
+class MemberLookupRequest(BaseModel):
+    """Exact-contact lookup used while an authenticated member builds a group."""
+
+    phone: str = Field(min_length=7, max_length=32)
+
+
 class VendorRedeemRequest(BaseModel):
     voucher_code: str = Field(min_length=1, max_length=64)
 

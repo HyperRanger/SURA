@@ -45,7 +45,7 @@ def test_there_is_exactly_one_migration_head():
 
 def test_bank_migration_paths_merge_at_the_expected_head():
     heads = _script_directory().get_heads()
-    assert heads == ["0012_bank_portal_operations"]
+    assert heads == ["0013_contact_lookup_limit"]
 
 
 def test_migration_identifiers_fit_the_existing_version_column():

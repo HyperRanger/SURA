@@ -94,7 +94,7 @@ def auth_headers():
 
     def _headers(
         user_id: str,
-        role: str | None = None,
+        role: str | None = "individual",
         permissions: list[str] | None = None,
         institution_id: str | None = None,
     ) -> dict[str, str]:

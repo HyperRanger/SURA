@@ -19,6 +19,8 @@ def get_score(
     current_user: AuthPrincipal = Depends(get_current_principal),
     db: Session = Depends(get_db),
 ):
+    if current_user.role != "individual":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Member access is required.")
     if current_user.user_id != user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You may only view your own score.")
     report = get_score_report(db, user_id)
@@ -47,6 +49,8 @@ def get_score_history(
     full paper trail behind the current score: the score before and after each
     change, the event that caused it, and the weighted breakdown.
     """
+    if current_user.role != "individual":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Member access is required.")
     if current_user.user_id != user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You may only view your own score history.")
     rows = (

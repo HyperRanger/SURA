@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.auth import AuthPrincipal, get_current_principal
@@ -21,12 +21,18 @@ router = APIRouter(prefix="/v1/commitments", tags=["commitments"])
 consent_router = APIRouter(prefix="/v1", tags=["commitments"])
 
 
+def _require_individual(current_user: AuthPrincipal) -> None:
+    if current_user.role != "individual":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Member access is required.")
+
+
 @router.post("/lock", response_model=LockResponse, status_code=status.HTTP_201_CREATED)
 def create_commitment_lock(
     payload: LockRequest,
     current_user: AuthPrincipal = Depends(get_current_principal),
     db: Session = Depends(get_db),
 ):
+    _require_individual(current_user)
     _, response = create_commitment(db, payload, current_user.user_id)
     return response
 
@@ -36,6 +42,7 @@ def list_my_commitments(
     current_user: AuthPrincipal = Depends(get_current_principal),
     db: Session = Depends(get_db),
 ):
+    _require_individual(current_user)
     return list_member_commitments(db, current_user.user_id)
 
 
@@ -45,6 +52,7 @@ def preview_commitment(
     current_user: AuthPrincipal = Depends(get_current_principal),
     db: Session = Depends(get_db),
 ):
+    _require_individual(current_user)
     return preview_commitment_by_code(db, code, current_user.user_id)
 
 
@@ -54,6 +62,7 @@ def join_commitment_from_invite(
     current_user: AuthPrincipal = Depends(get_current_principal),
     db: Session = Depends(get_db),
 ):
+    _require_individual(current_user)
     return join_commitment(db, payload.invite_code, current_user.user_id)
 
 
@@ -63,6 +72,7 @@ def record_consent(
     current_user: AuthPrincipal = Depends(get_current_principal),
     db: Session = Depends(get_db),
 ):
+    _require_individual(current_user)
     return record_score_consent(db, current_user.user_id, payload.granted)
 
 
@@ -73,6 +83,7 @@ def contribute_to_commitment(
     current_user: AuthPrincipal = Depends(get_current_principal),
     db: Session = Depends(get_db),
 ):
+    _require_individual(current_user)
     return record_contribution(db, commitment_id, current_user.user_id, payload)
 
 
@@ -82,6 +93,7 @@ def cancel_commitment(
     current_user: AuthPrincipal = Depends(get_current_principal),
     db: Session = Depends(get_db),
 ):
+    _require_individual(current_user)
     return cancel_pending_commitment(db, commitment_id, current_user.user_id)
 
 
@@ -91,6 +103,7 @@ def get_activity(
     current_user: AuthPrincipal = Depends(get_current_principal),
     db: Session = Depends(get_db),
 ):
+    _require_individual(current_user)
     return get_commitment_activity(db, commitment_id, current_user.user_id)
 
 
@@ -101,6 +114,7 @@ def get_voucher(
     current_user: AuthPrincipal = Depends(get_current_principal),
     db: Session = Depends(get_db),
 ):
+    _require_individual(current_user)
     return get_cycle_voucher(db, commitment_id, cycle_number, current_user.user_id)
 
 
@@ -110,4 +124,5 @@ def get_commitment(
     current_user: AuthPrincipal = Depends(get_current_principal),
     db: Session = Depends(get_db),
 ):
+    _require_individual(current_user)
     return get_commitment_details(db, commitment_id, current_user.user_id)

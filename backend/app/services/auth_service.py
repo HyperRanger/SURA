@@ -37,7 +37,7 @@ PURPOSE_BANK_MFA = "bank_mfa"
 NIGERIA_COUNTRY_CODE = "234"
 
 
-def _normalize_phone(phone: str) -> str:
+def normalize_phone(phone: str) -> str:
     """Store one canonical form per person.
 
     A Nigerian user typing 08030000012 and one typing +234 803 000 0012 are the
@@ -192,7 +192,7 @@ def signup(
     if role == VENDOR_ROLE and (not business_name or not business_category):
         raise HTTPException(status_code=400, detail="Vendor accounts need a business name and category.")
 
-    normalized = _normalize_phone(phone)
+    normalized = normalize_phone(phone)
     if _get_by_phone(db, normalized) is not None:
         raise HTTPException(status_code=409, detail="An account already exists for that phone number.")
 
@@ -232,7 +232,7 @@ def login(db: Session, phone: str) -> dict[str, Any]:
     caller cannot tell the two cases apart from the body, the status, or the
     field set.
     """
-    user = _get_by_phone(db, _normalize_phone(phone))
+    user = _get_by_phone(db, normalize_phone(phone))
 
     if user is None:
         return _challenge_envelope(str(uuid.uuid4()), PURPOSE_LOGIN, generate_otp())

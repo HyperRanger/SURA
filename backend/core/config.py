@@ -30,6 +30,12 @@ class Settings(BaseSettings):
 
     access_token_ttl_seconds: int = 60 * 60 * 24
 
+    # Contact resolution helps a member build a group, but it must not become a
+    # customer-directory endpoint. The limiter is durable and per authenticated
+    # member, so app restarts and additional web instances do not reset it.
+    contact_lookup_max_attempts: int = 10
+    contact_lookup_window_seconds: int = 15 * 60
+
     # Termii sends the codes. The host and sender are account-specific, so they
     # are settings rather than constants. `dnd` is the transactional channel:
     # `generic` is marketing traffic and must never carry a login code.
