@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import delete
 from sqlalchemy.orm import Session
 
+from app.bank.models import BankAuditEvent, BankPartner, BankStaff, RiskFlag
 from app.models import (
     AccountActivitySignal,
     AuthChallenge,
@@ -23,9 +24,8 @@ from app.models import (
     Vendor,
     Voucher,
 )
-from app.bank.models import BankAuditEvent, BankPartner, BankStaff, RiskFlag
-from core.passwords import hash_password
 from app.services.score_service import record_score_snapshot
+from core.passwords import hash_password
 
 DEMO_USER_IDS = ("usr_demo_amara", "usr_demo_tunde")
 DEMO_BANK_STAFF_USER_IDS = (

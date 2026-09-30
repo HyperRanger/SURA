@@ -14,7 +14,6 @@ from app.services.scoring import (
     transaction_stability,
 )
 
-
 VERIFIED_NEWCOMER = ScoreSignals(institution_verified=True)
 COMPLETED_ONE_ROTATION = ScoreSignals(
     locks_joined=1,
