@@ -134,6 +134,12 @@ def seed_demo_data(db: Session, *, reset: bool = False) -> dict[str, object]:
         user.verified_at = now
         user.phone_verified_at = now
 
+    # PostgreSQL enforces the staff-to-user foreign key immediately. Flush the
+    # user rows before adding their BankStaff records; SQLite's test defaults do
+    # not reliably expose this ordering requirement.
+    db.flush()
+
+    for user_id, name, email, role, permissions, mfa_phone in staff_specs:
         staff = db.query(BankStaff).filter(BankStaff.user_id == user_id).one_or_none()
         if staff is None:
             staff = BankStaff(id=f"stf_{user_id[4:]}", user_id=user_id)

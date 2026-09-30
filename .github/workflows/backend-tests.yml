@@ -52,5 +52,8 @@ jobs:
       - name: Verify PostgreSQL migrations
         run: python -m alembic upgrade head
 
+      - name: Verify PostgreSQL demo seed
+        run: python scripts/seed_demo_data.py --reset
+
       - name: Run tests
         run: python -m pytest tests -q
