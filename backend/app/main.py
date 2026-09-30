@@ -17,6 +17,7 @@ from app.routers.vendors import router as vendors_router
 from app.bank.router import router as bank_router
 from app.bank.integration_router import router as bank_integration_router
 from app.routers.bank_auth import router as bank_auth_router
+from app.member_vendor.router import router as member_vendor_router
 from core.config import get_settings
 
 
@@ -61,6 +62,7 @@ app.include_router(bank_integration_router)
 app.include_router(bank_auth_router)
 app.include_router(profile_router)
 app.include_router(demo_router)
+app.include_router(member_vendor_router)
 
 
 def _check_database(db: Session) -> bool:

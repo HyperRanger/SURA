@@ -8,6 +8,7 @@ from app.database import get_db
 from app.models import Vendor
 from app.schemas import VendorRedeemRequest, VendorVerificationRequest
 from app.services.commitments import list_vendor_redemptions, redeem_vendor_voucher, validate_vendor_voucher
+from app.services.vendor_accounts import get_authenticated_vendor_id
 
 router = APIRouter(prefix="/v1/vendors", tags=["vendors"])
 
@@ -70,9 +71,10 @@ def validate_voucher_for_vendor(
     current_user: AuthPrincipal = Depends(get_current_principal),
     db: Session = Depends(get_db),
 ):
-    """The authenticated vendor account must use its own vendor ID as token subject."""
+    """Validate using the merchant record bound to the vendor session."""
     _require_vendor_principal(current_user)
-    return validate_vendor_voucher(db, payload.voucher_code, current_user.user_id)
+    vendor_id = get_authenticated_vendor_id(current_user)
+    return validate_vendor_voucher(db, payload.voucher_code, vendor_id)
 
 
 @router.post("/redeem")
@@ -83,7 +85,8 @@ def redeem_voucher_for_vendor(
 ):
     """Confirm handover after the vendor has reviewed a validated voucher."""
     _require_vendor_principal(current_user)
-    return redeem_vendor_voucher(db, payload.voucher_code, current_user.user_id)
+    vendor_id = get_authenticated_vendor_id(current_user)
+    return redeem_vendor_voucher(db, payload.voucher_code, vendor_id)
 
 
 @router.get("/redemptions")
@@ -92,4 +95,5 @@ def get_vendor_redemptions(
     db: Session = Depends(get_db),
 ):
     _require_vendor_principal(current_user)
-    return list_vendor_redemptions(db, current_user.user_id)
+    vendor_id = get_authenticated_vendor_id(current_user)
+    return list_vendor_redemptions(db, vendor_id)

@@ -31,6 +31,21 @@ class User(Base):
     phone_verified_at = Column(DateTime, nullable=True)
 
 
+class ContactLookupRateLimit(Base):
+    """One rolling fixed-window counter per authenticated contact resolver.
+
+    It deliberately stores no searched phone number. The only data required to
+    throttle account discovery is the caller identity, the current window, and
+    the attempt count.
+    """
+
+    __tablename__ = "contact_lookup_rate_limits"
+
+    requester_user_id = Column(String, primary_key=True)
+    window_started_at = Column(DateTime, nullable=False)
+    attempt_count = Column(Integer, nullable=False, default=0)
+
+
 class AuthChallenge(Base):
     """A pending one-time code for signup or login.
 

@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.bank.models import BankStaff
 from app.models import (
     Commitment,
     CommitmentActivity,
@@ -25,6 +26,7 @@ from app.services.contribution_engine import dump_rule_trace, evaluate_contribut
 from app.services.payout_rules import apply_anchor_and_cap_rule, build_payout_schedule
 from app.services.score_service import record_score_snapshot
 from app.services.scoring import ENTRY_TIER_BASELINE
+from core.config import get_settings
 
 ENTRY_TIER_SCORE = ENTRY_TIER_BASELINE
 
@@ -147,9 +149,16 @@ def _normalize_member_ids(member_ids: list[str]) -> list[str]:
     return normalized
 
 
-def _ensure_user(db: Session, user_id: str) -> None:
-    if db.get(User, user_id) is not None:
+def _ensure_member_user(db: Session, user_id: str) -> None:
+    user = db.get(User, user_id)
+    if user is not None:
+        is_bank_staff = db.query(BankStaff.id).filter(BankStaff.user_id == user_id).first() is not None
+        if user.role != "individual" or is_bank_staff:
+            raise HTTPException(status_code=400, detail="Commitment members must be individual Sura accounts.")
         return
+
+    if get_settings().is_production:
+        raise HTTPException(status_code=400, detail="Every commitment member must have a Sura account.")
 
     db.add(
         User(
@@ -213,6 +222,59 @@ def _build_payout_order(
         key=lambda item: (-scores.get(item[1], ENTRY_TIER_SCORE), item[0]),
     )
     return [member_id for _, member_id in ranked], False
+
+
+def preview_lock(
+    db: Session, payload: LockRequest, authenticated_creator_id: str
+) -> dict[str, Any]:
+    """Return the deterministic Lock plan without storing a commitment."""
+    if payload.type != "rotating":
+        raise HTTPException(status_code=400, detail="Only rotating commitments are supported.")
+    if not payload.members:
+        raise HTTPException(status_code=400, detail="At least one member is required.")
+    if payload.contribution_amount <= 0:
+        raise HTTPException(status_code=400, detail="Contribution amount must be positive.")
+    if payload.cycles <= 0:
+        raise HTTPException(status_code=400, detail="Cycles must be positive.")
+
+    member_ids = _normalize_member_ids(payload.members)
+    if payload.creator_id and payload.creator_id != authenticated_creator_id:
+        raise HTTPException(status_code=403, detail="creator_id must match the authenticated user.")
+    if authenticated_creator_id not in member_ids:
+        member_ids = _normalize_member_ids([authenticated_creator_id, *member_ids])
+    if payload.cycles != len(member_ids):
+        raise HTTPException(status_code=400, detail="A rotating commitment must have one cycle per member.")
+
+    vendor = db.get(Vendor, payload.vendor_id)
+    if vendor is None or vendor.verified_at is None:
+        raise HTTPException(status_code=400, detail="Commitment vendor must be verified before it can be selected.")
+    members = [db.get(User, member_id) for member_id in member_ids]
+    if any(member is None for member in members):
+        raise HTTPException(status_code=400, detail="Every commitment member must have a Sura account.")
+    member_ids_with_bank_staff = {
+        row.user_id for row in db.query(BankStaff.user_id).filter(BankStaff.user_id.in_(member_ids)).all()
+    }
+    if any(member.role != "individual" for member in members if member is not None) or member_ids_with_bank_staff:
+        raise HTTPException(status_code=400, detail="Commitment members must be individual Sura accounts.")
+
+    payout_order, genesis_group = _build_payout_order(db, member_ids, payload.payout_order)
+    payout_schedule = build_payout_schedule(payout_order, payload.contribution_amount, payload.cycles)
+    first_payout_is_within_cap = not payout_schedule or (
+        apply_anchor_and_cap_rule(payout_schedule[0]["amount"], 1) == payout_schedule[0]["amount"]
+    )
+    return {
+        "members": member_ids,
+        "payout_order": payout_order,
+        "payout_schedule": payout_schedule,
+        "genesis_group": genesis_group,
+        "first_payout_is_within_cap": first_payout_is_within_cap,
+        "can_create": first_payout_is_within_cap,
+        "blocking_reason": (
+            None
+            if first_payout_is_within_cap
+            else "Genesis commitments must keep the first pooled payout within the configured cap."
+        ),
+    }
 
 
 def _serialize_commitment(commitment: Commitment, db: Session) -> dict[str, Any]:
@@ -335,7 +397,7 @@ def create_commitment(
     try:
         with db.begin():
             for member_id in member_ids:
-                _ensure_user(db, member_id)
+                _ensure_member_user(db, member_id)
             _require_score_processing_consent(db, creator_id)
             vendor = db.get(Vendor, payload.vendor_id)
             if vendor is None or vendor.verified_at is None:
@@ -853,10 +915,11 @@ def validate_vendor_voucher(db: Session, voucher_code: str, vendor_id: str) -> d
     if voucher.status != "ready":
         raise HTTPException(status_code=400, detail="Voucher is not ready for redemption.")
     commitment = db.get(Commitment, voucher.commitment_id)
+    beneficiary = db.get(User, voucher.beneficiary_id)
     return {
         "voucher": _serialize_voucher(voucher),
         "commitment_title": commitment.title if commitment else None,
-        "beneficiary_id": voucher.beneficiary_id,
+        "beneficiary_first_name": beneficiary.name.split(maxsplit=1)[0] if beneficiary else None,
     }
 
 
