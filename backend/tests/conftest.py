@@ -29,6 +29,8 @@ TEST_ENV = {
     "JWT_ALGORITHM": "HS256",
     "DEMO_OTP_CODE": "123456",
     "ENVIRONMENT": "test",
+    # Tests must never use a developer's configured SMS provider.
+    "TERMII_API_KEY": "",
 }
 for _key, _value in TEST_ENV.items():
     os.environ[_key] = _value
