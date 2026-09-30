@@ -48,6 +48,13 @@ def test_bank_migration_paths_merge_at_the_expected_head():
     assert heads == ["0012_bank_portal_operations"]
 
 
+def test_migration_identifiers_fit_the_existing_version_column():
+    """Render's established Alembic table uses the standard VARCHAR(32)."""
+    revisions = list(_script_directory().walk_revisions())
+    too_long = [revision.revision for revision in revisions if len(revision.revision) > 32]
+    assert not too_long, f"Alembic revision IDs exceed VARCHAR(32): {too_long}"
+
+
 def test_bank_tables_are_present_in_the_orm_metadata():
     for table in (BankPartner, RiskFlag, BankAuditEvent, BankStaff, BankApiKey, WebhookSubscription, WebhookDelivery):
         assert table.__tablename__ in Base.metadata.tables
