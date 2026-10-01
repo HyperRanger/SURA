@@ -241,12 +241,12 @@ Use [`backend/demo docs/DEMO_RUNBOOK.md`](<backend/demo docs/DEMO_RUNBOOK.md>) f
 
 | Domain | Owner | Boundary |
 |---|---|---|
-| Authentication, OTP, sessions, and role claims | Authentication owner | Other domains consume the established principal; they do not recreate authentication. |
-| Lock, vendor flows, PWA contracts, deployment | Core backend | Shared business logic stays outside the PWA folder. |
-| Score rule engine and Score evolution | Score owner + core backend integration | Rules remain deterministic, versioned, and auditable. |
-| Fraud/risk flags | Risk/fraud owner | Group Health is separate advisory product data, not a competing fraud engine. |
-| Bank Portal and integration API | Bank backend owner | Tenant isolation, permissions, audit, keys, and developer tooling. |
-| Frontend applications | Frontend team | Integrates only against documented endpoints; it does not reproduce backend rules. |
+| Authentication, OTP, sessions, and role claims | @olatunjitobiloba | Other domains consume the established principal; they do not recreate authentication. |
+| Lock, vendor flows, PWA contracts, deployment | @HyperRanger | Shared business logic stays outside the PWA folder. |
+| Score rule engine and Score evolution | @olatunjitobiloba | Rules remain deterministic, versioned, and auditable. |
+| Fraud/risk flags | @olatunjitobiloba & @HyperRanger| Group Health is separate advisory product data, not a competing fraud engine. |
+| Bank Portal and integration API | @HyperRanger | Tenant isolation, permissions, audit, keys, and developer tooling. |
+| Frontend applications | @fisayo-dev &  | Integrates only against documented endpoints; it does not reproduce backend rules. |
 
 `Backend` is the integration branch. `Master` is the production branch and must remain deployable. Changes should be reviewed, tested, and migrated before merging to `Master`.
 
