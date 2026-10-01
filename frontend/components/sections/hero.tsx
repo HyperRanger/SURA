@@ -11,14 +11,6 @@ import { HeroPreview } from "@/components/sections/hero-preview"
 export function Hero() {
   return (
     <section className="relative overflow-hidden pt-10 pb-16 md:pt-16 md:pb-24">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute top-10 right-[-15%] size-144 rounded-full bg-primary/15 blur-3xl"
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute top-1/2 right-[8%] size-64 rounded-full bg-gold/15 blur-3xl"
-      />
 
       <div className="container-page relative grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr]">
         <div>
