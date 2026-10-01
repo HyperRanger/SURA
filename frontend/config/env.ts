@@ -3,8 +3,21 @@
 
 const appEnv = (process.env.NEXT_PUBLIC_APP_ENV ?? "development").trim().toLowerCase()
 
+// axios treats anything that isn't an absolute url as a path on the current page,
+// so a typo like API_URL==https://... would quietly call /bank/=https:/... instead.
+// stray "=", quotes and spaces are stripped, and anything still not http(s) is dropped loudly
+function readApiUrl(raw: string | undefined) {
+  const value = (raw ?? "").trim().replace(/^[=\s"']+|["'\s]+$/g, "").replace(/\/+$/, "")
+  if (!value) return ""
+  if (!/^https?:\/\//i.test(value)) {
+    console.error(`[env] NEXT_PUBLIC_API_URL must start with http:// or https://, got "${raw}"`)
+    return ""
+  }
+  return value
+}
+
 export const env = {
-  apiUrl: (process.env.NEXT_PUBLIC_API_URL ?? "").replace(/\/+$/, ""),
+  apiUrl: readApiUrl(process.env.NEXT_PUBLIC_API_URL),
   appEnv,
   // the backend's DEMO_OTP_CODE. only needed to sign in as the named seeded people
   // on /demo, never set it in production
