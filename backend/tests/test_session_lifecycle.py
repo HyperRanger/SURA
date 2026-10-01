@@ -16,9 +16,11 @@ import pytest
 from fastapi import HTTPException
 
 from app.bank.models import BankStaff
+from app.bank.contracts import BANK_STAFF_ROLE_PERMISSIONS
 from app.models import PlatformAuditEvent, SessionRevocation, User
 from app.services import audit, bank_auth_service
 from app.services.demo_data import DEMO_BANK_ID, DEMO_BANK_PASSWORD, seed_demo_data
+from core.passwords import hash_password
 from core.security import create_token
 
 DEMO_ADMIN_EMAIL = "demo.admin@sura.local"
@@ -55,6 +57,31 @@ def _seed(client):
     db = _db(client)
     try:
         seed_demo_data(db, reset=True)
+        # The released demo seeds one full-permission portal account only. The
+        # credential and least-privilege tests still need a second role, so they
+        # construct it inside this isolated test database rather than making it
+        # part of the public demo population.
+        risk_user = User(
+            id="usr_test_bank_risk",
+            name="Test Bank Risk Analyst",
+            phone="test.risk@sura.local",
+            bank_id=DEMO_BANK_ID,
+            role="bank_risk_analyst",
+            verified_at=None,
+        )
+        db.add(risk_user)
+        db.flush()
+        db.add(BankStaff(
+            id="stf_test_bank_risk",
+            bank_id=DEMO_BANK_ID,
+            user_id=risk_user.id,
+            email=DEMO_RISK_EMAIL,
+            password_hash=hash_password(DEMO_BANK_PASSWORD),
+            role="bank_risk_analyst",
+            permissions_json=json.dumps(sorted(BANK_STAFF_ROLE_PERMISSIONS["bank_risk_analyst"])),
+            mfa_phone="2347065250899",
+            status="active",
+        ))
         db.commit()
     finally:
         db.close()
@@ -268,7 +295,7 @@ def test_admin_can_reset_a_colleagues_password(client):
     db = _db(client)
     try:
         actor = _staff(db, "usr_demo_bank_admin")
-        target = _staff(db, "usr_demo_bank_risk")
+        target = _staff(db, "usr_test_bank_risk")
         bank_auth_service.reset_password(db, actor, target.id, "reset-passphrase-99")
     finally:
         db.close()
@@ -280,7 +307,7 @@ def test_a_non_admin_cannot_reset_anyone(client):
     _seed(client)
     db = _db(client)
     try:
-        actor = _staff(db, "usr_demo_bank_risk")
+        actor = _staff(db, "usr_test_bank_risk")
         target = _staff(db, "usr_demo_bank_admin")
         with pytest.raises(HTTPException) as caught:
             bank_auth_service.reset_password(db, actor, target.id, "reset-passphrase-99")
@@ -341,7 +368,7 @@ def test_permissions_cannot_exceed_the_role_map(client):
     db = _db(client)
     try:
         actor = _staff(db, "usr_demo_bank_admin")
-        target = _staff(db, "usr_demo_bank_risk")
+        target = _staff(db, "usr_test_bank_risk")
         with pytest.raises(HTTPException) as caught:
             bank_auth_service.change_permissions(db, actor, target.id, ["bank:settings:write"])
         assert caught.value.status_code == 400
@@ -355,7 +382,7 @@ def test_permissions_can_be_narrowed_and_take_effect_on_the_next_request(client)
     db = _db(client)
     try:
         actor = _staff(db, "usr_demo_bank_admin")
-        target = _staff(db, "usr_demo_bank_risk")
+        target = _staff(db, "usr_test_bank_risk")
         bank_auth_service.change_permissions(db, actor, target.id, ["bank:overview:read"])
     finally:
         db.close()

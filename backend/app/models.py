@@ -15,6 +15,9 @@ class User(Base):
     verified_at = Column(DateTime, nullable=True)
     bank_customer_id = Column(String, nullable=True, index=True)
     bank_id = Column(String, ForeignKey("bank_partners.id"), nullable=True, index=True)
+    # A bank-owned, demo-safe balance snapshot. It is exposed only through the
+    # tenant-scoped Bank Portal; member and vendor APIs never receive it.
+    available_balance = Column(Integer, nullable=False, default=0)
 
     # Assigned by the backend at signup and carried in the token. The frontend
     # route is never trusted for this; every protected endpoint reads the claim.

@@ -13,7 +13,7 @@ python -m pytest tests -q
 python -m alembic -c alembic.ini heads
 ```
 
-Expected migration result: exactly one head, `0015_merge_lock_cert`.
+Expected migration result: exactly one head, `0016_demo_balance`.
 
 Confirm that `.env` is ignored and no secret appears in tracked files:
 

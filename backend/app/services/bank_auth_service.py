@@ -546,8 +546,11 @@ def change_permissions(db: Session, actor: BankStaff, target_staff_id: str, perm
     return {"staff_id": target.id, "permissions": sorted(permissions)}
 
 
-DEMO_BANK_STAFF_EMAIL = "demo.bank@sura.local"
+DEMO_BANK_STAFF_EMAIL = "demo.admin@sura.local"
 DEMO_BANK_STAFF_ROLE = "bank_admin"
+DEMO_BANK_ID = "bnk_banter"
+DEMO_BANK_NAME = "Banter Bank"
+DEMO_BANK_STAFF_USER_ID = "usr_demo_bank_admin"
 
 
 def demo_login(db: Session) -> dict[str, Any]:
@@ -558,18 +561,18 @@ def demo_login(db: Session) -> dict[str, Any]:
     around it.
     """
     now = _now()
-    bank = db.query(BankPartner).filter(BankPartner.name == "Demo Bank").one_or_none()
+    bank = db.get(BankPartner, DEMO_BANK_ID)
     if bank is None:
-        bank = BankPartner(id="bnk_demo", name="Demo Bank", created_at=now)
+        bank = BankPartner(id=DEMO_BANK_ID, name=DEMO_BANK_NAME, created_at=now)
         db.add(bank)
         db.flush()
 
-    user = db.get(User, "usr_demo_bank")
+    user = db.get(User, DEMO_BANK_STAFF_USER_ID)
     if user is None:
         user = User(
-            id="usr_demo_bank",
-            name="Demo Bank Analyst",
-            phone="demo-bank@sura.local",
+            id=DEMO_BANK_STAFF_USER_ID,
+            name="Banter Bank Portal Admin",
+            phone=DEMO_BANK_STAFF_EMAIL,
             role=DEMO_BANK_STAFF_ROLE,
             phone_verified_at=now,
             verified_at=now,
@@ -584,7 +587,7 @@ def demo_login(db: Session) -> dict[str, Any]:
     staff = _get_staff_by_email(db, DEMO_BANK_STAFF_EMAIL)
     if staff is None:
         staff = BankStaff(
-            id="stf_demo_bank",
+            id="stf_demo_bank_admin",
             bank_id=bank.id,
             user_id=user.id,
             email=DEMO_BANK_STAFF_EMAIL,

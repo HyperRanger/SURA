@@ -75,6 +75,7 @@ def _user_summary(db: Session, user: User) -> dict:
         "account_status": user.account_status,
         "restriction_reason": user.restriction_reason,
         "bank_customer_id": _masked(user.bank_customer_id),
+        "available_balance": user.available_balance,
         "verified": user.verified_at is not None,
         "score": score["score"],
         "tier": score["tier"],
