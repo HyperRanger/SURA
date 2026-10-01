@@ -72,6 +72,17 @@ def get_current_principal(
             _finish_authorization_read(db)
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Account is no longer active.")
 
+        # A suspension ends access immediately rather than at token expiry, and
+        # says why. A restriction does not: the member keeps read access so they
+        # can see why they cannot transact, and the check at the point of payment
+        # stops the money instead.
+        if user.account_status == "suspended":
+            _finish_authorization_read(db)
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=user.restriction_reason or "This account is suspended.",
+            )
+
         # A Bank Portal sign-in stores its role and permissions on the staff
         # record, not on the user row, so revoking or re-roling staff takes
         # effect on the next request instead of at token expiry.

@@ -28,6 +28,17 @@ class User(Base):
     terms_accepted_at = Column(DateTime, nullable=True)
     phone_verified_at = Column(DateTime, nullable=True)
 
+    # Set by a bank's risk analyst, never by the member. ``active`` is the only
+    # state that permits money to move; ``restricted`` blocks new contributions
+    # and voucher redemption while leaving read access intact, so a member can
+    # still see why they cannot transact. ``suspended`` additionally refuses
+    # sign-in. The reason is required whenever a state is not ``active`` because
+    # the decision is shown back to the member and audited.
+    account_status = Column(String, nullable=False, default="active")
+    restriction_reason = Column(Text, nullable=True)
+    restricted_by = Column(String, nullable=True)
+    restricted_at = Column(DateTime, nullable=True)
+
 
 class ContactLookupRateLimit(Base):
     """One rolling fixed-window counter per authenticated contact resolver.

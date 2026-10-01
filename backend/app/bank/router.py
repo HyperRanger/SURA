@@ -9,7 +9,7 @@ from pydantic import AnyHttpUrl, BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.auth import AuthPrincipal
-from app.bank import developer_service, operations_service, service
+from app.bank import developer_service, operations_service, risk_rules, service
 from app.bank.dependencies import require_bank_permission
 from app.database import get_db
 from app.services.group_health import get_group_health
@@ -18,6 +18,18 @@ from app.services.group_health import get_group_health
 class FlagResolutionRequest(BaseModel):
     action: str = Field(pattern="^(dismissed|confirmed|escalated)$")
     note: str = Field(min_length=1, max_length=1000)
+
+
+class RuleRunRequest(BaseModel):
+    # Optional so a bank can run the whole book. Supplying ids scopes the run,
+    # which is what a scheduled job wants when re-checking recent members only.
+    user_ids: list[str] | None = Field(default=None, max_length=500)
+
+
+class RestrictionRequest(BaseModel):
+    action: str = Field(pattern="^(restricted|suspended|reinstated)$")
+    reason: str = Field(min_length=1, max_length=1000)
+    flag_id: str | None = None
 
 
 class ApiKeyCreateRequest(BaseModel):
@@ -232,6 +244,48 @@ def bank_resolve_flag(
     db: Session = Depends(get_db),
 ):
     return service.resolve_flag(db, current.institution_id, current.user_id, flag_id, payload.action, payload.note)
+
+
+@router.post("/risk-rules/run")
+def bank_run_risk_rules(
+    payload: RuleRunRequest,
+    current: AuthPrincipal = Depends(require_bank_permission("bank:flags:write")),
+    db: Session = Depends(get_db),
+):
+    """Evaluate the rule set and open a flag per new finding.
+
+    Never restricts an account. A rule that could lock a member would be a rule
+    that decides eligibility, and eligibility belongs to the fixed-weight model
+    and to a named analyst.
+    """
+    return service.run_risk_rules(db, current.institution_id, current.user_id, payload.user_ids)
+
+
+@router.post("/users/{user_id}/restriction")
+def bank_apply_restriction(
+    user_id: str,
+    payload: RestrictionRequest,
+    current: AuthPrincipal = Depends(require_bank_permission("bank:flags:write")),
+    db: Session = Depends(get_db),
+):
+    return risk_rules.apply_restriction(
+        db,
+        current.institution_id,
+        current.user_id,
+        user_id,
+        payload.action,
+        payload.reason,
+        flag_id=payload.flag_id,
+    )
+
+
+@router.get("/users/{user_id}/restrictions")
+def bank_list_restrictions(
+    user_id: str,
+    current: AuthPrincipal = Depends(require_bank_permission("bank:flags:read")),
+    db: Session = Depends(get_db),
+):
+    return risk_rules.list_restrictions(db, current.institution_id, user_id)
 
 
 @router.get("/settlements")
