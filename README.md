@@ -233,7 +233,8 @@ Use [`backend/demo docs/DEMO_RUNBOOK.md`](<backend/demo docs/DEMO_RUNBOOK.md>) f
 | [Bank Portal screens](<backend/demo docs/BANK_PORTAL_SCREENS.md>) | Bank-facing workflows and backend expectations |
 | [Bank Portal safety actions](<backend/demo docs/BANK_PORTAL_SAFETY_ACTIONS.md>) | Human-reviewed rule, restriction, session, and staff recovery controls |
 | [Matching v1](<backend/demo docs/MATCHING_V1.md>) | Deterministic advisory vendor ranking |
-| [Lock lifecycle v1](<backend/demo docs/LOCK_LIFECYCLE_V1.md>) | Deadlines, recovery, invite replacement, and bank review holds |
+| [Lock lifecycle v1](<backend/demo docs/LOCK_LIFECYCLE_V1.md>) | Deadlines, missed-cycle policies, and bank review holds |
+| [Demo-to-production register](<backend/demo docs/DEMO_TO_PRODUCTION.md>) | Explicit MVP limits and the upgrades required before production use |
 | [Group Health v1](<backend/demo docs/GROUP_HEALTH_V1.md>) | Advisory group-health contract and limitations |
 | [Release readiness](<backend/demo docs/RELEASE_READINESS.md>) | Release and live-demo checklist |
 

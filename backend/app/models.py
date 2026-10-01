@@ -176,6 +176,7 @@ class Commitment(Base):
     first_cycle_due_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     current_cycle_due_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     grace_period_hours: Mapped[int] = mapped_column(Integer, nullable=False, default=72)
+    missed_cycle_policy: Mapped[str] = mapped_column(String, nullable=False, default="carry_forward")
     missed_cycle_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.utcnow)
 

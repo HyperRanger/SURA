@@ -241,7 +241,7 @@ def list_commitments(db: Session, bank_id: str, *, query: str | None = None, sta
     for row in rows:
         members = db.query(CommitmentMember).filter(CommitmentMember.commitment_id == row.id).count()
         contributed = db.query(func.coalesce(func.sum(Contribution.amount), 0)).filter(Contribution.commitment_id == row.id).scalar()
-        result.append({"commitment_id": row.id, "title": row.title, "status": row.status, "type": row.type, "vendor_id": row.vendor_id, "member_count": members, "cycles": row.cycles, "current_cycle_number": row.current_cycle_number, "completed_cycle_count": row.completed_cycle_count, "current_cycle_due_at": row.current_cycle_due_at.isoformat() if row.current_cycle_due_at else None, "grace_period_hours": row.grace_period_hours, "missed_cycle_count": row.missed_cycle_count, "total_contributed": int(contributed or 0), "created_at": row.created_at.isoformat() if row.created_at else None})
+        result.append({"commitment_id": row.id, "title": row.title, "status": row.status, "type": row.type, "vendor_id": row.vendor_id, "member_count": members, "cycles": row.cycles, "current_cycle_number": row.current_cycle_number, "completed_cycle_count": row.completed_cycle_count, "current_cycle_due_at": row.current_cycle_due_at.isoformat() if row.current_cycle_due_at else None, "grace_period_hours": row.grace_period_hours, "missed_cycle_policy": row.missed_cycle_policy, "missed_cycle_count": row.missed_cycle_count, "total_contributed": int(contributed or 0), "created_at": row.created_at.isoformat() if row.created_at else None})
     return result
 
 
@@ -295,7 +295,7 @@ def get_commitment(db: Session, bank_id: str, commitment_id: str) -> dict:
         "current_cycle_number": row.current_cycle_number, "completed_cycle_count": row.completed_cycle_count,
         "first_cycle_due_at": row.first_cycle_due_at.isoformat() if row.first_cycle_due_at else None,
         "current_cycle_due_at": row.current_cycle_due_at.isoformat() if row.current_cycle_due_at else None,
-        "grace_period_hours": row.grace_period_hours, "missed_cycle_count": row.missed_cycle_count,
+        "grace_period_hours": row.grace_period_hours, "missed_cycle_policy": row.missed_cycle_policy, "missed_cycle_count": row.missed_cycle_count,
         "payout_order": json.loads(row.payout_order_json),
         "members": member_views,
         "contributions": [{"contribution_id": contribution.id, "user_id": contribution.user_id, "cycle_number": contribution.cycle_number, "amount": contribution.amount, "status": contribution.status, "paid_at": contribution.paid_at.isoformat() if contribution.paid_at else None} for contribution in contributions],

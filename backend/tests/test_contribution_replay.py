@@ -8,6 +8,7 @@ the guard holds end to end.
 
 
 def _lock_commitment(client, auth_headers, vendor_id: str, member: str) -> str:
+    partner = f"{member}_partner"
     assert client.post(
         "/v1/vendors/verify",
         json={"vendor_id": vendor_id},
@@ -23,13 +24,19 @@ def _lock_commitment(client, auth_headers, vendor_id: str, member: str) -> str:
             "vendor_id": vendor_id,
             "contribution_amount": 1000,
             "contribution_frequency": "weekly",
-            "cycles": 1,
-            "members": [member],
-            "payout_order": [member],
+            "cycles": 2,
+            "members": [member, partner],
+            "payout_order": [member, partner],
         },
         headers=auth_headers(member),
     )
     assert response.status_code == 201
+    assert client.post("/v1/consent", json={"granted": True}, headers=auth_headers(partner)).status_code == 200
+    assert client.post(
+        "/v1/commitments/join",
+        json={"invite_code": response.json()["invite_code"]},
+        headers=auth_headers(partner),
+    ).status_code == 200
     return response.json()["commitment_id"]
 
 

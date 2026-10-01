@@ -47,13 +47,22 @@ def evaluate_contribution(
     cycle_total_before: int,
     member_count: int,
     distinct_contributors: int,
+    allows_shortfall_cover: bool = False,
 ) -> ContributionEvaluation:
     member_total_after = member_total_before + contribution_amount
     cycle_total_after = cycle_total_before + contribution_amount
     required_cycle_total = expected_member_amount * member_count
 
-    contribution_status = "full" if member_total_after >= expected_member_amount else "partial"
-    cycle_complete = member_total_after >= expected_member_amount and cycle_total_after >= required_cycle_total
+    is_shortfall_cover = allows_shortfall_cover and member_total_before >= expected_member_amount
+    contribution_status = (
+        "shortfall_cover" if is_shortfall_cover else "full" if member_total_after >= expected_member_amount else "partial"
+    )
+    # A member's ordinary contribution cannot settle a cycle on behalf of
+    # another member. The one exception is the explicitly selected
+    # cover-shortfall policy after a cycle is missed.
+    cycle_complete = cycle_total_after >= required_cycle_total and (
+        member_total_after >= expected_member_amount or is_shortfall_cover
+    )
     # A missed cycle is a deadline decision, not a contribution-total decision.
     # All members may have made partial contributions before the due date.
     cycle_missed = False

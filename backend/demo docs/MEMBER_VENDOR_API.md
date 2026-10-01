@@ -61,7 +61,6 @@ After sign-in, call `GET /v1/me` to choose `/app/*` for `individual` or
 | M7 consent | `POST /v1/consent` | `{ "granted": true }` required before creating or joining |
 | M8 join | `POST /v1/commitments/join` | `{ "invite_code": "SURA-..." }` |
 | M8 decline | `POST /v1/commitments/{commitment_id}/decline` | invited member, while pending only |
-| M8 replace invitee | `POST /v1/commitments/{commitment_id}/members/{invited_user_id}/replace` | creator only; `{ "replacement_user_id": "..." }`, before activation only |
 | M9 detail | `GET /v1/commitments/{commitment_id}` | member only; no voucher code exposed |
 | M9 activity | `GET /v1/commitments/{commitment_id}/activity` | member only |
 | M9 group health | `GET /v1/app/commitments/{commitment_id}/group-health` | member-only, aggregate advisory signal |
@@ -97,11 +96,16 @@ this contract.
   "members": ["usr_demo_amara", "usr_demo_tunde"],
   "payout_order": ["usr_demo_amara", "usr_demo_tunde"],
   "first_cycle_due_at": "2026-10-10T12:00:00Z",
-  "grace_period_hours": 72
+  "grace_period_hours": 72,
+  "missed_cycle_policy": "carry_forward"
 }
 ```
 
-The creator must appear in `members`; `cycles` must equal the member count.
+The final group must contain at least two distinct members, the creator must
+appear in `members`, and `cycles` must equal the member count.
+`grace_period_hours` is fixed at 72 for the regional demo. Send one explicit
+`missed_cycle_policy`: `cover_shortfall`, `carry_forward`, or
+`cancel_and_refund`.
 The backend is the source of truth for ranking and the first-payout cap. Enable
 the final Create action only when preview returns `can_create: true`; otherwise
 show its `blocking_reason`.
@@ -132,13 +136,15 @@ a deadline. Commitment reads expose `current_cycle_due_at`,
 `grace_period_hours`, and `missed_cycle_count`; current-cycle member state is
 `paid`, `partial`, or `not_paid`.
 
-An unpaid cycle is `active` before its deadline, `overdue` during the grace
-period, and `missed` after it. Members may continue contributing after a missed
-deadline. Full funding records `cycle_recovered`, pays the beneficiary, and
+An unpaid cycle is `active` before its deadline, `overdue` during the fixed
+72-hour grace period, and `missed` after it. `cover_shortfall` permits a member
+who already paid their own amount to cover only the remaining pool gap.
+`carry_forward` keeps the unpaid obligation open for late normal payments.
+`cancel_and_refund` cancels the Lock and records a simulated bank-rail refund
+instruction. Full funding records `cycle_recovered`, pays the beneficiary, and
 advances the rotation; no partial payout is ever issued. An invited member may
-decline before activation. The creator can replace only an unresolved invitee
-before activation, and the replacement must grant score-processing consent and
-join normally.
+decline before activation. The API has an unresolved-invite replacement helper,
+but the PWA must not build member substitution into its product flow.
 
 ## Vendor matching v1
 
