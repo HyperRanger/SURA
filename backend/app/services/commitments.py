@@ -165,7 +165,7 @@ def _activate_if_fully_joined(db: Session, commitment: Commitment) -> None:
 
 def _refresh_lifecycle(db: Session, commitment: Commitment, *, now: datetime | None = None) -> bool:
     """Persist deadline-driven state transitions for the current unpaid cycle."""
-    if commitment.status in {"pending_members", "cancelled", "completed", "under_review"}:
+    if commitment.status in {"pending_members", "cancelled", "completed", "under_review", "missed"}:
         return False
     now = now or datetime.utcnow()
     beneficiary = (

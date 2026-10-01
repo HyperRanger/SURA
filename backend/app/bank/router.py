@@ -56,12 +56,6 @@ class RestrictionRequest(BaseModel):
     action: str = Field(pattern="^(restricted|suspended|reinstated)$")
     reason: str = Field(min_length=1, max_length=1000)
     flag_id: str | None = None
-class CommitmentCaseRequest(BaseModel):
-    reason: str = Field(min_length=1, max_length=2000)
-
-
-class CommitmentCaseResolutionRequest(BaseModel):
-    note: str = Field(min_length=1, max_length=2000)
 
 
 class ApiKeyCreateRequest(BaseModel):
