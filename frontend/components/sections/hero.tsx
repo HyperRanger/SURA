@@ -1,6 +1,9 @@
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowRight01Icon, CheckmarkCircle02Icon } from "@hugeicons/core-free-icons"
+import Link from "next/link"
+import { isDemoEnabled } from "@/config/env"
 import { heroStats } from "@/config/landing"
+import { routes } from "@/config/routes"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { HeroPreview } from "@/components/sections/hero-preview"
@@ -35,13 +38,19 @@ export function Hero() {
           </p>
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <a href="#get-started" className={buttonVariants({ size: "lg" })}>
-              partner with us
+            <Link href={routes.signup} className={buttonVariants({ size: "lg" })}>
+              get started
               <HugeiconsIcon icon={ArrowRight01Icon} size={20} strokeWidth={2.5} />
-            </a>
-            <a href="#how-it-works" className={buttonVariants({ variant: "outline", size: "lg" })}>
-              see how it works
-            </a>
+            </Link>
+            {isDemoEnabled ? (
+              <Link href={routes.demo} className={buttonVariants({ variant: "outline", size: "lg" })}>
+                try the demo
+              </Link>
+            ) : (
+              <a href="#how-it-works" className={buttonVariants({ variant: "outline", size: "lg" })}>
+                see how it works
+              </a>
+            )}
           </div>
 
         </div>
