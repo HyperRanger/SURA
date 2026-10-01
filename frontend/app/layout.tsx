@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Nunito } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { siteConfig } from "@/config/site";
-import { ThemeProvider } from "@/components/providers/theme-provider";
 import "./globals.css";
 
 const nunito = Nunito({
@@ -16,19 +16,16 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a111c" },
-  ],
+  themeColor: "#29235c",
+  colorScheme: "light",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={nunito.variable} suppressHydrationWarning>
+    <html lang="en" className={nunito.variable}>
       <body className="flex min-h-full flex-col">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          {children}
-        </ThemeProvider>
+        {children}
+        <Analytics />
       </body>
     </html>
   );

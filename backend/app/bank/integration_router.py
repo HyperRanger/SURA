@@ -7,7 +7,6 @@ from app.bank import service
 from app.bank.dependencies import BankApiPrincipal, require_api_scope
 from app.database import get_db
 
-
 router = APIRouter(prefix="/v1/integrations", tags=["bank integrations"])
 
 

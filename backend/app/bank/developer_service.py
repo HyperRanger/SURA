@@ -18,7 +18,6 @@ from app.bank.models import BankApiKey, BankPartner, WebhookDelivery, WebhookSub
 from app.bank.service import _audit
 from core.config import get_settings
 
-
 API_KEY_ENVIRONMENTS = frozenset({"sandbox", "live"})
 WEBHOOK_STATUSES = frozenset({"active", "disabled"})
 

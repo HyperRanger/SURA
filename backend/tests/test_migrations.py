@@ -15,10 +15,8 @@ from pathlib import Path
 
 from alembic.config import Config
 from alembic.script import ScriptDirectory
-
 from app.bank.models import BankApiKey, BankAuditEvent, BankPartner, BankStaff, RiskFlag, WebhookDelivery, WebhookSubscription
 from app.database import Base
-
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 ALEMBIC_INI = BACKEND_DIR / "alembic.ini"

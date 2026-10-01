@@ -9,8 +9,6 @@ Revision ID: 0009_merge_auth_and_bank_scope
 Revises: 0008_auth_challenges, 0008_score_history_bank_scope
 """
 
-from alembic import op
-import sqlalchemy as sa
 
 
 revision = "0009_merge_auth_and_bank_scope"

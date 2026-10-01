@@ -1,23 +1,23 @@
 from contextlib import asynccontextmanager
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi import status
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 
+from app.bank.integration_router import router as bank_integration_router
+from app.bank.router import router as bank_router
 from app.database import get_db
-from app.routers.auth import router as auth_router
+from app.member_vendor.router import router as member_vendor_router
 from app.routers.auth import demo_router as demo_router
 from app.routers.auth import profile_router as profile_router
-from sqlalchemy.orm import Session
-from app.routers.commitments import consent_router, router as commitments_router
+from app.routers.auth import router as auth_router
+from app.routers.bank_auth import router as bank_auth_router
+from app.routers.commitments import consent_router
+from app.routers.commitments import router as commitments_router
 from app.routers.score import router as score_router
 from app.routers.vendors import router as vendors_router
-from app.bank.router import router as bank_router
-from app.bank.integration_router import router as bank_integration_router
-from app.routers.bank_auth import router as bank_auth_router
-from app.member_vendor.router import router as member_vendor_router
 from core.config import get_settings
 
 

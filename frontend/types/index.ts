@@ -1,11 +1,21 @@
 import type { IconSvgElement } from "@hugeicons/react"
 
+export * from "./auth"
+export * from "./bank"
+
 export type NavLink = {
   label: string
   href: string
 }
 
-export type Tone = "blue" | "orange" | "green"
+export type Tone = "indigo" | "gold"
+
+export type ChoiceOption<T extends string> = {
+  value: T
+  label: string
+  description?: string
+  icon?: IconSvgElement
+}
 
 export type Feature = {
   title: string
@@ -29,6 +39,20 @@ export type Audience = {
   title: string
   description: string
   icon: IconSvgElement
+}
+
+export type LegalSection = {
+  heading: string
+  paragraphs?: string[]
+  bullets?: string[]
+}
+
+export type LegalDocument = {
+  title: string
+  // iso date, e.g. 2026-10-01
+  updated: string
+  summary: string
+  sections: LegalSection[]
 }
 
 export type ApiStatus = "checking" | "online" | "offline"

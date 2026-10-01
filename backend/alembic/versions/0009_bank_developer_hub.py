@@ -4,9 +4,9 @@ Revision ID: 0009_bank_developer_hub
 Revises: 0008_score_history_bank_scope
 """
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision = "0009_bank_developer_hub"
 down_revision = "0008_score_history_bank_scope"

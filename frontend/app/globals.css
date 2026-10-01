@@ -2,8 +2,6 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
-
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -33,13 +31,12 @@
   --color-cloud: var(--cloud);
   --color-hairline: var(--hairline);
   --color-hairline-strong: var(--hairline-strong);
-  --color-orange: var(--orange);
-  --color-orange-deep: var(--orange-deep);
-  --color-orange-soft: var(--orange-soft);
-  --color-green: var(--green);
-  --color-green-deep: var(--green-deep);
-  --color-green-soft: var(--green-soft);
-  --color-blue-soft: var(--blue-soft);
+  --color-indigo-soft: var(--indigo-soft);
+  --color-gold: var(--gold);
+  --color-gold-deep: var(--gold-deep);
+  --color-gold-soft: var(--gold-soft);
+  --color-gold-foreground: var(--gold-foreground);
+  --color-ivory: var(--ivory);
 
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
@@ -53,79 +50,41 @@
 :root {
   --radius: 1rem;
 
-  --background: #ffffff;
-  --foreground: #0f1b2d;
-  --card: #ffffff;
-  --card-foreground: #0f1b2d;
-  --popover: #ffffff;
-  --popover-foreground: #0f1b2d;
+  /* deep indigo leads, gold marks what's been earned, ivory keeps it warm */
+  --background: #f7f5ef;
+  --foreground: #171717;
+  --card: #fffefa;
+  --card-foreground: #171717;
+  --popover: #fffefa;
+  --popover-foreground: #171717;
 
-  --primary: #0075de;
-  --primary-deep: #005bb0;
-  --primary-bright: #1a88ec;
-  --primary-foreground: #ffffff;
-  --link: #0075de;
+  --primary: #29235c;
+  --primary-deep: #1a1640;
+  --primary-bright: #383079;
+  --primary-foreground: #f7f5ef;
+  --link: #29235c;
 
-  --secondary: #eef6ff;
-  --secondary-foreground: #0f1b2d;
-  --muted: #f4f8fd;
-  --muted-foreground: #56657b;
-  --accent: #eef6ff;
-  --accent-foreground: #0f1b2d;
-  --destructive: #e5484d;
+  --secondary: #ebe9f3;
+  --secondary-foreground: #29235c;
+  --muted: #efece3;
+  --muted-foreground: #5c5868;
+  --accent: #ebe9f3;
+  --accent-foreground: #29235c;
+  --destructive: #c4382f;
 
-  --cloud: #f3f8ff;
-  --hairline: #dde8f5;
-  --hairline-strong: #b9d3f0;
-  --border: #dde8f5;
-  --input: #dde8f5;
-  --ring: #0075de;
+  --cloud: #efebe1;
+  --hairline: #e4dfd1;
+  --hairline-strong: #cdc6b3;
+  --border: #e4dfd1;
+  --input: #e4dfd1;
+  --ring: #29235c;
 
-  --orange: #ff8a1f;
-  --orange-deep: #db6c00;
-  --orange-soft: #fff1e3;
-  --green: #22b573;
-  --green-deep: #178a56;
-  --green-soft: #e3f7ee;
-  --blue-soft: #e3f0fd;
-}
-
-.dark {
-  --background: #0a111c;
-  --foreground: #edf3fb;
-  --card: #101a29;
-  --card-foreground: #edf3fb;
-  --popover: #101a29;
-  --popover-foreground: #edf3fb;
-
-  --primary: #0075de;
-  --primary-deep: #00498c;
-  --primary-bright: #1a88ec;
-  --primary-foreground: #ffffff;
-  --link: #4aa6f7;
-
-  --secondary: #142033;
-  --secondary-foreground: #edf3fb;
-  --muted: #0e1725;
-  --muted-foreground: #93a3ba;
-  --accent: #142033;
-  --accent-foreground: #edf3fb;
-  --destructive: #ff6b6f;
-
-  --cloud: #0d1624;
-  --hairline: #1d2a3d;
-  --hairline-strong: #2c3e58;
-  --border: #1d2a3d;
-  --input: #1d2a3d;
-  --ring: #4aa6f7;
-
-  --orange: #ff9a3d;
-  --orange-deep: #c9620a;
-  --orange-soft: #2a1c10;
-  --green: #2fc985;
-  --green-deep: #1a8a58;
-  --green-soft: #0f2a20;
-  --blue-soft: #0f2238;
+  --ivory: #f7f5ef;
+  --indigo-soft: #e7e5f2;
+  --gold: #d9a441;
+  --gold-deep: #8f6517;
+  --gold-soft: #f7ebcd;
+  --gold-foreground: #171717;
 }
 
 @layer base {
@@ -134,12 +93,69 @@
   }
   html {
     @apply scroll-smooth font-sans;
+    color-scheme: light;
     scroll-padding-top: 5rem;
   }
   body {
     @apply bg-background text-foreground antialiased;
     /* sura's voice is lowercase everywhere */
     text-transform: lowercase;
+  }
+}
+
+/*
+ * scrollbars: a slim pill on an ivory track, indigo when grabbed. chromium and
+ * safari use the ::-webkit-scrollbar rules; firefox has no pseudo-elements, so it
+ * gets the closest standard equivalent. the standard properties are kept away from
+ * chromium because setting them there switches off the rounded webkit styling
+ */
+@layer base {
+  ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--background);
+  }
+  ::-webkit-scrollbar-thumb {
+    border: 3px solid var(--background);
+    border-radius: 999px;
+    background: var(--hairline-strong);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--primary) 55%, var(--hairline-strong));
+  }
+  ::-webkit-scrollbar-thumb:active {
+    background: var(--primary);
+  }
+  ::-webkit-scrollbar-corner {
+    background: var(--background);
+  }
+
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--hairline-strong) transparent;
+    }
+  }
+}
+
+/* for indigo surfaces, e.g. code blocks: a pale thumb on a transparent track */
+@utility scrollbar-inverse {
+  &::-webkit-scrollbar-track,
+  &::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    border-color: transparent;
+    background-clip: padding-box;
+    background-color: rgb(247 245 239 / 0.25);
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(247 245 239 / 0.45);
+  }
+  @supports not selector(::-webkit-scrollbar) {
+    scrollbar-color: rgb(247 245 239 / 0.3) transparent;
   }
 }
 
@@ -155,9 +171,9 @@
  * edge, fine grain, and a specular glare that follows --glass-x / --glass-y
  */
 @utility glass {
-  --glass-tint: rgb(255 255 255 / 0.55);
+  --glass-tint: rgb(255 254 250 / 0.6);
   --glass-edge: rgb(255 255 255 / 0.9);
-  --glass-shade: rgb(15 27 45 / 0.08);
+  --glass-shade: rgb(41 35 92 / 0.08);
   --glass-glare: rgb(255 255 255 / 0.7);
   position: relative;
   isolation: isolate;
@@ -170,7 +186,7 @@
     inset 0 1px 0 0 var(--glass-edge),
     inset 0 -1px 0 0 var(--glass-shade),
     inset 0 0 12px 0 rgb(255 255 255 / 0.12),
-    0 8px 32px -12px rgb(15 27 45 / 0.18);
+    0 8px 32px -12px rgb(41 35 92 / 0.2);
 
   &::before {
     content: "";
@@ -203,21 +219,6 @@
 
   &:hover::before {
     opacity: 0.7;
-  }
-
-  &:where(.dark *) {
-    --glass-tint: rgb(10 17 28 / 0.5);
-    --glass-edge: rgb(255 255 255 / 0.14);
-    --glass-shade: rgb(0 0 0 / 0.4);
-    --glass-glare: rgb(120 180 255 / 0.35);
-    background-image:
-      linear-gradient(180deg, rgb(255 255 255 / 0.06) 0%, transparent 50%),
-      linear-gradient(var(--glass-tint), var(--glass-tint));
-    box-shadow:
-      inset 0 1px 0 0 var(--glass-edge),
-      inset 0 -1px 0 0 var(--glass-shade),
-      inset 0 0 12px 0 rgb(255 255 255 / 0.03),
-      0 8px 32px -12px rgb(0 0 0 / 0.6);
   }
 }
 
