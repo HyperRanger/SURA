@@ -1,4 +1,4 @@
-﻿from datetime import datetime
+from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
@@ -154,7 +154,7 @@ class Vendor(Base):
 class Commitment(Base):
     __tablename__ = "commitments"
 
-id: Mapped[str] = mapped_column(String, primary_key=True)
+    id: Mapped[str] = mapped_column(String, primary_key=True)
     creator_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
     type: Mapped[str] = mapped_column(String, nullable=False, default="rotating")
     title: Mapped[str] = mapped_column(String, nullable=False)
@@ -179,7 +179,7 @@ id: Mapped[str] = mapped_column(String, primary_key=True)
 class CommitmentMember(Base):
     __tablename__ = "commitment_members"
 
-commitment_id: Mapped[str] = mapped_column(String, ForeignKey("commitments.id"), primary_key=True)
+    commitment_id: Mapped[str] = mapped_column(String, ForeignKey("commitments.id"), primary_key=True)
     user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), primary_key=True)
     role: Mapped[str] = mapped_column(String, nullable=False, default="contributor")
     joined_at: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.utcnow)

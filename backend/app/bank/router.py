@@ -14,8 +14,8 @@ from app.bank.dependencies import require_bank_permission
 from app.bank.models import BankStaff
 from app.database import get_db
 from app.services import bank_auth_service
-from app.services.group_health import get_group_health
 from app.services.commitments import open_commitment_case, resolve_commitment_case
+from app.services.group_health import get_group_health
 
 
 def _staff_for_principal(db: Session, current: AuthPrincipal) -> BankStaff:
@@ -56,12 +56,6 @@ class RestrictionRequest(BaseModel):
     action: str = Field(pattern="^(restricted|suspended|reinstated)$")
     reason: str = Field(min_length=1, max_length=1000)
     flag_id: str | None = None
-class CommitmentCaseRequest(BaseModel):
-    reason: str = Field(min_length=1, max_length=2000)
-
-
-class CommitmentCaseResolutionRequest(BaseModel):
-    note: str = Field(min_length=1, max_length=2000)
 
 
 class ApiKeyCreateRequest(BaseModel):
@@ -229,7 +223,9 @@ def bank_commitment_group_health(
     db: Session = Depends(get_db),
 ):
     # Reuse the established tenant check before returning aggregate-only health.
-    service.get_commitment(db, current.institution_id, commitment_id)
+    # assert_commitment_in_bank runs no lifecycle refresh, so a read cannot
+    # advance a Lock's deadline as a side effect of asking about it.
+    service.assert_commitment_in_bank(db, current.institution_id, commitment_id)
     return get_group_health(db, commitment_id)
 
 
