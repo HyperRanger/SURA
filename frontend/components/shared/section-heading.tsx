@@ -8,9 +8,14 @@ type SectionHeadingProps = {
   className?: string
 }
 
-export function SectionHeading({ title, description, className }: SectionHeadingProps) {
+export function SectionHeading({ eyebrow, title, description, className }: SectionHeadingProps) {
   return (
     <div className={cn("mx-auto max-w-2xl text-center", className)}>
+      {eyebrow && (
+        <p className="text-sm font-extrabold uppercase tracking-[0.2em] text-muted-foreground">
+          {eyebrow}
+        </p>
+      )}
       <h2 className="mt-5 text-3xl font-black tracking-tight text-balance sm:text-4xl md:text-5xl">
         {title}
       </h2>
