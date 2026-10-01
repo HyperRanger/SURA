@@ -24,7 +24,7 @@ def test_monitoring_filters_details_and_audit_export(client, auth_headers):
 
     overview = client.get("/v1/bank/overview", headers=headers)
     assert overview.status_code == 200, overview.text
-    assert overview.json()["customers"] == 2
+    assert overview.json()["customers"] == 20
     assert "recent_settlements" in overview.json()
 
     users = client.get("/v1/bank/users?verified=true&commitment_status=active", headers=headers)

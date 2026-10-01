@@ -6,7 +6,7 @@ This module is intentionally invoked by a script, never from application startup
 import json
 from datetime import datetime, timedelta
 
-from sqlalchemy import delete
+from sqlalchemy import delete, or_
 from sqlalchemy.orm import Session
 
 from app.bank.models import (
@@ -41,6 +41,12 @@ from core.passwords import hash_password
 
 DEMO_USER_IDS = ("usr_demo_amara", "usr_demo_tunde")
 DEMO_BANK_STAFF_USER_IDS = ("usr_demo_bank_admin",)
+LEGACY_DEMO_BANK_STAFF_USER_IDS = (
+    "usr_demo_bank_admin",
+    "usr_demo_bank_risk",
+    "usr_demo_bank_integration",
+    "usr_demo_bank",
+)
 DEMO_VENDOR_IDS = ("vnd_demo_electronics", "vnd_demo_education", "vnd_demo_equipment")
 DEMO_COMMITMENT_ID = "cmt_demo_laptop_rotation"
 DEMO_REDEMPTION_ID = "rdm_demo_laptop_cycle_1"
@@ -105,6 +111,7 @@ def _customer_specs() -> tuple[tuple[str, str, str, str, str, int, str], ...]:
 DEMO_CUSTOMER_SPECS = _customer_specs()
 DEMO_CUSTOMER_IDS = tuple(row[0] for row in DEMO_CUSTOMER_SPECS)
 DEMO_BANK_IDS = tuple(row[0] for row in DEMO_BANKS)
+DEMO_RESET_BANK_IDS = (*DEMO_BANK_IDS, "bnk_demo")
 
 
 def _bank_customer_reference(user_id: str, bank_id: str, index: int) -> str:
@@ -116,16 +123,22 @@ def _bank_customer_reference(user_id: str, bank_id: str, index: int) -> str:
 
 
 def _reset_demo_data(db: Session) -> None:
-    demo_user_ids = (*DEMO_CUSTOMER_IDS, *DEMO_BANK_STAFF_USER_IDS)
-    webhook_ids = [row[0] for row in db.query(WebhookSubscription.id).filter(WebhookSubscription.bank_id.in_(DEMO_BANK_IDS)).all()]
+    demo_user_ids = (*DEMO_CUSTOMER_IDS, *LEGACY_DEMO_BANK_STAFF_USER_IDS)
+    webhook_ids = [row[0] for row in db.query(WebhookSubscription.id).filter(WebhookSubscription.bank_id.in_(DEMO_RESET_BANK_IDS)).all()]
     if webhook_ids:
         db.execute(delete(WebhookDelivery).where(WebhookDelivery.webhook_id.in_(webhook_ids)))
-    db.execute(delete(WebhookSubscription).where(WebhookSubscription.bank_id.in_(DEMO_BANK_IDS)))
-    db.execute(delete(BankApiKey).where(BankApiKey.bank_id.in_(DEMO_BANK_IDS)))
-    db.execute(delete(AccountRestriction).where(AccountRestriction.bank_id.in_(DEMO_BANK_IDS)))
-    db.execute(delete(BankAuditEvent).where(BankAuditEvent.bank_id.in_(DEMO_BANK_IDS)))
-    db.execute(delete(RiskFlag).where(RiskFlag.bank_id.in_(DEMO_BANK_IDS)))
-    db.execute(delete(BankStaff).where(BankStaff.user_id.in_(DEMO_BANK_STAFF_USER_IDS)))
+    db.execute(delete(WebhookSubscription).where(WebhookSubscription.bank_id.in_(DEMO_RESET_BANK_IDS)))
+    db.execute(delete(BankApiKey).where(BankApiKey.bank_id.in_(DEMO_RESET_BANK_IDS)))
+    db.execute(delete(AccountRestriction).where(or_(
+        AccountRestriction.bank_id.in_(DEMO_RESET_BANK_IDS),
+        AccountRestriction.user_id.in_(DEMO_CUSTOMER_IDS),
+    )))
+    db.execute(delete(BankAuditEvent).where(BankAuditEvent.bank_id.in_(DEMO_RESET_BANK_IDS)))
+    db.execute(delete(RiskFlag).where(or_(
+        RiskFlag.bank_id.in_(DEMO_RESET_BANK_IDS),
+        RiskFlag.user_id.in_(DEMO_CUSTOMER_IDS),
+    )))
+    db.execute(delete(BankStaff).where(BankStaff.user_id.in_(LEGACY_DEMO_BANK_STAFF_USER_IDS)))
     db.execute(delete(AuthChallenge).where(AuthChallenge.user_id.in_(demo_user_ids)))
     db.execute(delete(UserConsent).where(UserConsent.user_id.in_(demo_user_ids)))
     db.execute(delete(SessionRevocation).where(SessionRevocation.user_id.in_(demo_user_ids)))
@@ -140,7 +153,17 @@ def _reset_demo_data(db: Session) -> None:
     db.execute(delete(Commitment).where(Commitment.id == DEMO_COMMITMENT_ID))
     db.execute(delete(ScoreHistory).where(ScoreHistory.user_id.in_(DEMO_CUSTOMER_IDS)))
     db.execute(delete(User).where(User.id.in_(demo_user_ids)))
-    db.execute(delete(BankPartner).where(BankPartner.id.in_(DEMO_BANK_IDS)))
+    # An old demo shortcut may have created additional users under ``bnk_demo``.
+    # Do not turn a reproducible demo reset into a broad user delete merely to
+    # remove its parent bank row. Current demo banks are deleted when empty;
+    # any bank still referenced by an unknown row is left intact.
+    empty_bank_ids = [
+        bank_id
+        for bank_id in DEMO_RESET_BANK_IDS
+        if db.query(User.id).filter(User.bank_id == bank_id).first() is None
+    ]
+    if empty_bank_ids:
+        db.execute(delete(BankPartner).where(BankPartner.id.in_(empty_bank_ids)))
 
 
 def seed_demo_data(db: Session, *, reset: bool = False) -> dict[str, object]:

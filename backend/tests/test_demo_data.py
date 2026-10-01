@@ -1,4 +1,4 @@
-from app.bank.models import BankAuditEvent, BankPartner, BankStaff
+from app.bank.models import BankAuditEvent, BankPartner, BankStaff, RiskFlag
 from app.models import Commitment, Redemption, User, Voucher
 from app.services.demo_data import DEMO_BANK_ID, DEMO_COMMITMENT_ID, DEMO_REDEMPTION_ID, seed_demo_data
 
@@ -27,6 +27,44 @@ def test_demo_data_seed_is_idempotent_and_contains_the_demo_story(client):
         assert third["created"] is True
         db.commit()
         assert db.query(BankStaff).count() == 1
+    finally:
+        db.close()
+
+
+def test_seed_reset_removes_legacy_demo_flags_before_deleting_members(client):
+    """A database seeded before the multi-bank portfolio must still reset."""
+    db = client.app.state.testing_session()
+    try:
+        seed_demo_data(db, reset=True)
+        db.add(BankPartner(id="bnk_demo", name="Legacy Demo Bank"))
+        db.add(RiskFlag(
+            id="flag_legacy_demo_tunde",
+            bank_id="bnk_demo",
+            user_id="usr_demo_tunde",
+            rule="legacy_demo_rule",
+            severity="low",
+            status="open",
+            evidence_json="{}",
+        ))
+        # Represents a record from an older demo shortcut. It is not one of the
+        # fixed reset identities, so its legacy parent must be retained rather
+        # than causing reset to fail.
+        db.add(User(
+            id="usr_legacy_demo_extra",
+            name="Legacy Demo Extra",
+            phone="legacy.demo.extra@sura.local",
+            bank_id="bnk_demo",
+        ))
+        db.commit()
+
+        result = seed_demo_data(db, reset=True)
+        db.commit()
+
+        assert result["created"] is True
+        assert db.query(RiskFlag).filter(RiskFlag.id == "flag_legacy_demo_tunde").count() == 0
+        assert db.get(User, "usr_demo_tunde") is not None
+        assert db.get(User, "usr_legacy_demo_extra") is not None
+        assert db.get(BankPartner, "bnk_demo") is not None
     finally:
         db.close()
 
