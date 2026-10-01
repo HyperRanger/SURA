@@ -19,6 +19,7 @@ from app.models import (
     CommitmentCase,
     CommitmentMember,
     Contribution,
+    Institution,
     Redemption,
     ScoreHistory,
     User,
@@ -63,6 +64,7 @@ def _user_or_404(db: Session, bank_id: str, user_id: str) -> User:
 
 def _user_summary(db: Session, user: User) -> dict:
     score = get_score_report(db, user.id)
+    source_institution = db.get(Institution, user.institution_id) if user.institution_id else None
     memberships = db.query(CommitmentMember).filter(CommitmentMember.user_id == user.id, CommitmentMember.role != "invited").count()
     active = db.query(Commitment).join(CommitmentMember).filter(CommitmentMember.user_id == user.id, Commitment.status == "active").count()
     open_flags = db.query(RiskFlag).filter(RiskFlag.user_id == user.id, RiskFlag.bank_id == user.bank_id, RiskFlag.status == "open").count()
@@ -75,6 +77,13 @@ def _user_summary(db: Session, user: User) -> dict:
         "account_status": user.account_status,
         "restriction_reason": user.restriction_reason,
         "bank_customer_id": _masked(user.bank_customer_id),
+        # This is where a member banks outside the Sura integration tenancy.
+        # It is descriptive portfolio context only; it never changes access.
+        "source_institution": (
+            {"institution_id": source_institution.id, "name": source_institution.name}
+            if source_institution is not None
+            else None
+        ),
         "available_balance": user.available_balance,
         "verified": user.verified_at is not None,
         "score": score["score"],
