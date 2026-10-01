@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 
 import jwt
@@ -59,7 +60,7 @@ def pytest_configure() -> None:
 
 
 @pytest.fixture()
-def client() -> TestClient:
+def client() -> Iterator[TestClient]:
     engine = create_engine(
         "sqlite+pysqlite://",
         connect_args={"check_same_thread": False},

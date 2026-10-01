@@ -79,4 +79,9 @@ class Settings(BaseSettings):
 
 @lru_cache()
 def get_settings() -> Settings:
-    return Settings()
+    # A checker cannot see that BaseSettings populates required fields from the
+    # environment and .env, so it reads Settings() as missing four arguments.
+    # Silenced narrowly here. Giving those fields defaults instead would be the
+    # dangerous fix: a missing secret_key would then silently become "" and the
+    # app would boot with no signing secret at all.
+    return Settings()  # pyright: ignore[reportCallIssue]
