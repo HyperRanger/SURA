@@ -37,6 +37,8 @@ def test_deadline_drives_missed_state_and_full_recovery(client, auth_headers):
     try:
         commitment = db.get(Commitment, commitment_id)
         commitment.current_cycle_due_at = datetime.utcnow() - timedelta(hours=73)
+        for member_id in ("lifecycle_creator", "lifecycle_invitee"):
+            db.get(User, member_id).verified_at = datetime.utcnow()
         db.commit()
     finally:
         db.close()
@@ -45,6 +47,13 @@ def test_deadline_drives_missed_state_and_full_recovery(client, auth_headers):
     assert overdue.status_code == 200
     assert overdue.json()["status"] == "missed"
     assert overdue.json()["missed_cycle_count"] == 1
+    for member in ("lifecycle_creator", "lifecycle_invitee"):
+        score_history = client.get(
+            f"/v1/score/{member}/history", headers=auth_headers(member)
+        )
+        assert score_history.status_code == 200, score_history.text
+        assert score_history.json()["entries"][0]["event_type"] == "cycle_missed"
+        assert score_history.json()["entries"][0]["reason"] == "cycle_missed"
 
     assert client.post(
         f"/v1/commitments/{commitment_id}/contribute",

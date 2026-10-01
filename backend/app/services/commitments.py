@@ -200,6 +200,18 @@ def _refresh_lifecycle(db: Session, commitment: Commitment, *, now: datetime | N
             "previous_status": previous,
         },
     )
+    if next_state == "missed":
+        # A missed cycle is a persisted Lock outcome, so it must receive the
+        # same explainable Score treatment as a paid/recovered cycle. This is
+        # deliberately triggered by the lifecycle transition, not guessed by
+        # the PWA from elapsed time.
+        _refresh_score_history_for_commitment(
+            db,
+            commitment.id,
+            event_id=f"{commitment.id}:cycle:{commitment.current_cycle_number}:missed",
+            event_type="cycle_missed",
+            reason="cycle_missed",
+        )
     return True
 
 
@@ -647,9 +659,16 @@ def _refresh_score_history_for_commitment(
     db: Session,
     commitment_id: str,
     event_id: str | None = None,
+    event_type: str = "contribution_processed",
     reason: str = "contribution_processed",
 ) -> None:
-    refresh_commitment_member_scores(db, commitment_id, event_id=event_id, reason=reason)
+    refresh_commitment_member_scores(
+        db,
+        commitment_id,
+        event_id=event_id,
+        event_type=event_type,
+        reason=reason,
+    )
 
 
 def record_contribution(

@@ -71,6 +71,9 @@ workstream.
 - Treat a Score history entry as immutable evidence. Render its stored
   `signals`, `weights`, and `score_version`; do not recalculate or relabel a
   historical score using a newer client rule.
+- The `score` object in `GET /v1/app/home` uses the same stable shape as
+  `GET /v1/score/{user_id}`. Deadline outcomes arrive through commitment state
+  and Score history; do not create a client-side missed-score calculation.
 - The vendor terminal never sends a `vendor_id` during validation or
   redemption. The API derives the merchant from the vendor session.
 - Validate a voucher, show the handover confirmation, then redeem it.

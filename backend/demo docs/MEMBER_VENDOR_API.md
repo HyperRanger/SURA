@@ -174,6 +174,11 @@ immutable explanation captured at the time the score changed; it includes the
 five input signals and the policy version that produced it. It is not an ML
 credit decision and must never be labelled as one in the app.
 
+`GET /v1/app/home` returns this same canonical current-Score shape for the
+signed-in member. A deadline-driven missed cycle is processed server-side as a
+`cycle_missed` history event when it changes the member's score; the PWA must
+never infer or manufacture a score change from a clock.
+
 ## Vendor terminal
 
 | Screen | Endpoint | Notes |

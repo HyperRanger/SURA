@@ -164,6 +164,7 @@ def refresh_commitment_member_scores(
     commitment_id: str,
     *,
     event_id: str | None = None,
+    event_type: str = "contribution_processed",
     reason: str = "contribution_processed",
 ) -> None:
     commitment = db.get(Commitment, commitment_id)
@@ -180,7 +181,7 @@ def refresh_commitment_member_scores(
             record_score_snapshot(
                 db,
                 member.user_id,
-                event_type="contribution_processed",
+                event_type=event_type,
                 reason=reason,
                 source_id=event_id or commitment_id,
             )

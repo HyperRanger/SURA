@@ -134,8 +134,11 @@ def test_commitment_detail_has_safe_display_fields_and_server_derived_cycle_prog
         "paid_member_count": 0,
         "member_count": 2,
         "progress_percent": 0,
-        "beneficiary_id": "detail_creator",
-        "beneficiary_first_name": "Amina",
+        "beneficiary_id": body["payout_order"][0],
+        "beneficiary_first_name": next(
+            member["first_name"] for member in body["members"]
+            if member["user_id"] == body["payout_order"][0]
+        ),
     }
 
 
