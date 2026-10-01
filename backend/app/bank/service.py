@@ -26,6 +26,8 @@ from app.models import (
     Voucher,
 )
 from app.services import audit
+from app.models import Commitment, CommitmentActivity, CommitmentBeneficiary, CommitmentCase, CommitmentMember, Contribution, Redemption, ScoreHistory, User, UserConsent, Vendor, Voucher
+from app.services.commitments import refresh_commitment_lifecycle
 from app.services.score_service import get_score_report
 
 SCORE_TIERS = frozenset({"unverified", "entry", "building", "established"})
@@ -221,11 +223,14 @@ def list_commitments(db: Session, bank_id: str, *, query: str | None = None, sta
     if member_id:
         rows = rows.filter(CommitmentMember.user_id == member_id)
     rows = rows.distinct().order_by(Commitment.created_at.desc()).all()
+    lifecycle_changed = any(refresh_commitment_lifecycle(db, row) for row in rows)
+    if lifecycle_changed:
+        db.commit()
     result = []
     for row in rows:
         members = db.query(CommitmentMember).filter(CommitmentMember.commitment_id == row.id).count()
         contributed = db.query(func.coalesce(func.sum(Contribution.amount), 0)).filter(Contribution.commitment_id == row.id).scalar()
-        result.append({"commitment_id": row.id, "title": row.title, "status": row.status, "type": row.type, "vendor_id": row.vendor_id, "member_count": members, "cycles": row.cycles, "current_cycle_number": row.current_cycle_number, "completed_cycle_count": row.completed_cycle_count, "total_contributed": int(contributed or 0), "created_at": row.created_at.isoformat() if row.created_at else None})
+        result.append({"commitment_id": row.id, "title": row.title, "status": row.status, "type": row.type, "vendor_id": row.vendor_id, "member_count": members, "cycles": row.cycles, "current_cycle_number": row.current_cycle_number, "completed_cycle_count": row.completed_cycle_count, "current_cycle_due_at": row.current_cycle_due_at.isoformat() if row.current_cycle_due_at else None, "grace_period_hours": row.grace_period_hours, "missed_cycle_count": row.missed_cycle_count, "total_contributed": int(contributed or 0), "created_at": row.created_at.isoformat() if row.created_at else None})
     return result
 
 
@@ -233,6 +238,8 @@ def get_commitment(db: Session, bank_id: str, commitment_id: str) -> dict:
     if not db.query(CommitmentMember).join(User, User.id == CommitmentMember.user_id).filter(CommitmentMember.commitment_id == commitment_id, User.bank_id == bank_id).first():
         raise HTTPException(status_code=404, detail="Commitment not found for this bank.")
     row = db.get(Commitment, commitment_id)
+    if refresh_commitment_lifecycle(db, row):
+        db.commit()
     vendor = db.get(Vendor, row.vendor_id)
     members = db.query(CommitmentMember).join(User, User.id == CommitmentMember.user_id).filter(CommitmentMember.commitment_id == row.id, User.bank_id == bank_id).all()
     member_users = {user.id: user for user in db.query(User).filter(User.id.in_([member.user_id for member in members])).all()} if members else {}
@@ -242,13 +249,8 @@ def get_commitment(db: Session, bank_id: str, commitment_id: str) -> dict:
     voucher_by_cycle = {voucher.cycle_number: voucher for voucher in vouchers}
     redemptions = db.query(Redemption).join(User, User.id == Redemption.beneficiary_id).filter(Redemption.commitment_id == row.id, User.bank_id == bank_id).all()
     redemption_by_cycle = {redemption.cycle_number: redemption for redemption in redemptions}
-    activity = (
-        db.query(CommitmentActivity)
-        .join(User, User.id == CommitmentActivity.actor_user_id)
-        .filter(CommitmentActivity.commitment_id == row.id, User.bank_id == bank_id)
-        .order_by(CommitmentActivity.occurred_at.desc())
-        .all()
-    )
+    activity = db.query(CommitmentActivity).filter(CommitmentActivity.commitment_id == row.id).order_by(CommitmentActivity.occurred_at.desc()).all()
+    cases = db.query(CommitmentCase).filter(CommitmentCase.commitment_id == row.id, CommitmentCase.bank_id == bank_id).order_by(CommitmentCase.opened_at.desc()).all()
     member_views = []
     for member in members:
         score = get_score_report(db, member.user_id)
@@ -265,11 +267,15 @@ def get_commitment(db: Session, bank_id: str, commitment_id: str) -> dict:
         "vendor": {"vendor_id": row.vendor_id, "name": vendor.name if vendor else None, "verified": bool(vendor and vendor.verified_at)},
         "contribution_amount": row.contribution_amount, "frequency": row.frequency, "cycles": row.cycles,
         "current_cycle_number": row.current_cycle_number, "completed_cycle_count": row.completed_cycle_count,
+        "first_cycle_due_at": row.first_cycle_due_at.isoformat() if row.first_cycle_due_at else None,
+        "current_cycle_due_at": row.current_cycle_due_at.isoformat() if row.current_cycle_due_at else None,
+        "grace_period_hours": row.grace_period_hours, "missed_cycle_count": row.missed_cycle_count,
         "payout_order": json.loads(row.payout_order_json),
         "members": member_views,
         "contributions": [{"contribution_id": contribution.id, "user_id": contribution.user_id, "cycle_number": contribution.cycle_number, "amount": contribution.amount, "status": contribution.status, "paid_at": contribution.paid_at.isoformat() if contribution.paid_at else None} for contribution in contributions],
         "payout_schedule": [{"cycle_number": beneficiary.cycle_number, "beneficiary_id": beneficiary.user_id, "amount": beneficiary.payout_amount, "status": beneficiary.status, "voucher_status": voucher_by_cycle[beneficiary.cycle_number].status if beneficiary.cycle_number in voucher_by_cycle else None, "settlement_status": redemption_by_cycle[beneficiary.cycle_number].status if beneficiary.cycle_number in redemption_by_cycle else None} for beneficiary in beneficiaries],
         "activity": [{"activity_id": item.id, "type": item.event_type, "actor_user_id": item.actor_user_id, "cycle_number": item.cycle_number, "details": json.loads(item.detail_json), "occurred_at": item.occurred_at.isoformat() if item.occurred_at else None} for item in activity],
+        "support_cases": [{"case_id": case.id, "status": case.status, "reason": case.reason, "resolution_note": case.resolution_note, "opened_at": case.opened_at.isoformat() if case.opened_at else None, "resolved_at": case.resolved_at.isoformat() if case.resolved_at else None} for case in cases],
         "created_at": row.created_at.isoformat() if row.created_at else None,
     }
 

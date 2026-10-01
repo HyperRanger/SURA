@@ -15,6 +15,7 @@ from app.bank.models import BankStaff
 from app.database import get_db
 from app.services import bank_auth_service
 from app.services.group_health import get_group_health
+from app.services.commitments import open_commitment_case, resolve_commitment_case
 
 
 def _staff_for_principal(db: Session, current: AuthPrincipal) -> BankStaff:
@@ -47,6 +48,12 @@ class RestrictionRequest(BaseModel):
     action: str = Field(pattern="^(restricted|suspended|reinstated)$")
     reason: str = Field(min_length=1, max_length=1000)
     flag_id: str | None = None
+class CommitmentCaseRequest(BaseModel):
+    reason: str = Field(min_length=1, max_length=2000)
+
+
+class CommitmentCaseResolutionRequest(BaseModel):
+    note: str = Field(min_length=1, max_length=2000)
 
 
 class ApiKeyCreateRequest(BaseModel):
@@ -216,6 +223,33 @@ def bank_commitment_group_health(
     # Reuse the established tenant check before returning aggregate-only health.
     service.get_commitment(db, current.institution_id, commitment_id)
     return get_group_health(db, commitment_id)
+
+
+@router.post("/commitments/{commitment_id}/cases", status_code=status.HTTP_201_CREATED)
+def open_case(
+    commitment_id: str,
+    payload: CommitmentCaseRequest,
+    current: AuthPrincipal = Depends(require_bank_permission("bank:commitments:write")),
+    db: Session = Depends(get_db),
+):
+    response = open_commitment_case(db, commitment_id, current.institution_id, current.user_id, payload.reason)
+    service._audit(db, current.institution_id, current.user_id, "commitment_case_opened", "commitment", commitment_id, {"case_id": response["case_id"]})
+    db.commit()
+    return response
+
+
+@router.post("/commitments/{commitment_id}/cases/{case_id}/resolve")
+def resolve_case(
+    commitment_id: str,
+    case_id: str,
+    payload: CommitmentCaseResolutionRequest,
+    current: AuthPrincipal = Depends(require_bank_permission("bank:commitments:write")),
+    db: Session = Depends(get_db),
+):
+    response = resolve_commitment_case(db, commitment_id, current.institution_id, current.user_id, case_id, payload.note)
+    service._audit(db, current.institution_id, current.user_id, "commitment_case_resolved", "commitment", commitment_id, {"case_id": case_id})
+    db.commit()
+    return response
 
 
 @router.get("/audit-log")

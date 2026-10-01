@@ -14,6 +14,8 @@ class LockRequest(BaseModel):
     members: List[str]
     payout_order: Optional[List[str]] = None
     creator_id: Optional[str] = None
+    first_cycle_due_at: datetime | None = None
+    grace_period_hours: int = Field(default=72, ge=1, le=168)
 
 
 class ContributionRequest(BaseModel):
@@ -104,6 +106,10 @@ class ConsentRequest(BaseModel):
 
 class JoinCommitmentRequest(BaseModel):
     invite_code: str = Field(min_length=1, max_length=64)
+
+
+class ReplaceCommitmentMemberRequest(BaseModel):
+    replacement_user_id: str = Field(min_length=1, max_length=128)
 
 
 class MemberLookupRequest(BaseModel):
