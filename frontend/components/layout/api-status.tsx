@@ -22,8 +22,8 @@ export function ApiStatus() {
         aria-hidden="true"
         className={cn(
           "size-2 rounded-full",
-          status === "online" && "bg-green",
-          status === "offline" && "bg-orange",
+          status === "online" && "bg-gold",
+          status === "offline" && "bg-destructive",
           status === "checking" && "animate-pulse bg-hairline-strong"
         )}
       />

@@ -5,7 +5,7 @@ export type NavLink = {
   href: string
 }
 
-export type Tone = "blue" | "orange" | "green"
+export type Tone = "indigo" | "gold"
 
 export type Feature = {
   title: string
