@@ -3,9 +3,10 @@ import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
-from app.auth import AuthPrincipal, get_current_principal
+from app.auth import AuthPrincipal, bearer_scheme, get_current_principal
 from app.database import get_db
 from app.models import User, Vendor
 from app.schemas import (
@@ -15,9 +16,9 @@ from app.schemas import (
     SignupRequest,
     VerifyOtpRequest,
 )
-from app.services import auth_service
+from app.services import audit, auth_service
 from core.config import get_settings
-from core.security import create_token
+from core.security import create_token, is_local_session, token_expiry, verify_token
 
 router = APIRouter(prefix="/v1/auth", tags=["auth"])
 profile_router = APIRouter(prefix="/v1", tags=["auth"])
@@ -83,6 +84,83 @@ def me(
 ):
     """The signed-in account, including the role the backend assigned."""
     return auth_service.get_profile(db, current_user.user_id)
+
+
+@profile_router.post("/logout")
+def logout(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    db: Session = Depends(get_db),
+):
+    """End this session immediately.
+
+    Records the token's identifier so the same token is refused on the next
+    request. Idempotent, and succeeds on a token that has already expired or
+    already been revoked, because the caller's intent is to be signed out and
+    that is true either way.
+    """
+    if credentials is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required.")
+
+    try:
+        claims = verify_token(credentials.credentials)
+    except Exception:
+        # An expired or malformed token is already useless, so there is nothing
+        # to revoke. Reporting success rather than an error keeps the endpoint
+        # safe to call twice from a client that just lost connectivity.
+        return {"status": "signed_out"}
+
+    if not is_local_session(claims):
+        # Externally issued tokens are revoked at the provider, so recording one
+        # locally would claim a revocation that never happened.
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This session is issued by an external identity provider and must be ended there.",
+        )
+
+    result = auth_service.revoke_session(
+        db,
+        claims.get("jti"),
+        claims.get("sub"),
+        expires_at=token_expiry(claims),
+    )
+    audit.record(
+        db,
+        event_type=audit.LOGOUT,
+        subject_type="user",
+        subject_id=str(claims.get("sub") or ""),
+        actor_id=str(claims.get("sub") or ""),
+        actor_role=claims.get("role"),
+        detail={"revoked": result["revoked"]},
+    )
+    db.commit()
+    return result
+
+
+@profile_router.post("/logout-all")
+def logout_all(
+    current_user: AuthPrincipal = Depends(get_current_principal),
+    db: Session = Depends(get_db),
+):
+    """End every session this person holds.
+
+    Raises an instant on the account that any token issued before it fails the
+    re-check, so a device that never called logout is covered too.
+    """
+    user = db.get(User, current_user.user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found.")
+    user.session_invalidated_at = datetime.utcnow()
+    audit.record(
+        db,
+        event_type=audit.LOGOUT_ALL,
+        subject_type="user",
+        subject_id=user.id,
+        actor_id=user.id,
+        actor_role=user.role,
+        detail={"sessions_ended": "all"},
+    )
+    db.commit()
+    return {"status": "signed_out", "sessions_ended": "all"}
 
 
 DEMO_USER_IDS = {

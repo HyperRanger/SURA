@@ -36,6 +36,7 @@ from app.models import (
     User,
     Voucher,
 )
+from app.services import audit
 
 # Severity is a closed set. A free-text severity lets a typo silently become an
 # unreviewable flag that no dashboard filter matches.
@@ -65,6 +66,15 @@ def _window_start(days: int) -> datetime:
 # --- rules -------------------------------------------------------------------
 # Each returns zero or more Findings for a single member. A rule must be pure
 # with respect to the database: read, decide, return.
+#
+# `user` has already been resolved through `User.bank_id == bank_id`, and user
+# ids are unique across the platform, so scoping by `user.id` is tenant-safe for
+# tables that hang off a member. Tables that have their own ``bank_id`` are
+# filtered on it anyway: it is the boundary the tables themselves declare, and a
+# rule that quietly relies on id uniqueness instead stops being safe the moment
+# a member row is ever shared between institutions.
+#
+# Rules still never restrict. They open a flag for a human.
 
 
 def _rule_missed_contributions(db: Session, user: User) -> list[Finding]:
@@ -119,6 +129,7 @@ def _rule_repeated_failed_logins(db: Session, user: User) -> list[Finding]:
     rows = (
         db.query(BankAuditEvent)
         .filter(
+            BankAuditEvent.bank_id == user.bank_id,
             BankAuditEvent.subject_type == "user",
             BankAuditEvent.subject_id == user.id,
             BankAuditEvent.event_type.in_(["customer_login_failed", "otp_verify_failed"]),
@@ -152,6 +163,7 @@ def _rule_score_decline(db: Session, user: User) -> list[Finding]:
     rows = (
         db.query(ScoreHistory)
         .filter(
+            ScoreHistory.bank_id == user.bank_id,
             ScoreHistory.user_id == user.id,
             ScoreHistory.computed_at >= _window_start(30),
         )
@@ -393,6 +405,35 @@ def _write_audit(db: Session, bank_id: str, actor_id: str, event_type: str, subj
     )
 
 
+def _write_platform_audit(
+    db: Session,
+    event_type: str,
+    subject_type: str,
+    subject_id: str,
+    *,
+    actor_id: str | None = None,
+    actor_role: str | None = None,
+    bank_id: str | None = None,
+    detail: dict | None = None,
+) -> None:
+    """Mirror an event at platform scope.
+
+    Same event type, same transaction. A risk decision reviewed at platform level
+    has to be visible without a cross-tenant read of the bank trail, and the two
+    trails roll back together if the decision does.
+    """
+    audit.record(
+        db,
+        event_type=event_type,
+        subject_type=subject_type,
+        subject_id=subject_id,
+        actor_id=actor_id,
+        actor_role=actor_role,
+        institution_id=bank_id,
+        detail=detail,
+    )
+
+
 def apply_restriction(
     db: Session,
     bank_id: str,
@@ -478,6 +519,15 @@ def apply_restriction(
         "user",
         user_id,
         {"reason": reason, "flag_id": flag_id, "restriction_id": record.id},
+    )
+    _write_platform_audit(
+        db,
+        audit.ACCOUNT_REINSTATED if action == "reinstated" else audit.ACCOUNT_RESTRICTED,
+        "user",
+        user_id,
+        actor_id=actor_id,
+        bank_id=bank_id,
+        detail={"action": action, "restriction_id": record.id, "flag_id": flag_id},
     )
     db.commit()
 

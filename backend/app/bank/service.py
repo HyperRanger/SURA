@@ -25,6 +25,7 @@ from app.models import (
     Vendor,
     Voucher,
 )
+from app.services import audit
 from app.services.score_service import get_score_report
 
 SCORE_TIERS = frozenset({"unverified", "entry", "building", "established"})
@@ -364,6 +365,31 @@ def get_flag(db: Session, bank_id: str, flag_id: str) -> dict:
         raise HTTPException(status_code=404, detail="Risk flag not found.")
     history = db.query(BankAuditEvent).filter(BankAuditEvent.bank_id == bank_id, BankAuditEvent.subject_type == "risk_flag", BankAuditEvent.subject_id == flag_id).order_by(BankAuditEvent.occurred_at.desc()).all()
     return {**_serialize_flag(row), "review_history": [{"event_type": event.event_type, "actor_id": event.actor_id, "details": json.loads(event.detail_json), "occurred_at": event.occurred_at.isoformat() if event.occurred_at else None} for event in history]}
+
+
+def revoke_member_sessions(db: Session, bank_id: str, actor_id: str, user_id: str) -> dict:
+    """End every live session for one of this bank's members.
+
+    The only reliable way to sign a member out everywhere is to raise the
+    generation on their account, because the platform deliberately does not
+    store live tokens: it is not a session store. Every session this service
+    issued then fails the re-check on its next request, and any session still
+    outstanding stops working without waiting for its expiry.
+    """
+    member = _user_or_404(db, bank_id, user_id)
+    member.session_invalidated_at = datetime.utcnow()
+    _audit(db, bank_id, actor_id, "member_sessions_revoked", "user", user_id, {})
+    audit.record(
+        db,
+        event_type=audit.SESSION_REVOKED_BY_STAFF,
+        subject_type="user",
+        subject_id=user_id,
+        actor_id=actor_id,
+        institution_id=bank_id,
+        detail={"scope": "all_sessions"},
+    )
+    db.commit()
+    return {"user_id": member.id, "sessions_revoked": True, "at": datetime.utcnow().isoformat()}
 
 
 def _serialize_flag(row: RiskFlag) -> dict:

@@ -78,6 +78,20 @@ class BankVerifyMfaRequest(BaseModel):
     code: str = Field(min_length=4, max_length=12)
 
 
+class BankChangePasswordRequest(BaseModel):
+    """B4. Self-service password change for a bank staff account."""
+
+    current_password: str = Field(min_length=1, max_length=200)
+    new_password: str = Field(min_length=12, max_length=72)
+
+
+class BankResetPasswordRequest(BaseModel):
+    """B4. Administrator-set password for a colleague who is locked out."""
+
+    staff_id: str = Field(min_length=1, max_length=64)
+    new_password: str = Field(min_length=12, max_length=72)
+
+
 class VendorVerificationRequest(BaseModel):
     vendor_id: str
     name: Optional[str] = None

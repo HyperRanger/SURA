@@ -38,6 +38,10 @@ class User(Base):
     restriction_reason = Column(Text, nullable=True)
     restricted_by = Column(String, nullable=True)
     restricted_at = Column(DateTime, nullable=True)
+    # Raised by "sign out everywhere". A token issued before this instant is
+    # refused on sight, which is how every outstanding session ends at once
+    # without the service having to keep a table of live tokens.
+    session_invalidated_at = Column(DateTime, nullable=True)
 
 
 class ContactLookupRateLimit(Base):
@@ -53,6 +57,60 @@ class ContactLookupRateLimit(Base):
     requester_user_id = Column(String, primary_key=True)
     window_started_at = Column(DateTime, nullable=False)
     attempt_count = Column(Integer, nullable=False, default=0)
+
+
+class PlatformAuditEvent(Base):
+    """A record of who did what across the whole platform.
+
+    ``bank_audit_events`` answers the same question inside one institution, which
+    is what a bank's own compliance review needs. It cannot answer the questions
+    a platform operator asks: was this credential reset by someone at the same
+    bank or outside it, which sign-ins failed across all tenants, did one analyst
+    account touch accounts at several institutions. ``institution_id`` is
+    therefore nullable, and a row with no institution is a platform-level event
+    rather than an orphaned one.
+
+    Append-only by construction: nothing in the codebase updates or deletes these
+    rows.
+    """
+
+    __tablename__ = "platform_audit_events"
+
+    id = Column(String, primary_key=True)
+    actor_id = Column(String, nullable=True)
+    actor_role = Column(String, nullable=True)
+    institution_id = Column(String, nullable=True, index=True)
+    event_type = Column(String, nullable=False, index=True)
+    # What the event happened to: user, bank_staff, api_key, session, and so on.
+    subject_type = Column(String, nullable=False)
+    subject_id = Column(String, nullable=False)
+    # Free-form context, and explicitly not a place for credentials: callers pass
+    # identifiers and outcomes, never the secret being changed.
+    detail_json = Column(Text, nullable=False, default="{}")
+    # The caller's IP and user agent, when a request supplied them. Nullable,
+    # because background jobs have neither.
+    source_ip = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
+    occurred_at = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+
+class SessionRevocation(Base):
+    """A signed-out session, recorded so the token stops working immediately.
+
+    A JWT is valid until it expires. Without a row here, "log out" would only
+    clear the token client-side and a copied or stolen token would keep working
+    for the rest of its 24-hour life. Storing the token's own identifier, rather
+    than the token, means a leaked database cannot be replayed as a login: the
+    stored value is a hash.
+    """
+
+    __tablename__ = "session_revocations"
+
+    jti = Column(String, primary_key=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    reason = Column(String, nullable=False, default="logout")
+    revoked_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
 
 
 class AuthChallenge(Base):
