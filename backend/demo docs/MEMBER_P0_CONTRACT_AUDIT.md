@@ -37,7 +37,8 @@ the PWA.
 | M12/M13 beneficiary voucher | `GET /v1/commitments/{id}/cycles/{n}/voucher` | Needs response adjustment | Correctly beneficiary-only and supports locked/ready/redeemed state. The response has vendor ID but not vendor display name; there is no voucher expiry in the model, so the PWA must not invent one. QR rendering is frontend work from `voucher_code`. |
 | M14 pending cancellation | `POST /v1/commitments/{id}/cancel` | Ready | Creator-only and pending-only, exactly as required. |
 | M16 private score | `GET /v1/score/{user_id}` | Ready | Individual role only; the caller may request only their own score, tier, five-pillar breakdown, weights, and version. |
-| M17 private score history | `GET /v1/score/{user_id}/history` | Ready for the list | Individual role only; returns newest-first explainable history. Entry IDs and a dedicated entry route are absent, but M18 is P1. A client-side event-type filter is possible; a true pillar filter needs a separately agreed response/query contract. |
+| M17 private score history | `GET /v1/score/{user_id}/history` | Ready | Individual role only; returns newest-first explainable history with immutable entry IDs, source signals, weights, and score version. |
+| M18 score history detail | `GET /v1/score/{user_id}/history/{entry_id}` | Ready | Individual role only; returns one immutable Score snapshot for the explainability screen. |
 
 ## Phase 3 resolutions
 

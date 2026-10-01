@@ -26,7 +26,7 @@ from app.models import (
     Voucher,
 )
 from app.services.commitments import refresh_commitment_lifecycle
-from app.services.score_service import get_score_report
+from app.services.score_service import get_score_report, public_score_report, serialize_score_history_entry
 
 SCORE_TIERS = frozenset({"unverified", "entry", "building", "established"})
 FLAG_STATUSES = frozenset({"open", "dismissed", "confirmed", "escalated"})
@@ -160,17 +160,18 @@ def get_user_profile(db: Session, bank_id: str, actor_id: str, user_id: str) -> 
 def get_user_score(db: Session, bank_id: str, actor_id: str, user_id: str) -> dict:
     _user_or_404(db, bank_id, user_id)
     _audit(db, bank_id, actor_id, "customer_score_viewed", "user", user_id)
-    report = get_score_report(db, user_id)
+    report = public_score_report(db, user_id)
     history = db.query(ScoreHistory).filter(ScoreHistory.user_id == user_id).order_by(ScoreHistory.computed_at.desc(), ScoreHistory.id.desc()).all()
     return {
         "user_id": user_id,
         "current": report,
-        "history": [{
-            "id": row.id, "score": row.score, "score_before": row.score_before, "event_type": row.event_type,
-            "reason": row.reason, "source_id": row.source_id, "score_version": row.score_version,
-            "computed_at": row.computed_at.isoformat() if row.computed_at else None,
-            "breakdown": json.loads(row.breakdown_json).get("breakdown", {}),
-        } for row in history],
+        "history": [
+            {
+                **serialize_score_history_entry(row),
+                "computed_at": row.computed_at.isoformat() if row.computed_at else None,
+            }
+            for row in history
+        ],
     }
 
 

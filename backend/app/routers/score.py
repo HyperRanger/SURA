@@ -1,4 +1,3 @@
-import json
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -8,7 +7,7 @@ from app.auth import AuthPrincipal, get_current_principal
 from app.database import get_db
 from app.models import ScoreHistory
 from app.schemas import ScoreBreakdown, ScoreHistoryEntry, ScoreHistoryResponse, ScoreResponse
-from app.services.score_service import public_score_report
+from app.services.score_service import public_score_report, serialize_score_history_entry
 
 router = APIRouter(prefix="/v1", tags=["score"])
 
@@ -62,27 +61,36 @@ def get_score_history(
         .all()
     )
 
-    entries: list[ScoreHistoryEntry] = []
-    for row in rows:
-        breakdown = None
-        if row.breakdown_json:
-            stored = json.loads(row.breakdown_json)
-            breakdown_payload = stored.get("breakdown", stored)
-            breakdown = ScoreBreakdown(**breakdown_payload)
-        entries.append(
-            ScoreHistoryEntry(
-                score=row.score,
-                score_before=row.score_before,
-                event_type=row.event_type,
-                source_id=row.source_id,
-                reason=row.reason,
-                computed_at=row.computed_at or datetime.utcnow(),
-                breakdown=breakdown,
-            )
+    entries = [
+        ScoreHistoryEntry(
+            **{
+                **serialize_score_history_entry(row),
+                "computed_at": row.computed_at or datetime.utcnow(),
+            }
         )
+        for row in rows
+    ]
 
     return ScoreHistoryResponse(
         user_id=user_id,
         current_score=entries[0].score if entries else public_score_report(db, user_id)["score"],
         entries=entries,
     )
+
+
+@router.get("/score/{user_id}/history/{entry_id}", response_model=ScoreHistoryEntry)
+def get_score_history_entry(
+    user_id: str,
+    entry_id: str,
+    current_user: AuthPrincipal = Depends(get_current_principal),
+    db: Session = Depends(get_db),
+):
+    """Return one immutable, explainable Score snapshot to its owner."""
+    if current_user.role != "individual":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Member access is required.")
+    if current_user.user_id != user_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You may only view your own score history.")
+    row = db.query(ScoreHistory).filter(ScoreHistory.id == entry_id, ScoreHistory.user_id == user_id).one_or_none()
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Score history entry not found.")
+    return ScoreHistoryEntry(**{**serialize_score_history_entry(row), "computed_at": row.computed_at or datetime.utcnow()})

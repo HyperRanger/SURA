@@ -26,7 +26,7 @@ from app.schemas import ContributionRequest, LockRequest
 from app.services.contribution_engine import dump_rule_trace, evaluate_contribution
 from app.services.lock_lifecycle import SUPPORTED_FREQUENCIES, advance_due_at, deadline_state, default_first_due_at
 from app.services.payout_rules import apply_anchor_and_cap_rule, build_payout_schedule
-from app.services.score_service import public_score_report, refresh_commitment_member_scores
+from app.services.score_service import public_score_report, record_score_snapshot, refresh_commitment_member_scores
 from app.services.scoring import ENTRY_TIER_BASELINE
 from core.config import get_settings
 
@@ -957,6 +957,18 @@ def record_score_consent(db: Session, user_id: str, granted: bool) -> dict[str, 
         else:
             consent.granted = granted
             consent.recorded_at = datetime.utcnow()
+        db.flush()
+        # The invite flow can collect consent before its placeholder account is
+        # materialised. Preserve that flow and only create a snapshot for a
+        # real account.
+        if consent.granted and db.get(User, user_id) is not None:
+            record_score_snapshot(
+                db,
+                user_id,
+                event_type="score_consent_granted",
+                reason="Member granted score-processing consent.",
+                source_id=consent.id,
+            )
         return {
             "user_id": user_id,
             "consent_type": consent.consent_type,

@@ -68,7 +68,7 @@ Sura Score is deliberately deterministic and explainable, not a black-box credit
 | Institutional verification | 12% | Verified identity signal |
 | Social reliability | 8% | Verified peer co-signers, capped at two |
 
-The entry-tier baseline is **120** for a verified person with no other history. Score rules, weights, version, signals, breakdown, reason, and source event are recorded with each history snapshot. A user can see only their own Score; bank access is tenant- and permission-scoped.
+The entry-tier baseline is **120** for a verified person with no other history. Score rules, weights, version, signals, breakdown, reason, and source event are recorded with each history snapshot. A user can see only their own Score; bank access is tenant- and permission-scoped. New Score processing requires current score-processing consent; historical snapshots remain immutable audit evidence.
 
 ### Sura Float
 

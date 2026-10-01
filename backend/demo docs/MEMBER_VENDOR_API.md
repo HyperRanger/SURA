@@ -166,10 +166,13 @@ block a contribution, alter a payout, or make a lending decision. See
 |---|---|---|
 | M16 score | `GET /v1/score/{user_id}` | only the authenticated user may request their score |
 | M17 history | `GET /v1/score/{user_id}/history` | own explainable score history only |
+| M18 history detail | `GET /v1/score/{user_id}/history/{entry_id}` | one immutable snapshot: score before/after, source event, policy version, weights, and stored inputs |
 
 The current MVP is a deterministic rule engine. The API returns the score,
-tier, pillar breakdown, weights, and history evidence. It is not an ML credit
-decision and must never be labelled as one in the app.
+tier, pillar breakdown, weights, and history evidence. A history entry is an
+immutable explanation captured at the time the score changed; it includes the
+five input signals and the policy version that produced it. It is not an ML
+credit decision and must never be labelled as one in the app.
 
 ## Vendor terminal
 
