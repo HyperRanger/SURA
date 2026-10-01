@@ -393,10 +393,13 @@ def test_the_bank_demo_sign_in_works_outside_production(client):
     response = client.post("/v1/bank/demo-login")
     assert response.status_code == 200, response.text
     body = response.json()
-    assert body["role"] in {"bank_admin", "bank_risk_analyst"}
+    assert body["role"] == "bank_admin"
 
     headers = {"Authorization": f"Bearer {body['access_token']}"}
     assert client.get("/v1/bank/overview", headers=headers).status_code == 200
+    assert client.get("/v1/bank/commitments", headers=headers).status_code == 200
+    assert client.get("/v1/bank/settlements", headers=headers).status_code == 200
+    assert client.get("/v1/bank/developers", headers=headers).status_code == 200
 
 
 def test_the_bank_demo_sign_in_is_unavailable_in_production(client):

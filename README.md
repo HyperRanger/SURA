@@ -1,135 +1,177 @@
-# SURA
+# Sura
 
-The infrastructure of commitment.
+**The infrastructure of commitment.**
 
-Sura is infrastructure for structured financial commitments, built for people whose income does not arrive as a monthly salary.
+Sura is a backend-first financial infrastructure product for people whose income does not arrive as a monthly salary. It lets a bank or fintech offer structured, vendor-locked group commitments and an explainable behavioural score through its own customer channels and payment rails.
+
+Sura does not custody customer funds, replace a bank as lender of record, or claim to verify a bank settlement. The bank keeps the customer relationship and executes transactions on its own rails; Sura provides the rules, evidence, APIs, and audit trail around the product.
 
 ![Status](https://img.shields.io/badge/status-active%20build-D9A441)
 ![Python](https://img.shields.io/badge/python-3.11%2B-29235C)
-![Framework](https://img.shields.io/badge/api-FastAPI-29235C)
+![API](https://img.shields.io/badge/API-FastAPI-29235C)
 ![Database](https://img.shields.io/badge/database-PostgreSQL-29235C)
-![Tests](https://img.shields.io/badge/score%20engine-16%20cases%20passing-D9A441)
-![Scope](https://img.shields.io/badge/InnovateX-2026-171717)
 
-Sura helps banks and fintechs offer a more transparent and more usable alternative to traditional salary based underwriting, by combining three modules on one API.
+## Current scope
 
-- Sura Lock, programmable commitment flows
-- Sura Float, institutional fee micro-advance logic
-- Sura Score, a transparent reputation engine
+The implemented MVP is deliberately narrow and demonstrable:
 
-This repository is the project home for the full Sura vision, but the current implementation scope is deliberately backend first. The core product logic, API layer, schema design, scoring engine, and deployment ready backend structure live here.
+- **Sura Lock:** rotating commitments, consent, invitations, contributions, deterministic beneficiary order, vendor-locked vouchers, and redemption.
+- **Sura Score:** a private, rule-based 0–1000 score with a recorded, explainable history.
+- **Member/Vendor API:** role-scoped convenience endpoints for the mobile/PWA experience.
+- **Bank Portal and integration API:** customer evidence, Score audit data, flags, staff access, sandbox API keys, and webhook configuration.
 
-## October 8 demo boundary
+**Sura Float is roadmap-only and is not implemented.** No Float request, approval, disbursement, repayment, or fee-calendar endpoint should be presented as live.
 
-The live demo proves one rotating Sura Lock from four perspectives: members create and fund it, the matching vendor redeems its vendor-locked voucher, and the bank sees the same commitment, settlement, score movement, and audit evidence.
+Some bank activity is simulated for the MVP. Signed webhook *test* deliveries and delivery logs exist, but real outbound domain-event delivery, retry handling, and a production outbox worker are still to be built.
 
-Sura Float is roadmap-only for this demo. Bank settlement and account-rail activity are simulated; Sura does not custody money, execute real transfers, replace the bank's lender-of-record role, or take ownership of the customer relationship.
+## What the demo proves
 
-## Contents
+```text
+Member creates a rotating Lock
+  → invited members consent and join
+  → members contribute with replay-safe event IDs
+  → a paid cycle creates a beneficiary voucher
+  → the locked vendor validates and redeems it
+  → the bank views the commitment, settlement evidence, audit trail, and Score movement
+```
 
-- Why Sura exists
-- Product modules
-- Architecture at a glance
-- Build status
-- Quick start
-- Running the tests
-- Project structure
-- Current build intent
-- Technology stack
-- Project documents
-- Team and ownership
-- Contributing
-- License
-
-## Why Sura exists
-
-Most Nigerians who work in the informal economy are excluded from traditional credit systems because they do not have a formal payslip, even when their financial behaviour is disciplined and consistent.
-
-Sura addresses that gap by turning real behavioural data into a bank readable trust layer.
-
-- Contribution history
-- Commitment completion
-- Vendor locked redemption
-- Missed contribution handling
-- Score evolution over time
+The same commitment is visible from the member, vendor, and bank perspectives. This is the core product claim: one rules engine and API layer, integrated into different customer experiences.
 
 ## Product modules
 
 ### Sura Lock
 
-A commitment engine for rotating, collective, and individual goal structures, where users contribute toward a specific outcome and the system enforces the rules. It never decides who benefits. It only enforces the terms a group already agreed to.
+Sura Lock is a rules engine for structured commitments. The current MVP supports **rotating** commitments only. A group agrees the member order, each member contributes, and each paid cycle creates a payout that can be redeemed only with the verified vendor selected at creation.
 
-### Sura Float
+Key safeguards:
 
-A micro-advance mechanism for institutional fees or structured obligations, where repayment is enforced by a real authority such as a school, an institution, or a service provider.
+- explicit Score-processing consent before commitment creation or joining;
+- verified vendor required at creation;
+- deterministic payout order and member eligibility rules;
+- positive, bounded contributions with durable `event_id` idempotency;
+- voucher access restricted to the actual beneficiary;
+- redemption determined from the authenticated vendor account, never a client-supplied vendor ID;
+- wrong-vendor and already-redeemed voucher rejection;
+- activity and audit evidence for member and bank views.
+
+Collective and individual goal commitments are future product work, not supported commitment types today.
 
 ### Sura Score
 
-A transparent, rule based score that rewards consistency and completion, without hiding the logic behind a black box model.
+Sura Score is deliberately deterministic and explainable, not a black-box credit model. It produces a score between 0 and 1000 and persists snapshots so a bank can inspect what changed and why.
 
-#### How it is calculated
+| Pillar | Weight | Current source |
+|---|---:|---|
+| Commitment behaviour | 35% | Lock participation, completion, and contribution behaviour |
+| Repayment behaviour | 25% | Float repayment behaviour; currently zero because Float is not built |
+| Transaction stability | 20% | Recorded activity regularity |
+| Institutional verification | 12% | Verified identity signal |
+| Social reliability | 8% | Verified peer co-signers, capped at two |
 
-The score is a weighted sum across five pillars, not a trained model. Every point on it traces back to a named pillar and a named signal, which is what makes it auditable for a bank.
+The entry-tier baseline is **120** for a verified person with no other history. Score rules, weights, version, signals, breakdown, reason, and source event are recorded with each history snapshot. A user can see only their own Score; bank access is tenant- and permission-scoped.
 
-| Pillar | Weight | Signal |
-|---|---|---|
-| Commitment behaviour | 35% | Locks completed versus joined, and contributions paid on time |
-| Repayment behaviour | 25% | Sura Float repayments made on time |
-| Transaction stability | 20% | Regularity of account activity, measured as the coefficient of variation of the gaps between events |
-| Institutional verification | 12% | Verified identity via student portal, trade association, or gig platform history |
-| Social reliability | 8% | Peer co-signers from the same verified circle, capped at two |
+### Sura Float
 
-Each pillar produces a sub-score between 0.0 and 1.0, which is multiplied by its weight and the 1000 point maximum. Sub-scores are rounded per pillar, so the breakdown shown to a user always sums exactly to the score they were given.
+Sura Float remains part of the product vision: a small, predictable-fee institutional advance where another authority enforces repayment. It is intentionally outside this MVP. Any Float eligibility field or Score pillar is informational only until a full Float lifecycle exists.
 
-**Cold start.** A newly verified user with no commitment history scores exactly 120, because only the institutional verification pillar applies. That figure is derived from the weight rather than chosen by hand, and it is the anchor the rotating commitment ordering and cap rule compares against. This is deliberate. A score model with no honest answer for someone with zero history just rebuilds the exclusion it claims to fix.
-
-#### Reference points
-
-These are the numbers the test suite asserts, so a change to any weight or rule shows up as a failing test rather than a silently different score.
-
-| User | Score |
-|---|---|
-| No history, unverified | 0 |
-| No history, verified (entry tier) | 120 |
-| One completed rotation, all contributions on time, regular activity, two co-signers | 750 |
-| The same user after missing one of four contributions | 706 |
-| Every pillar at maximum | 1000 |
-
-## Architecture at a glance
+## Architecture
 
 ```text
-Client (web app, or the demo switcher for stage use)
-        |
-        v
-FastAPI app (app/main.py)
-        |
-routers/     thin HTTP layer, no business logic
-        |
-services/    Commitment Engine and Reputation Engine, pure functions
-        |
-PostgreSQL   via SQLAlchemy models and Alembic migrations
+Member / Vendor PWA       Bank Portal Web App       Bank Core System
+         │                        │                        │
+         └───────────────┬────────┴────────┬───────────────┘
+                         │     Sura API     │
+                         │     FastAPI      │
+       ┌─────────────────┼─────────┬────────┼─────────────────┐
+       │ Auth / sessions │ Lock    │ Score  │ Bank / developer │
+       │                 │ engine  │ rules  │ APIs and keys    │
+       └─────────────────┴─────────┴────────┴─────────────────┘
+                                      │
+                                 PostgreSQL
+                                      │
+                  Vendor redemption and bank/webhook events
+                         (partly simulated in this MVP)
 ```
 
-`app/routers/` stays thin and does no decisioning of its own. Business rules live in `app/services/` as pure functions with no database, clock, or HTTP dependency, so any result can be reproduced directly from the events that produced it, and tested without spinning up the API.
+The code follows the same boundary:
 
-## Build status
+- `backend/app/member_vendor/` contains only PWA-specific composition endpoints and response contracts.
+- `backend/app/services/` contains reusable Lock, Score, matching, group-health, vendor, and support rules.
+- `backend/app/bank/` contains Bank Portal and machine-integration concerns.
+- `backend/app/routers/` contains thin shared HTTP routes.
+- `backend/alembic/` owns schema evolution; PostgreSQL is the source of durable state.
 
-| Area | State |
+No PWA or bank route should duplicate Lock, Score, voucher, or redemption decision logic.
+
+## Frontend applications
+
+The repository contains a Next.js frontend in `frontend/`. It is the public Sura product/marketing site today, including the API-health indicator in its footer. It is not a substitute for the two product applications below.
+
+| Experience | Intended users | Frontend status | Backend it consumes |
+|---|---|---|---|
+| Public Sura site | Partners, judges, and prospective banks | Present in `frontend/` | `GET /health` today; it can link to the live API documentation |
+| Member/Vendor PWA | Individual members and verified vendors | API contract and screen specification are ready; product screens are a separate frontend delivery | `/v1/auth/*`, `/v1/commitments/*`, `/v1/score/*`, `/v1/vendors/*`, and `/v1/app/*` |
+| Bank Portal web app | Bank staff and partner operations teams | Backend contract is ready; portal screens are a separate frontend delivery | `/v1/bank/*` and `/v1/integrations/*` |
+
+The Member and Vendor experiences belong in one role-aware PWA. An authenticated vendor is routed to vendor operations; an authenticated individual member is routed to Lock, Score, and profile flows. The Bank Portal is a separate web application because it has a different authentication, permission, audit, and developer-integration model.
+
+Frontend responsibilities are presentation, session storage according to the auth contract, input validation for usability, and calling documented APIs. The backend remains authoritative for roles, consent, money/commitment rules, vendor identity, voucher access, scoring, tenant isolation, and permissions.
+
+### Run the public frontend locally
+
+```bash
+cd frontend
+npm install
+Copy-Item .env.example .env.local  # PowerShell
+npm run dev
+```
+
+Set `NEXT_PUBLIC_API_URL` in `frontend/.env.local` to the local or deployed Sura API URL. The public site's health indicator calls `GET /health`. Never place API secrets, bank API keys, or server-only credentials in a `NEXT_PUBLIC_*` variable.
+
+The complete product-screen inventory is in [SCREENS.md](SCREENS.md), with PWA-specific details in [Member/Vendor app screens](<backend/demo docs/MEMBER_VENDOR_APP_SCREENS.md>) and bank workflows in [Bank Portal screens](<backend/demo docs/BANK_PORTAL_SCREENS.md>).
+
+## API surface
+
+Interactive API documentation is generated from the running application at `/docs`. The route families below are the stable backend handoff categories; refer to the dedicated documents for payloads, response examples, and error behaviour.
+
+| Audience | Route family | Purpose |
+|---|---|---|
+| All clients | `GET /health` | API and database health |
+| Members/vendors | `/v1/auth/*`, `GET /v1/me` | Signup, login, OTP verification, session profile |
+| Members | `/v1/consent`, `/v1/commitments/*` | Consent, Lock creation, invitations, join, contribution, voucher, activity, and detail |
+| Members | `/v1/score/{user_id}*` | Private Score and Score history |
+| Vendors | `/v1/vendors/*` | Catalogue, verification, voucher validation, redemption, and redemption history |
+| PWA convenience | `/v1/app/*` | Member home, contact resolution, Lock preview, vendor recommendations, group health, vendor overview |
+| Bank staff | `/v1/bank/*` | Overview, customer search, Score/Lock evidence, flags, settlements, audit, staff, settings, keys, and webhooks |
+| Bank systems | `/v1/integrations/*` | Scoped API-key access to customer Score and commitment data |
+
+All protected routes use the authenticated principal and role checks. Browser clients must send a bearer token where the contract requires it. A contribution retry must reuse the same `event_id`; the same ID with a different amount is rejected.
+
+## Delivery status
+
+| Capability | Status |
 |---|---|
-| Sura Lock: consent, invite, contribution, payout, idempotency | Implemented and tested |
-| Vendor verification, voucher issuance, and redemption | Implemented and tested |
-| Sura Score 0–1000 and explainable score history | Implemented and tested |
-| Bank Portal: monitoring, customer/commitment detail, flags, settlements, Developer Hub, staff, and settings | Implemented and tested |
-| Developer Hub: scoped keys and machine score/commitment API; signed webhook test deliveries and logs | In progress; outbound event delivery worker remains |
-| Sura Float | Roadmap only; intentionally not implemented for October 8 |
+| Rotating Lock lifecycle and contribution idempotency | Implemented and tested |
+| Consent, invitation, join, voucher privacy, and vendor-locked redemption | Implemented and tested |
+| Explainable Sura Score and Score history | Implemented and tested |
+| Member/Vendor PWA API contracts | Implemented and documented |
+| Deterministic vendor matching recommendations | Implemented; advisory only |
+| Group Health signal | Implemented; advisory only, never a fraud label or automatic action |
+| Bank Portal operations and tenant-scoped machine reads | Implemented and tested |
+| Sandbox API keys and signed webhook test deliveries | Implemented and tested |
+| Real event-driven outbound webhook delivery | Not implemented |
+| Real bank-rail settlement and reconciliation | Simulated in MVP |
+| Sura Float | Not implemented |
 
-## Quick start
+## Local development
+
+Requirements: Python 3.11+, PostgreSQL, and a local environment file. Never commit `.env` files or real credentials.
 
 ```bash
 cd backend
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 cp .env.example .env
 python -m alembic upgrade head
 uvicorn app.main:app --reload
@@ -141,321 +183,71 @@ Windows PowerShell:
 cd backend
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
+python -m pip install -r requirements.txt
 Copy-Item .env.example .env
 python -m alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-Visit http://localhost:8000/docs once it is running. That live, interactive page is generated directly from the code, so it is worth showing to judges as proof the API is real, not a mock up.
+Open `http://localhost:8000/docs` after startup. Use values from [`backend/.env.example`](backend/.env.example) as placeholders only; create all real secrets in the deployment environment.
 
-## Running the tests
+## Tests and migrations
 
-The score tests are pure Python and need nothing but pytest.
+Run the full backend suite from `backend`:
 
 ```bash
-cd backend
-python -m pytest tests/test_scoring.py -v
+python -m pytest tests -q
 ```
 
-The API test suite uses an isolated in-memory database. CI also applies the full
-Alembic chain against PostgreSQL before it runs the tests.
+Before deploying a schema change:
 
-## Project structure
-
-```text
-Sura/
-├── README.md
-├── SURA_MASTER_BLUEPRINT.md
-├── Sura-PRD.md
-├── Sura-TRD.md
-├── Sura-Build-Plan.md
-├── backend/
-│   ├── app/
-│   │   ├── main.py
-│   │   ├── models.py
-│   │   ├── schemas.py
-│   │   ├── database.py
-│   │   ├── routers/        # HTTP layer, one module per resource
-│   │   ├── services/       # business rules, pure and testable
-│   │   └── tests/
-│   ├── core/                # config, security, idempotency
-│   ├── alembic/              # migrations
-│   ├── scripts/
-│   ├── requirements.txt
-│   └── .env.example
-└── .gitignore
+```bash
+python -m alembic upgrade head
+python -m pytest tests -q
 ```
 
-## Current build intent
+GitHub Actions runs the test suite on pushes and pull requests. Deployments should proceed only after CI passes. Alembic migrations are applied during the Render build/deploy process against the configured PostgreSQL database.
 
-This repository is centered on the backend and API layer, because that is the technical foundation for the entire product.
+## Deployment and demo
 
-The current implementation and design focus includes the following.
+The deployed service must provide:
 
-- API contracts for commitments, scoring, vendors, and settlement flows
-- Database schema and relationship design
-- Commitment lifecycle state tracking
-- Score calculation logic and event driven updates
-- Deployment friendly backend architecture
-- Backend test coverage for critical business rules
+- `DATABASE_URL` for the Render PostgreSQL instance;
+- `SECRET_KEY`, JWT configuration, and production environment setting;
+- Termii values for real one-time-code delivery in production;
+- bank MFA and contact-lookup limits;
+- no credentials committed to Git.
 
-Frontend implementation is not part of this repository's active build scope. The frontend is a separate delivery layer that integrates against the same API contract defined here.
+Use [`backend/demo docs/DEMO_RUNBOOK.md`](<backend/demo docs/DEMO_RUNBOOK.md>) for the walkthrough and [`backend/demo docs/DEMO_DATA.md`](<backend/demo docs/DEMO_DATA.md>) for reproducible seeded records.
 
-## Technology stack
+## Documentation
 
-- Python
-- FastAPI
-- PostgreSQL
-- SQLAlchemy
-- Alembic
-- Pydantic
-- JWT with a demo OTP flow
-- Railway or Render as the deployment target
+| Document | Use it for |
+|---|---|
+| [Master Blueprint](SURA_MASTER_BLUEPRINT.md) | Full product vision and longer-term architecture |
+| [Build Plan](Sura-Build-Plan.md) | Team sequencing and current MVP boundary |
+| [PRD](Sura-PRD.md) | Product requirements |
+| [TRD](Sura-TRD.md) | Technical requirements and Score specification |
+| [PWA API contract](<backend/demo docs/MEMBER_VENDOR_API.md>) | Member/Vendor frontend integration |
+| [PWA frontend handoff](<backend/demo docs/PWA_FRONTEND_HANDOFF.md>) | Tokens, payload expectations, error states, and demo data |
+| [Bank Portal screens](<backend/demo docs/BANK_PORTAL_SCREENS.md>) | Bank-facing workflows and backend expectations |
+| [Matching v1](<backend/demo docs/MATCHING_V1.md>) | Deterministic advisory vendor ranking |
+| [Group Health v1](<backend/demo docs/GROUP_HEALTH_V1.md>) | Advisory group-health contract and limitations |
+| [Release readiness](<backend/demo docs/RELEASE_READINESS.md>) | Release and live-demo checklist |
 
-## Project documents
+## Team ownership
 
-The project documents are the source of truth for scope, architecture, technical requirements, build flow, and delivery milestones.
-
-- SURA_MASTER_BLUEPRINT.md, the full product vision and pitch
-- Sura-PRD.md, product requirements and regional demo scope
-- Sura-TRD.md, technical requirements, including the anchor and cap rule
-- Sura-Build-Plan.md, day by day tasks and ownership
-
-Section 5.2 of the TRD is the scoring specification. It is the source of truth for the weights, the cold start baseline, and when a recalculation is triggered. This README summarises it. The TRD governs if the two ever disagree.
-
-## Team and ownership
-
-This project is built by a four person team.
-
-| Role | GitHub | Owns |
+| Domain | Owner | Boundary |
 |---|---|---|
-| Backend Core | @HyperRanger | Schema, lock and contribute endpoints, the anchor and cap rule, vendor and redemption, deployment |
-| Backend AI or ML | @Olatunji_Tobi | Sura Score rule engine, the score endpoint, score recalculation behaviour |
-| Frontend Engineering | @fisayobadina | Create, join, contribute, redeem, and score dashboard screens, against the API contract |
-| UI or UX and Pitch | unconfirmed | Design system, wireframes, slide deck, demo script |
+| Authentication, OTP, sessions, and role claims | Authentication owner | Other domains consume the established principal; they do not recreate authentication. |
+| Lock, vendor flows, PWA contracts, deployment | Core backend | Shared business logic stays outside the PWA folder. |
+| Score rule engine and Score evolution | Score owner + core backend integration | Rules remain deterministic, versioned, and auditable. |
+| Fraud/risk flags | Risk/fraud owner | Group Health is separate advisory product data, not a competing fraud engine. |
+| Bank Portal and integration API | Bank backend owner | Tenant isolation, permissions, audit, keys, and developer tooling. |
+| Frontend applications | Frontend team | Integrates only against documented endpoints; it does not reproduce backend rules. |
 
-The backend team owns the source of truth for the underlying system contract. The frontend and design teams integrate against the production ready API surface as it is built.
-
-## Contributing
-
-Everyone works on a feature branch off main and opens a pull request back into it. main stays deployable at all times.
-
-Ownership rules that prevent duplicate work, from the build plan.
-
-- One person owns the schema. That is Backend Core. Everyone else reads models.py. Nobody else edits it without telling Backend Core first.
-- Frontend never guesses at what an API returns. If a response shape is not written down in Sura-TRD.md, ask Backend Core before writing code that assumes it.
-- No task has two owners. If something is too big for one person, split it into two checklist items rather than putting both names on one.
-- The daily fifteen minute sync is not optional. Most duplicate work happens because two people quietly built the same thing on the same day without saying so.
+`Backend` is the integration branch. `Master` is the production branch and must remain deployable. Changes should be reviewed, tested, and migrated before merging to `Master`.
 
 ## License
 
-Built for submission to InnovateX 2026. A license for use beyond the competition has not been decided yet. Until then, treat this repository as all rights reserved to its authors.
-
-## Summary
-
-Sura is a real world financial infrastructure concept, built around commitment, trust, and transparent decisioning. This repository captures the full product vision and the backend engineering execution path required to turn that vision into a working, demoable system.
-
-The project is intentionally structured so the backend is strong, well documented, and deployment ready before any frontend layer is built on top of it.# SURA
-
-Sura is an infrastructure product for structured financial commitments, built for people whose income does not arrive as a monthly salary.
-
-## Brand direction
-
-Tagline: The infrastructure of commitment.
-
-Primary palette:
-- Deep Indigo `#29235C` for the primary brand color and dominant product surfaces
-- Gold `#D9A441` for completed commitments, score highlights, locked funds, and success states
-- Ivory `#F7F5EF` for the background so the product feels warm and distinct from a corporate banking dashboard
-- Near Black `#171717` for text and high-contrast UI copy
-
-Sura helps banks and fintechs offer a more transparent and more usable alternative to traditional salary-based underwriting by combining:
-- Sura Lock: programmable commitment flows
-- Sura Float: institutional fee micro-advance logic
-- Sura Score: a transparent reputation engine
-
-This repository is the project home for the full Sura vision, but the current implementation scope is deliberately backend-first. The core product logic, API layer, schema design, scoring engine, and deployment-ready backend structure live here.
-
-## Why Sura exists
-
-Most Nigerians who work in the informal economy are excluded from traditional credit systems because they do not have a formal payslip, even when their financial behaviour is disciplined and consistent.
-
-Sura addresses that gap by turning real behavioural data into a bank-readable trust layer:
-- contribution history
-- commitment completion
-- vendor-locked redemption
-- missed contribution handling
-- score evolution over time
-
-## Product modules
-
-### Sura Lock
-A commitment engine for rotating, collective, and individual goal structures where users contribute toward a specific outcome and the system enforces the rules.
-
-### Sura Float
-A micro-advance mechanism for institutional fees or structured obligations where repayment is enforced by a real authority such as a school, institution, or service provider.
-
-### Sura Score
-A transparent, rule-based score that rewards consistency and completion without hiding the logic behind a black-box model.
-
-#### How it is calculated
-The score is a weighted sum across five pillars, not a trained model. Every point on it traces back to a named pillar and a named signal, which is what makes it auditable for a bank.
-
-| Pillar | Weight | Signal |
-|---|---|---|
-| Commitment behaviour | 35% | Locks completed vs joined, and contributions paid on time |
-| Repayment behaviour | 25% | Sura Float repayments made on time |
-| Transaction stability | 20% | Regularity of account activity, measured as coefficient of variation of the gaps between events |
-| Institutional verification | 12% | Verified identity via student portal, trade association, or gig platform history |
-| Social reliability | 8% | Peer co-signers from the same verified circle, capped at two |
-
-Each pillar produces a sub-score between 0.0 and 1.0, which is multiplied by its weight and the 1000-point maximum. Sub-scores are rounded per pillar, so the breakdown shown to a user always sums exactly to the score they were given.
-
-**Cold start.** A newly verified user with no commitment history scores exactly 120, because only the institutional verification pillar applies. That figure is derived from the weight rather than chosen by hand, and it is the anchor the rotating-commitment ordering and cap rule compares against. This is deliberate: a score model with no honest answer for someone with zero history just rebuilds the exclusion it claims to fix.
-
-#### Reference points
-These are the numbers the test suite asserts, so a change to any weight or rule shows up as a failing test rather than a silently different score.
-
-| User | Score |
-|---|---|
-| No history, unverified | 0 |
-| No history, verified (entry tier) | 120 |
-| One completed rotation, all contributions on time, regular activity, two co-signers | 750 |
-| The same user after missing one of four contributions | 706 |
-| Every pillar at maximum | 1000 |
-
-## Build status
-
-| Area | State |
-|---|---|
-| Sura Lock: consent, invite, contribution, payout, idempotency | Implemented and tested |
-| Vendor verification, voucher issuance, and redemption | Implemented and tested |
-| Sura Score 0–1000 and explainable score history | Implemented and tested |
-| Bank Portal: tenant search, score audit, flags, and settlements | Implemented and tested |
-| Developer Hub: scoped keys and machine score/commitment API; signed webhook test deliveries and logs | In progress; outbound event delivery worker remains |
-| Sura Float | Roadmap only; intentionally not implemented for October 8 |
-
-The score endpoint is driven by real Lock events. The demo must show score changes caused by the live commitment flow, not a hardcoded value.
-
-## Running the tests
-
-The score tests are pure Python and need nothing but pytest:
-
-```bash
-cd backend
-python -m pytest app/tests/test_scoring.py -v
-```
-
-The full suite additionally needs `pip install -r requirements.txt` and a reachable database.
-
-## Project structure
-
-```text
-Sura/
-├── README.md
-├── SURA_MASTER_BLUEPRINT.md
-├── Sura-PRD.md
-├── Sura-TRD.md
-├── Sura-Build-Plan.md
-├── backend/
-│   ├── app/
-│   │   ├── main.py
-│   │   ├── models.py
-│   │   ├── schemas.py
-│   │   ├── database.py
-│   │   ├── routers/        # HTTP layer, one module per resource
-│   │   ├── services/       # business rules, pure and testable
-│   │   └── tests/
-│   ├── core/               # config, security, idempotency
-│   ├── alembic/            # migrations
-│   ├── scripts/
-│   ├── requirements.txt
-│   └── .env.example
-└── .gitignore
-```
-
-Business rules live in `app/services/` and are written as pure functions with no database, clock, or HTTP dependency, so they can be tested directly and any result can be reproduced from the events that produced it. `app/routers/` stays thin and does no decisioning of its own.
-
-## Current build intent
-
-This repo is centered on the backend and API layer because that is the technical foundation for the entire product.
-
-The current implementation and design focus includes:
-- API contracts for commitments, scoring, vendors, and settlement flows
-- database schema and relationship design
-- commitment lifecycle state tracking
-- score calculation logic and event-driven updates
-- deployment-friendly backend architecture
-- backend test coverage for critical business rules
-
-Frontend implementation is not treated as part of this repository's active build scope. The frontend will be a separate delivery layer that integrates against the same API contract defined here.
-
-## Technology stack
-
-- Python
-- FastAPI
-- PostgreSQL
-- SQLAlchemy
-- Alembic
-- Pydantic
-- JWT + demo OTP flow
-- Railway / Render deployment target
-
-## Backend quick start
-
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn app.main:app --reload
-```
-
-Windows PowerShell:
-
-```powershell
-cd backend
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-Copy-Item .env.example .env
-uvicorn app.main:app --reload
-```
-
-## API and project documents
-
-The project documents are the source of truth for scope, architecture, technical requirements, build flow, and delivery milestones.
-
-- [SURA_MASTER_BLUEPRINT.md](SURA_MASTER_BLUEPRINT.md)
-- [Sura-PRD.md](Sura-PRD.md)
-- [Sura-TRD.md](Sura-TRD.md)
-- [Sura-Build-Plan.md](Sura-Build-Plan.md)
-
-Section 5.2 of the TRD is the scoring specification. It is the source of truth for the weights, the cold-start baseline, and when a recalculation is triggered.
-
-## Team context
-
-This project is designed for a four-person team split across:
-
-| Role | GitHub | Owns |
-|---|---|---|
-| Backend Core | _unconfirmed_ | Schema, lock and contribute endpoints, anchor and cap rule, vendor and redemption, deployment |
-| Backend AI / ML | @Olatunji_Tobi | Sura Score rule engine, score endpoint, score recalculation behaviour |
-| Frontend Engineering | @fisayobadina | Create, join, contribute, redeem, and score dashboard screens against the API contract |
-| UI / UX & Pitch | _unconfirmed_ | Design system, wireframes, slide deck, demo script |
-
-The backend team owns the source of truth for the underlying system contract, while the frontend and design teams integrate against the production-ready API surface as it is built.
-
-Ownership rules that prevent duplicate work, from the build plan:
-- One person owns the schema. That is Backend Core. Everyone else reads `models.py`; nobody else edits it without telling Backend Core first.
-- Frontend never guesses at what an API returns. If a response shape is not written down in `Sura-TRD.md`, ask Backend Core before writing code that assumes it.
-- No task has two owners. If something is too big for one person, split it into two checklist items rather than putting both names on one.
-- The daily 15-minute sync is not optional. Most duplicate work happens because two people quietly built the same thing on the same day without saying so.
-
-## Summary
-
-Sura is a real-world financial infrastructure concept built around commitment, trust, and transparent decisioning. This repository captures the full product vision and the backend engineering execution path required to turn that vision into a working, demoable system.
-
-The project is intentionally structured so the backend is strong, well-documented, and deployment-ready before any frontend layer is layered on top.
+Built for submission to InnovateX 2026. A licence for use beyond the competition has not yet been decided; treat this repository as all rights reserved to its authors.

@@ -264,6 +264,7 @@ GET  /v1/bank/users/{user_id}/activity
 GET  /v1/bank/users/{user_id}/flags
 GET  /v1/bank/commitments?q=&status=&vendor_id=&member_id=
 GET  /v1/bank/commitments/{commitment_id}
+GET  /v1/bank/commitments/{commitment_id}/group-health
 GET  /v1/bank/audit-log?user_id=&commitment_id=&event_type=&actor_id=&date_from=&date_to=
 POST /v1/bank/audit-log/export
 GET  /v1/bank/flags?user_id=&status=&severity=&rule=

@@ -40,6 +40,7 @@ workstream.
 |---|---|
 | Member home | `GET /v1/app/home` |
 | My Locks | `GET /v1/commitments`, `GET /v1/commitments/{commitment_id}`, `GET /v1/commitments/{commitment_id}/activity` |
+| Group health | `GET /v1/app/commitments/{commitment_id}/group-health` |
 | Create Lock | `GET /v1/vendors`, `POST /v1/app/members/resolve`, `POST /v1/app/commitments/lock-preview`, `POST /v1/consent`, `POST /v1/commitments/lock` |
 | Optional vendor recommendations | `GET /v1/app/recommendations/vendors?category=&target_amount=&limit=` |
 | Invitations | `GET /v1/commitments/preview?code={invite_code}`, `POST /v1/commitments/join` |
@@ -109,7 +110,8 @@ member -> vendor -> bank story. Details are in [DEMO_DATA.md](DEMO_DATA.md) and
   those rules are not modelled yet.
 - A vendor picker in the redemption request.
 - Sura Float, credit applications, group discovery, or automated group-risk
-  decisions. Vendor matching v1 is advisory only; see [MATCHING_V1.md](MATCHING_V1.md).
+  decisions. Group Health v1 and vendor matching v1 are advisory only; see
+  [GROUP_HEALTH_V1.md](GROUP_HEALTH_V1.md) and [MATCHING_V1.md](MATCHING_V1.md).
 - A claim that redemption verifies an external payment rail. Settlement is
   simulated in this MVP.
 

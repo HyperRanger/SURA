@@ -62,6 +62,7 @@ After sign-in, call `GET /v1/me` to choose `/app/*` for `individual` or
 | M8 join | `POST /v1/commitments/join` | `{ "invite_code": "SURA-..." }` |
 | M9 detail | `GET /v1/commitments/{commitment_id}` | member only; no voucher code exposed |
 | M9 activity | `GET /v1/commitments/{commitment_id}/activity` | member only |
+| M9 group health | `GET /v1/app/commitments/{commitment_id}/group-health` | member-only, aggregate advisory signal |
 | M10 contribute | `POST /v1/commitments/{commitment_id}/contribute` | `{ "amount": 1500, "event_id": "stable-client-uuid" }` |
 | M12 voucher | `GET /v1/commitments/{commitment_id}/cycles/{cycle_number}/voucher` | beneficiary only |
 | M14 cancel | `POST /v1/commitments/{commitment_id}/cancel` | creator, while pending only |
@@ -137,6 +138,14 @@ through the normal preview/create flow. See [MATCHING_V1.md](MATCHING_V1.md).
 
 There is no group-discovery or group-recommendation endpoint. Lock membership
 is private and pre-invited, so exposing other groups would violate that model.
+
+## Group health v1
+
+`GET /v1/app/commitments/{commitment_id}/group-health` returns an explainable
+aggregate Lock signal: `low_risk`, `medium_risk`, or `high_risk`, with
+confidence, reasons, and counts. It does not identify an individual as risky,
+block a contribution, alter a payout, or make a lending decision. See
+[GROUP_HEALTH_V1.md](GROUP_HEALTH_V1.md).
 
 ## Member Score
 
@@ -223,7 +232,7 @@ wrong-vendor recording, create a fresh two-member commitment. See
 - Automatic vendor/group selection. Matching v1 can recommend vendors only;
   it never selects one or exposes private groups.
 - Cycle-risk automation, fraud decisions, or payment verification. The bank is
-  the settlement source of truth; future group-health signals are advisory.
+  settlement source of truth; Group Health v1 is advisory only.
 - Real outbound event delivery. Webhook configuration and signed simulated
   test deliveries exist for the bank portal, but there is no production
   webhook worker yet.

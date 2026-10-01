@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import AuthPrincipal, get_current_principal
 from app.database import get_db
-from app.member_vendor.contracts import MemberHomeResponse, VendorOverviewResponse, VendorRecommendationsResponse
+from app.member_vendor.contracts import GroupHealthResponse, MemberHomeResponse, VendorOverviewResponse, VendorRecommendationsResponse
 from app.member_vendor.service import get_member_home, get_vendor_overview
 from app.models import User
 from app.schemas import LockRequest, MemberLookupRequest
@@ -13,6 +13,7 @@ from app.services.auth_service import normalize_phone
 from app.services.contact_lookup_rate_limit import consume_contact_lookup
 from app.services.commitments import preview_lock
 from app.services.matching import recommend_verified_vendors
+from app.services.group_health import get_group_health_for_member
 from app.services.vendor_accounts import get_authenticated_vendor_id
 
 
@@ -75,6 +76,17 @@ def vendor_recommendations(
         target_amount=target_amount,
         limit=limit,
     )
+
+
+@router.get("/commitments/{commitment_id}/group-health", response_model=GroupHealthResponse)
+def member_group_health(
+    commitment_id: str,
+    current_user: AuthPrincipal = Depends(get_current_principal),
+    db: Session = Depends(get_db),
+):
+    """Read an advisory group signal without exposing individual risk labels."""
+    _require_individual(current_user)
+    return get_group_health_for_member(db, commitment_id, current_user.user_id)
 
 
 @router.get("/vendor/overview", response_model=VendorOverviewResponse)

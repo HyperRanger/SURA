@@ -35,3 +35,16 @@ class VendorRecommendationsResponse(BaseModel):
     unavailable_signals: list[str]
     group_recommendations_available: bool
     group_recommendations_reason: str
+
+
+class GroupHealthResponse(BaseModel):
+    """Group-level Lock health; never an individual fraud or credit decision."""
+
+    commitment_id: str
+    advisory: bool
+    group_health: str
+    confidence: str
+    reasons: list[str]
+    metrics: dict[str, Any]
+    unavailable_signals: list[str]
+    policy_note: str
