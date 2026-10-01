@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.bank.models import BankStaff
 from app.database import get_db
-from app.models import User
-from core.security import is_local_session, verify_token
+from app.models import SessionRevocation, User
+from core.security import is_local_session, token_issued_before, verify_token
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -71,6 +71,35 @@ def get_current_principal(
         if user is None:
             _finish_authorization_read(db)
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Account is no longer active.")
+
+        # A suspension ends access immediately rather than at token expiry, and
+        # says why. A restriction does not: the member keeps read access so they
+        # can see why they cannot transact, and the check at the point of payment
+        # stops the money instead.
+        if user.account_status == "suspended":
+            _finish_authorization_read(db)
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=user.restriction_reason or "This account is suspended.",
+            )
+
+        # Signing out has to end the session, not just ask the client to forget
+        # the token. The lookup is keyed on the token's own identifier, so
+        # revoking one session leaves every other session untouched.
+        token_id = claims.get("jti")
+        if token_id and db.get(SessionRevocation, token_id) is not None:
+            _finish_authorization_read(db)
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session has been signed out.")
+
+        # "Sign out everywhere" raises this instant, so any token minted before
+        # it stops working even though it was never individually revoked.
+        # "Sign out everywhere" raises this instant, so any token minted before
+        # it stops working even though it was never individually revoked.
+        if user.session_invalidated_at is not None:
+            stale = token_issued_before(claims, user.session_invalidated_at)
+            if stale:
+                _finish_authorization_read(db)
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session has been signed out.")
 
         # A Bank Portal sign-in stores its role and permissions on the staff
         # record, not on the user row, so revoking or re-roling staff takes

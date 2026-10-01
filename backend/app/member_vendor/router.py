@@ -21,7 +21,6 @@ from app.services.group_health import get_group_health_for_member
 from app.services.matching import recommend_verified_vendors
 from app.services.vendor_accounts import get_authenticated_vendor_id
 
-
 router = APIRouter(prefix="/v1/app", tags=["member vendor app"])
 
 

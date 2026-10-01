@@ -36,6 +36,31 @@ class RiskFlag(Base):
     resolved_at = Column(DateTime, nullable=True)
 
 
+class AccountRestriction(Base):
+    """One decision to limit or suspend a member, kept as its own record.
+
+    ``users.account_status`` holds only the current state so that authorisation is
+    a single column read on every money-moving request. This table answers the
+    question a regulator asks: who restricted this member, when, on what evidence,
+    and who lifted it. Both are required, because a bare status column cannot
+    reconstruct a decision trail.
+    """
+
+    __tablename__ = "account_restrictions"
+
+    id = Column(String, primary_key=True)
+    bank_id = Column(String, ForeignKey("bank_partners.id"), nullable=False, index=True)
+    user_id = Column(String, ForeignKey("users.id"), nullable=False, index=True)
+    action = Column(String, nullable=False)
+    reason = Column(Text, nullable=False)
+    evidence_json = Column(Text, nullable=False, default="{}")
+    flag_id = Column(String, ForeignKey("risk_flags.id"), nullable=True)
+    actor_id = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    lifted_at = Column(DateTime, nullable=True)
+    lifted_by = Column(String, nullable=True)
+
+
 class BankAuditEvent(Base):
     __tablename__ = "bank_audit_events"
 
