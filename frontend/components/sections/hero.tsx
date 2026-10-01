@@ -4,7 +4,6 @@ import Link from "next/link"
 import { isDemoEnabled } from "@/config/env"
 import { heroStats } from "@/config/landing"
 import { routes } from "@/config/routes"
-import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { HeroPreview } from "@/components/sections/hero-preview"
 
@@ -14,8 +13,6 @@ export function Hero() {
 
       <div className="container-page relative grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr]">
         <div>
-          <Badge>for income that doesn&apos;t arrive monthly</Badge>
-
           <h1 className="mt-6 text-4xl leading-[1.05] font-black tracking-tight text-balance sm:text-5xl md:text-6xl">
             save together. build a record{" "}
             <span className="text-primary">banks can read.</span>
