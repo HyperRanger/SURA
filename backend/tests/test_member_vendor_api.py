@@ -2,8 +2,8 @@
 
 from datetime import datetime
 
-from app.main import app
 from app.bank.models import BankPartner, BankStaff
+from app.main import app
 from app.models import Commitment, User, Vendor
 from core.security import create_token
 

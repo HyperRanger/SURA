@@ -3,6 +3,7 @@ import json
 import uuid
 from dataclasses import asdict
 from datetime import datetime
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -25,7 +26,10 @@ def build_score_signals(db: Session, user_id: str) -> ScoreSignals:
         key = (row.commitment_id, row.cycle_number)
         paid[key] = paid.get(key, 0) + row.amount
     activity = db.query(AccountActivitySignal).filter(AccountActivitySignal.user_id == user_id).order_by(AccountActivitySignal.occurred_at).all()
-    intervals = tuple((later.occurred_at - earlier.occurred_at).total_seconds() / 86400 for earlier, later in zip(activity, activity[1:]))
+    # Pairwise gaps between consecutive activity. The two sequences are the same
+    # list and its own tail, so their lengths differ by one on purpose; this is
+    # not a strict zip.
+    intervals = tuple((later.occurred_at - earlier.occurred_at).total_seconds() / 86400 for earlier, later in zip(activity, activity[1:], strict=False))
     cosigners = db.query(CommitmentMember).join(User, User.id == CommitmentMember.user_id).filter(CommitmentMember.commitment_id.in_(commitment_ids), CommitmentMember.user_id != user_id, CommitmentMember.role != "invited", User.verified_at.is_not(None)).count() if commitment_ids else 0
     return ScoreSignals(
         locks_joined=len(commitment_ids),
@@ -62,3 +66,80 @@ def get_score_report(db: Session, user_id: str) -> dict:
     if latest and latest.breakdown_json:
         return json.loads(latest.breakdown_json)
     return build_score_report(build_score_signals(db, user_id))
+
+
+def public_score_report(db: Session, user_id: str) -> dict[str, Any]:
+    """The score as consumers see it, free of internal snapshot bookkeeping.
+
+    `get_score_report` returns whatever the stored snapshot carries, which includes
+    the raw signals and the event that caused the change. Two callers reading the
+    same user's score could therefore get different key sets depending on whether
+    the number came from a fresh computation or a stored row. This is the stable
+    shape, and it is what the HTTP endpoint and the contribution response both use.
+    """
+    report = get_score_report(db, user_id)
+    latest = latest_score_history(db, user_id)
+    return {
+        "user_id": user_id,
+        "score": report["score"],
+        "tier": report["tier"],
+        "breakdown": dict(report["breakdown"]),
+        "weights": dict(report["weights"]),
+        "score_version": report["score_version"],
+        "last_updated": (latest.computed_at if latest is not None else None),
+    }
+
+
+def process_contribution(
+    db: Session,
+    commitment_id: str,
+    contributor_user_id: str,
+    *,
+    event_id: str | None = None,
+    reason: str = "contribution_processed",
+) -> dict[str, Any]:
+    """The single entry point for recomputing Sura Score after a Lock event.
+
+    Callers pass who and what happened. Every input the score depends on is read
+    back out of the database, so no caller can hand in a pillar value, a running
+    total, or any other claim about a user's behaviour and have it believed. That
+    is what keeps the model explainable: the five pillars are a projection of
+    recorded commitment events, not an assertion the caller supplies.
+
+    Returns the same shape as `GET /v1/score/{user_id}`.
+    """
+    if db.get(User, contributor_user_id) is None:
+        raise ValueError("Cannot score a contribution for an unknown user.")
+    refresh_commitment_member_scores(db, commitment_id, event_id=event_id, reason=reason)
+    return public_score_report(db, contributor_user_id)
+
+
+def refresh_commitment_member_scores(
+    db: Session,
+    commitment_id: str,
+    *,
+    event_id: str | None = None,
+    reason: str = "contribution_processed",
+) -> None:
+    commitment = db.get(Commitment, commitment_id)
+    if commitment is None:
+        return
+    members = db.query(CommitmentMember).filter(CommitmentMember.commitment_id == commitment_id).all()
+    # Sessions run with autoflush=False, so any beneficiary status the caller just
+    # set is still only in memory. Without this flush the paid/missed counts below
+    # read the database as it was before this event and silently drop the
+    # cycle-completion bonus from the score.
+    db.flush()
+    for member in members:
+        if member.role != "invited":
+            record_score_snapshot(
+                db,
+                member.user_id,
+                event_type="contribution_processed",
+                reason=reason,
+                source_id=event_id or commitment_id,
+            )
+    # The snapshots above are only added, not written. Sessions here run with
+    # autoflush=False, so a caller that immediately reads the score back would see
+    # the previous value and a null `last_updated` for a score it just changed.
+    db.flush()

@@ -8,7 +8,13 @@ import { circlePreview, scorePreview } from "@/config/landing"
 import { formatNaira, initials } from "@/utils/format"
 import { cn } from "@/lib/utils"
 
-const avatarColors = ["bg-primary", "bg-orange", "bg-green", "bg-primary-deep", "bg-orange-deep"]
+const avatarColors = [
+  "bg-primary text-primary-foreground",
+  "bg-gold text-gold-foreground",
+  "bg-primary-bright text-primary-foreground",
+  "bg-primary-deep text-primary-foreground",
+  "bg-indigo-soft text-link",
+]
 
 const initialPaid = circlePreview.members.map((m) => m.paid)
 
@@ -70,8 +76,8 @@ export function HeroPreview() {
 
       tl.fromTo(
         barRef.current,
-        { boxShadow: "0 0 0 0 rgb(34 181 115 / 0.55)" },
-        { boxShadow: "0 0 0 8px rgb(34 181 115 / 0)", duration: 0.9, ease: "power2.out" }
+        { boxShadow: "0 0 0 0 rgb(217 164 65 / 0.55)" },
+        { boxShadow: "0 0 0 8px rgb(217 164 65 / 0)", duration: 0.9, ease: "power2.out" }
       )
 
       tl.from("[data-anim=score-total]", {
@@ -98,7 +104,7 @@ export function HeroPreview() {
           </div>
           <span
             ref={cycleBadgeRef}
-            className="rounded-full bg-blue-soft px-3 py-1 text-xs font-extrabold text-link tabular-nums"
+            className="rounded-full bg-indigo-soft px-3 py-1 text-xs font-extrabold text-link tabular-nums"
           >
             cycle <span ref={cycleRef}>{cycle}</span> of {cycles}
           </span>
@@ -119,7 +125,7 @@ export function HeroPreview() {
           <div className="mt-2 h-4 rounded-full bg-cloud">
             <div
               ref={barRef}
-              className="relative h-full rounded-full bg-green"
+              className="relative h-full rounded-full bg-gold"
               style={{ width: `${progress}%` }}
             >
               <span className="absolute inset-x-2 top-1 h-1 rounded-full bg-white/35" />
@@ -132,7 +138,7 @@ export function HeroPreview() {
             <li key={member.name} data-anim="member" className="flex items-center gap-3">
               <span
                 className={cn(
-                  "flex size-9 items-center justify-center rounded-full text-sm font-black text-white",
+                  "flex size-9 items-center justify-center rounded-full text-sm font-black",
                   avatarColors[i % avatarColors.length]
                 )}
               >
@@ -141,7 +147,7 @@ export function HeroPreview() {
               <span className="flex-1 text-sm font-bold">
                 {member.name}
                 {member.name === circlePreview.beneficiary && (
-                  <span className="ml-2 rounded-full bg-orange-soft px-2 py-0.5 text-[11px] font-extrabold text-orange-deep dark:text-orange">
+                  <span className="ml-2 rounded-full bg-indigo-soft px-2 py-0.5 text-[11px] font-extrabold text-link">
                     this cycle&apos;s payout
                   </span>
                 )}
@@ -149,7 +155,7 @@ export function HeroPreview() {
               {paid[i] ? (
                 <span
                   className={cn(
-                    "flex items-center gap-1 text-xs font-extrabold text-green-deep dark:text-green",
+                    "flex items-center gap-1 text-xs font-extrabold text-gold-deep",
                     !member.paid && "animate-in duration-300 fade-in zoom-in-50"
                   )}
                 >
@@ -164,7 +170,7 @@ export function HeroPreview() {
         </ul>
 
         <div data-anim="vendor" className="mt-6 flex items-center gap-3 rounded-full bg-cloud p-2 pr-4">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-orange text-white">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gold text-gold-foreground">
             <HugeiconsIcon icon={Store01Icon} size={18} strokeWidth={2.2} />
           </span>
           <p className="text-xs leading-snug font-bold text-muted-foreground">
@@ -176,7 +182,7 @@ export function HeroPreview() {
 
       <div className="relative z-10 -mt-5 flex flex-col items-stretch gap-3 px-3 sm:flex-row sm:items-start sm:justify-between">
         <div data-anim="float" className="card-raised flex items-center gap-2 self-start rounded-full py-2 pr-4 pl-2 sm:mt-10">
-          <span className="flex size-8 items-center justify-center rounded-full bg-primary text-white">
+          <span className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
             <HugeiconsIcon icon={Ticket01Icon} size={16} strokeWidth={2.2} />
           </span>
           <span className="text-xs font-extrabold whitespace-nowrap">cycle 1 redeemed by amaka</span>
@@ -194,7 +200,7 @@ function ScoreCard() {
         <p className="text-xs font-extrabold tracking-wide text-muted-foreground">sura score</p>
         <p className="text-xs font-bold text-muted-foreground">/ {scorePreview.max}</p>
       </div>
-      <p data-anim="score-total" className="mt-1 text-4xl font-black tracking-tight text-primary tabular-nums">
+      <p data-anim="score-total" className="mt-1 text-4xl font-black tracking-tight text-gold-deep tabular-nums">
         {scorePreview.total}
       </p>
       <ul className="mt-3 flex flex-col gap-2">

@@ -16,7 +16,6 @@ from app.models import User
 from core.config import get_settings
 from core.passwords import hash_password
 
-
 BANK_PASSWORD = "correct-horse-battery-staple"
 STAFF_EMAIL = "analyst@bank.test"
 

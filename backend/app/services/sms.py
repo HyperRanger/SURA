@@ -16,7 +16,6 @@ import httpx
 
 from core.config import get_settings
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -49,6 +48,12 @@ class TermiiSmsProvider:
 
     Sends through `/api/sms/send` rather than the token endpoint, so the code is
     one this service generated and can revoke.
+
+    The field names are Termii's, not ours, and the API rejects the whole request
+    if any of them is wrong. The names that actually bind are `to` and `sms`; the
+    recipient list is called `toList` in Termii's own validation errors but is not
+    a JSON key, and a local number with a leading zero is not dialable, so `to`
+    carries the stored international digits (`234...`) rather than `0803...`.
     """
 
     def __init__(self, api_key: str, base_url: str, sender_id: str, channel: str, timeout: int) -> None:
@@ -63,9 +68,8 @@ class TermiiSmsProvider:
             "api_key": self._api_key,
             "to": to,
             "from": self._sender_id,
-            "type": "plain",
             "channel": self._channel,
-            "message": message,
+            "sms": message,
         }
         try:
             response = httpx.post(

@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 from statistics import fmean, pstdev
 
-
 MAX_SCORE = 1000
 PILLAR_WEIGHTS: dict[str, float] = {
     "commitment_behaviour": 0.35,

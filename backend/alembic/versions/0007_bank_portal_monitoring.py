@@ -3,8 +3,9 @@
 Revision ID: 0007_bank_portal_monitoring
 Revises: 0006_bank_score_foundation
 """
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "0007_bank_portal_monitoring"
 down_revision = "0006_bank_score_foundation"

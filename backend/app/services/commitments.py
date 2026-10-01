@@ -24,7 +24,7 @@ from app.models import (
 from app.schemas import ContributionRequest, LockRequest
 from app.services.contribution_engine import dump_rule_trace, evaluate_contribution
 from app.services.payout_rules import apply_anchor_and_cap_rule, build_payout_schedule
-from app.services.score_service import record_score_snapshot
+from app.services.score_service import public_score_report, refresh_commitment_member_scores
 from app.services.scoring import ENTRY_TIER_BASELINE
 from core.config import get_settings
 
@@ -555,29 +555,7 @@ def _refresh_score_history_for_commitment(
     event_id: str | None = None,
     reason: str = "contribution_processed",
 ) -> None:
-    commitment = db.get(Commitment, commitment_id)
-    if commitment is None:
-        return
-
-    members = (
-        db.query(CommitmentMember)
-        .filter(CommitmentMember.commitment_id == commitment_id)
-        .all()
-    )
-    # Sessions run with autoflush=False, so the beneficiary status the caller
-    # just set is still only in memory. Without this flush the paid/missed
-    # counts below read the database as it was before this contribution and
-    # silently drop the cycle-completion bonus from the score.
-    db.flush()
-    for member in members:
-        if member.role != "invited":
-            record_score_snapshot(
-                db,
-                member.user_id,
-                event_type="contribution_processed",
-                reason=reason,
-                source_id=event_id or commitment_id,
-            )
+    refresh_commitment_member_scores(db, commitment_id, event_id=event_id, reason=reason)
 
 
 def record_contribution(
@@ -627,6 +605,9 @@ def record_contribution(
                         "rule_trace": json.loads(prior_event.rule_trace_json),
                     }
                 )
+                # A replay must answer with the same shape as the original call, so
+                # the client's success path does not have to special-case retries.
+                response["score"] = public_score_report(db, contributor_user_id)
                 return response
 
             if commitment.status != "active":
@@ -682,8 +663,8 @@ def record_contribution(
                 .all()
             )
             distinct_contributors = len({row.user_id for row in contributions_for_cycle})
-            member_total_after = member_total_before + payload.amount
-            cycle_total_after = cycle_total_before + payload.amount
+            # The engine derives its own running totals from the two "before"
+            # values, so they are not computed again here.
             evaluation = evaluate_contribution(
                 contribution_amount=payload.amount,
                 expected_member_amount=commitment.contribution_amount,
@@ -777,6 +758,9 @@ def record_contribution(
                     "payout_amount": beneficiary_row.payout_amount,
                     "status": beneficiary_row.status,
                 }
+            # The score moves because of this contribution, so the caller gets the new
+            # one back here instead of spending a second round trip on /v1/score.
+            response["score"] = public_score_report(db, contributor_user_id)
             return response
     except HTTPException:
         raise

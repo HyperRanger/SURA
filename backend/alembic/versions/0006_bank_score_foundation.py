@@ -3,8 +3,9 @@
 Revision ID: 0006_bank_score_foundation
 Revises: 0005_lock_app_contract
 """
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "0006_bank_score_foundation"
 down_revision = "0005_lock_app_contract"

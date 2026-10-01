@@ -4,9 +4,9 @@ Revision ID: 0005_lock_app_contract
 Revises: 0005_score_history_audit
 """
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision = "0005_lock_app_contract"
 down_revision = "0005_score_history_audit"

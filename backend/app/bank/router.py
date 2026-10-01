@@ -3,16 +3,14 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import AnyHttpUrl, BaseModel, Field
 from fastapi import APIRouter, Depends, Query, Response, status
 from fastapi.responses import PlainTextResponse
+from pydantic import AnyHttpUrl, BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.auth import AuthPrincipal
+from app.bank import developer_service, operations_service, service
 from app.bank.dependencies import require_bank_permission
-from app.bank import service
-from app.bank import developer_service
-from app.bank import operations_service
 from app.database import get_db
 from app.services.group_health import get_group_health
 
