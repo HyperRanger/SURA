@@ -99,6 +99,7 @@ def test_an_expired_code_is_refused(client):
     challenge = _signup(client, phone="+234 803 000 0005")
     session = sessionmaker(bind=app.state.testing_session.kw["bind"])()
     row = session.get(AuthChallenge, challenge["challenge_id"])
+    assert row is not None, "challenge row disappeared between signup and expiry edit"
     row.expires_at = datetime.utcnow() - timedelta(seconds=1)
     session.commit()
     session.close()

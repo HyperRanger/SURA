@@ -1,0 +1,19 @@
+# Development-only tooling. Deliberately not in requirements.txt: none of this is
+# imported at runtime, and shipping type stubs to a production install would add
+# files that exist purely to satisfy a checker.
+#
+# Install with: .\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+#
+# sqlalchemy2-stubs describes how SQLAlchemy's Column descriptor actually behaves at
+# runtime. Without it, a checker reads `user.name` as Column[str] rather than str and
+# then rejects every `if user.name:` and `commitment.status = "active"` as a type
+# error. The stubs made those attributes type correctly and took the check from 280
+# errors to 109 without changing a line of application code.
+basedpyright==1.40.1
+
+# Note: sqlalchemy2-stubs was tried here and removed. It makes attribute *reads*
+# type correctly but not *writes*, so `commitment.status = "active"` still failed
+# with "str is not assignable to Column[str]" and 70 errors remained. Suppressing
+# those would also have hidden real typos like assigning to a misspelled column,
+# which is the same rule. The models now declare Mapped[...] / mapped_column(),
+# which types reads and writes correctly and needs no stubs.

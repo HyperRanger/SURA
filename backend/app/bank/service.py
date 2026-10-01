@@ -26,9 +26,9 @@ from app.models import (
     Vendor,
     Voucher,
 )
+from app.services import audit
 from app.services.commitments import refresh_commitment_lifecycle
 from app.services.score_service import get_score_report, public_score_report, serialize_score_history_entry
-from app.services import audit
 
 SCORE_TIERS = frozenset({"unverified", "entry", "building", "established"})
 FLAG_STATUSES = frozenset({"open", "dismissed", "confirmed", "escalated"})
@@ -236,10 +236,25 @@ def list_commitments(db: Session, bank_id: str, *, query: str | None = None, sta
     return result
 
 
-def get_commitment(db: Session, bank_id: str, commitment_id: str) -> dict:
+def assert_commitment_in_bank(db: Session, bank_id: str, commitment_id: str) -> Commitment:
+    """Confirm a commitment belongs to this bank, without reading or changing it.
+
+    Read-only endpoints use this rather than get_commitment so that asking a
+    question about a Lock cannot advance its deadline state as a side effect.
+    """
     if not db.query(CommitmentMember).join(User, User.id == CommitmentMember.user_id).filter(CommitmentMember.commitment_id == commitment_id, User.bank_id == bank_id).first():
         raise HTTPException(status_code=404, detail="Commitment not found for this bank.")
     row = db.get(Commitment, commitment_id)
+    # The membership check above passed, so a missing commitment row means the
+    # member rows outlived their commitment. Reading row.id unguarded here would
+    # raise AttributeError and return a 500 instead of the 404 the caller expects.
+    if row is None:
+        raise HTTPException(status_code=404, detail="Commitment not found for this bank.")
+    return row
+
+
+def get_commitment(db: Session, bank_id: str, commitment_id: str) -> dict:
+    row = assert_commitment_in_bank(db, bank_id, commitment_id)
     if refresh_commitment_lifecycle(db, row):
         db.commit()
     vendor = db.get(Vendor, row.vendor_id)

@@ -761,19 +761,18 @@ def record_contribution(
                 .scalar()
             )
 
-            db.add(
-                Contribution(
-                    id=str(uuid.uuid4()),
-                    commitment_id=commitment_id,
-                    cycle_number=current_cycle,
-                    user_id=contributor_user_id,
-                    amount=payload.amount,
-                    event_id=payload.event_id,
-                    status="full" if payload.amount == commitment.contribution_amount else "partial",
-                    rule_trace_json="{}",
-                    paid_at=datetime.utcnow(),
-                )
+            contribution_row = Contribution(
+                id=str(uuid.uuid4()),
+                commitment_id=commitment_id,
+                cycle_number=current_cycle,
+                user_id=contributor_user_id,
+                amount=payload.amount,
+                event_id=payload.event_id,
+                status="full" if payload.amount == commitment.contribution_amount else "partial",
+                rule_trace_json="{}",
+                paid_at=datetime.utcnow(),
             )
+            db.add(contribution_row)
             db.flush()
 
             member_count = db.query(CommitmentMember).filter(
@@ -797,16 +796,10 @@ def record_contribution(
                 distinct_contributors=distinct_contributors,
             )
 
-            contribution_row = (
-                db.query(Contribution)
-                .filter(
-                    Contribution.commitment_id == commitment_id,
-                    Contribution.cycle_number == current_cycle,
-                    Contribution.user_id == contributor_user_id,
-                )
-                .order_by(Contribution.paid_at.desc(), Contribution.id.desc())
-                .first()
-            )
+            # The row inserted just above is already in hand, so the engine's verdict
+            # is written back to it directly. Re-querying for "the latest contribution
+            # by this member this cycle" could match a different row, and on a
+            # re-sent request it would rewrite history rather than this attempt.
             contribution_row.status = evaluation.contribution_status
             contribution_row.rule_trace_json = dump_rule_trace(evaluation)
             _record_activity(
@@ -864,11 +857,12 @@ def record_contribution(
                 reason="contribution_processed",
             )
 
-            updated_commitment = db.get(Commitment, commitment_id)
-            response = _serialize_commitment(updated_commitment, db)
+            # Same session, same identity map, so this is the row already mutated
+            # above and re-reading it would only ever return the same instance.
+            response = _serialize_commitment(commitment, db)
             response.update(
                 {
-                    "status": updated_commitment.status,
+                    "status": commitment.status,
                     "contribution_status": evaluation.contribution_status,
                     "event_id": payload.event_id,
                     "idempotent_replay": False,
@@ -1341,7 +1335,7 @@ def redeem_vendor_voucher(db: Session, voucher_code: str, vendor_id: str) -> dic
             "amount": redemption.amount,
             "voucher_code": voucher.code,
             "status": redemption.status,
-            "redeemed_at": redemption.redeemed_at.isoformat(),
+            "redeemed_at": redemption.redeemed_at.isoformat() if redemption.redeemed_at else None,
             "commitment_title": commitment.title if commitment is not None else None,
             "beneficiary_first_name": _first_name(beneficiary_user),
         }

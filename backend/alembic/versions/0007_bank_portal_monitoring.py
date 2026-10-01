@@ -21,8 +21,12 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(), nullable=True),
     )
     op.add_column("users", sa.Column("bank_id", sa.String(), nullable=True))
-    op.create_foreign_key("fk_users_bank_id", "users", "bank_partners", ["bank_id"], ["id"])
-    op.create_index("ix_users_bank_id", "users", ["bank_id"])
+    # SQLite cannot add a foreign key or an index with ALTER TABLE; both must
+    # recreate the table. batch_alter_table does that on SQLite and emits the
+    # plain statements on PostgreSQL, so the resulting schema is identical.
+    with op.batch_alter_table("users") as batch:
+        batch.create_foreign_key("fk_users_bank_id", "bank_partners", ["bank_id"], ["id"])
+        batch.create_index("ix_users_bank_id", ["bank_id"])
     op.create_table(
         "risk_flags",
         sa.Column("id", sa.String(), primary_key=True, nullable=False),

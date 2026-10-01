@@ -19,11 +19,15 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("users", sa.Column("role", sa.String(), nullable=False, server_default="individual"))
-    op.add_column("users", sa.Column("vendor_id", sa.String(), sa.ForeignKey("vendors.id"), nullable=True))
-    op.add_column("users", sa.Column("context", sa.String(), nullable=True))
-    op.add_column("users", sa.Column("terms_accepted_at", sa.DateTime(), nullable=True))
-    op.add_column("users", sa.Column("phone_verified_at", sa.DateTime(), nullable=True))
+    # SQLite cannot add a column with a foreign key via ALTER TABLE; the table
+    # has to be recreated. batch_alter_table handles that on SQLite and emits
+    # the plain ALTERs on PostgreSQL, so the resulting schema is identical.
+    with op.batch_alter_table("users") as batch:
+        batch.add_column(sa.Column("role", sa.String(), nullable=False, server_default="individual"))
+        batch.add_column(sa.Column("vendor_id", sa.String(), sa.ForeignKey("vendors.id", name="fk_users_vendor_id"), nullable=True))
+        batch.add_column(sa.Column("context", sa.String(), nullable=True))
+        batch.add_column(sa.Column("terms_accepted_at", sa.DateTime(), nullable=True))
+        batch.add_column(sa.Column("phone_verified_at", sa.DateTime(), nullable=True))
 
     op.create_table(
         "auth_challenges",

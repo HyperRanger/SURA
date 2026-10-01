@@ -4,11 +4,12 @@ Revision ID: 0014_lock_lifecycle
 Revises: 0013_contact_lookup_limit
 """
 
-from alembic import op
-import sqlalchemy as sa
 from calendar import monthrange
 from datetime import datetime, timedelta
 
+import sqlalchemy as sa
+
+from alembic import op
 
 revision = "0014_lock_lifecycle"
 down_revision = "0013_contact_lookup_limit"

@@ -3,7 +3,6 @@
 from calendar import monthrange
 from datetime import datetime, timedelta
 
-
 SUPPORTED_FREQUENCIES = frozenset({"weekly", "monthly"})
 
 
