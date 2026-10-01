@@ -39,9 +39,10 @@ export function LoginForm({ next }: { next?: string }) {
     <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-6">
       <TextField
         id="phone"
-        type="number"
-        inputMode="numeric"
-        autoComplete="tel"
+        type="tel"
+        inputMode="tel"
+        autoComplete="off"
+        autoCorrect="off"
         autoFocus
         label="phone number"
         placeholder="0803 000 0000"

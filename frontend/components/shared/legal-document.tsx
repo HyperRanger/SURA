@@ -1,46 +1,36 @@
 import { routes } from "@/config/routes"
 import type { LegalDocument as LegalDocumentData } from "@/types"
 import { BackButton } from "@/components/shared/back-button"
+import { LegalContents } from "@/components/shared/legal-contents"
 import { formatDate } from "@/utils/format"
 
 const slug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")
 
-// renders a static policy page (P5, P6) from config, with an in-page contents list
+// renders a static policy page (P5, P6) from config: a header, then a sticky contents sidebar beside the sections
 export function LegalDocument({ document }: { document: LegalDocumentData }) {
+  const contents = document.sections.map((section) => ({ id: slug(section.heading), heading: section.heading }))
+
   return (
-    <div className="container-page">
-      <article className="mx-auto max-w-3xl py-10 md:py-16">
+    <div className="container-page py-10 md:py-16">
+      <header className="max-w-3xl">
         <BackButton fallbackHref={routes.home} className="-ml-2" />
+        <h1 className="mt-6 text-4xl font-black tracking-tight sm:text-5xl">{document.title}</h1>
+        <p className="mt-6 text-base leading-relaxed font-semibold text-pretty text-muted-foreground sm:text-lg">
+          {document.summary}
+        </p>
+        <p className="mt-4 text-sm font-bold text-muted-foreground">
+          last updated <time dateTime={document.updated}>{formatDate(document.updated)}</time>
+        </p>
+      </header>
 
-        <header className="mt-6">
-          <h1 className="text-4xl font-black tracking-tight sm:text-5xl">{document.title}</h1>
-          <p className="mt-3 text-sm font-bold text-muted-foreground">
-            last updated <time dateTime={document.updated}>{formatDate(document.updated)}</time>
-          </p>
-          <p className="mt-6 text-base leading-relaxed font-semibold text-pretty text-muted-foreground sm:text-lg">
-            {document.summary}
-          </p>
-        </header>
+      <div className="mt-10 grid gap-10 border-t border-border pt-10 lg:mt-14 lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-16 lg:pt-14">
+        <aside>
+          <LegalContents items={contents} />
+        </aside>
 
-        <nav aria-label="contents" className="card-raised mt-8 rounded-3xl p-5">
-          <h2 className="text-xs font-extrabold tracking-wider text-gold-deep">on this page</h2>
-          <ol className="mt-3 grid gap-2 sm:grid-cols-2">
-            {document.sections.map((section, index) => (
-              <li key={section.heading}>
-                <a
-                  href={`#${slug(section.heading)}`}
-                  className="text-sm font-bold text-link underline-offset-4 hover:underline"
-                >
-                  {index + 1}. {section.heading}
-                </a>
-              </li>
-            ))}
-          </ol>
-        </nav>
-
-        <div className="mt-10 flex flex-col gap-10">
+        <article className="flex max-w-3xl flex-col gap-12">
           {document.sections.map((section, index) => (
-            <section key={section.heading} id={slug(section.heading)} className="scroll-mt-28">
+            <section key={section.heading} id={contents[index].id} className="scroll-mt-28">
               <h2 className="text-xl font-black tracking-tight sm:text-2xl">
                 <span className="text-gold-deep">{index + 1}.</span> {section.heading}
               </h2>
@@ -58,8 +48,8 @@ export function LegalDocument({ document }: { document: LegalDocumentData }) {
               )}
             </section>
           ))}
-        </div>
-      </article>
+        </article>
+      </div>
     </div>
   )
 }
