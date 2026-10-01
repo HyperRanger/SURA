@@ -27,7 +27,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.bank.contracts import BANK_PORTAL_ROLES
+from app.bank.contracts import BANK_PORTAL_ROLES, BANK_STAFF_ROLE_PERMISSIONS
 from app.bank.models import BankAuditEvent, BankPartner, BankStaff
 from app.models import AuthChallenge, User
 from app.services import auth_service
@@ -259,6 +259,7 @@ def verify_mfa(db: Session, challenge_id: str, code: str) -> dict[str, Any]:
 
 
 DEMO_BANK_STAFF_EMAIL = "demo.bank@sura.local"
+DEMO_BANK_STAFF_ROLE = "bank_admin"
 
 
 def demo_login(db: Session) -> dict[str, Any]:
@@ -281,7 +282,7 @@ def demo_login(db: Session) -> dict[str, Any]:
             id="usr_demo_bank",
             name="Demo Bank Analyst",
             phone="demo-bank@sura.local",
-            role="bank_risk_analyst",
+            role=DEMO_BANK_STAFF_ROLE,
             phone_verified_at=now,
             verified_at=now,
             bank_id=bank.id,
@@ -290,6 +291,7 @@ def demo_login(db: Session) -> dict[str, Any]:
         db.flush()
     elif user.bank_id != bank.id:
         user.bank_id = bank.id
+    user.role = DEMO_BANK_STAFF_ROLE
 
     staff = _get_staff_by_email(db, DEMO_BANK_STAFF_EMAIL)
     if staff is None:
@@ -299,20 +301,18 @@ def demo_login(db: Session) -> dict[str, Any]:
             user_id=user.id,
             email=DEMO_BANK_STAFF_EMAIL,
             password_hash=hash_password("demo-password-never-in-production"),
-            role="bank_risk_analyst",
-            permissions_json=json.dumps(
-                [
-                    "bank:overview:read",
-                    "bank:users:read",
-                    "bank:flags:read",
-                    "bank:flags:write",
-                    "bank:audit:read",
-                ]
-            ),
+            role=DEMO_BANK_STAFF_ROLE,
+            permissions_json=json.dumps(sorted(BANK_STAFF_ROLE_PERMISSIONS[DEMO_BANK_STAFF_ROLE])),
             mfa_phone="2347065250817",
             status=BANK_STAFF_STATUS_ACTIVE,
             created_at=now,
         )
         db.add(staff)
-        db.commit()
+    else:
+        # This endpoint is a non-production demo shortcut, so it must keep its
+        # single demo identity fully usable after a prior run or a role change.
+        staff.role = DEMO_BANK_STAFF_ROLE
+        staff.permissions_json = json.dumps(sorted(BANK_STAFF_ROLE_PERMISSIONS[DEMO_BANK_STAFF_ROLE]))
+        staff.status = BANK_STAFF_STATUS_ACTIVE
+    db.commit()
     return _session_for(db, staff)

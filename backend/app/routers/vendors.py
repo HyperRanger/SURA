@@ -7,7 +7,12 @@ from app.auth import AuthPrincipal, get_current_principal
 from app.database import get_db
 from app.models import Vendor
 from app.schemas import VendorRedeemRequest, VendorVerificationRequest
-from app.services.commitments import list_vendor_redemptions, redeem_vendor_voucher, validate_vendor_voucher
+from app.services.commitments import (
+    get_vendor_redemption_detail,
+    list_vendor_redemptions,
+    redeem_vendor_voucher,
+    validate_vendor_voucher,
+)
 from app.services.vendor_accounts import get_authenticated_vendor_id
 
 router = APIRouter(prefix="/v1/vendors", tags=["vendors"])
@@ -97,3 +102,14 @@ def get_vendor_redemptions(
     _require_vendor_principal(current_user)
     vendor_id = get_authenticated_vendor_id(current_user)
     return list_vendor_redemptions(db, vendor_id)
+
+
+@router.get("/redemptions/{redemption_id}")
+def get_vendor_redemption_receipt(
+    redemption_id: str,
+    current_user: AuthPrincipal = Depends(get_current_principal),
+    db: Session = Depends(get_db),
+):
+    _require_vendor_principal(current_user)
+    vendor_id = get_authenticated_vendor_id(current_user)
+    return get_vendor_redemption_detail(db, vendor_id, redemption_id)

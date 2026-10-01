@@ -55,13 +55,14 @@ GET /v1/bank/overview
 GET /v1/bank/users?bank_customer_id=CUST-DEMO-8241
 GET /v1/bank/users/usr_demo_amara/score
 GET /v1/bank/commitments
+GET /v1/bank/commitments/cmt_demo_laptop_rotation/group-health
 GET /v1/bank/settlements
 GET /v1/bank/audit-log
 ```
 
-The bank sees two customers, the Lock commitment, the simulated settlement,
-the score history, and the audit trail. Bank staff accounts are deliberately
-excluded from customer search and customer counts.
+The bank sees two customers, the Lock commitment, the advisory group-health
+summary, simulated settlement, score history, and audit trail. Bank staff
+accounts are deliberately excluded from customer search and customer counts.
 
 ### 4. Explain the score plainly
 
@@ -74,3 +75,8 @@ Lock history. It is not an AI decision and it is not a credit-bureau score.
 If any demo record was changed, rerun the seed command with `--reset` and repeat
 the health check. Keep a screen recording of a clean run as the presentation
 backup.
+
+The one-tap `POST /v1/bank/demo-login` shortcut is also non-production only.
+It uses a demo bank-administrator session so every Bank Portal page can be
+recorded; use the seeded risk-analyst credentials above when demonstrating a
+restricted staff role.

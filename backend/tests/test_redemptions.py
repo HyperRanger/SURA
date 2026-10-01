@@ -62,6 +62,27 @@ def test_paid_cycle_issues_a_voucher_and_vendor_confirms_redemption(client, auth
     )
     assert response.status_code == 200
     assert response.json()["status"] == "settled"
+    assert response.json()["commitment_title"] == "Redeem a laptop"
+    assert response.json()["beneficiary_first_name"] == "redeemer"
+
+    history = client.get("/v1/vendors/redemptions", headers=auth_headers(vendor_id, role="vendor"))
+    assert history.status_code == 200
+    assert history.json()[0]["beneficiary_first_name"] == "redeemer"
+    assert history.json()[0]["commitment_title"] == "Redeem a laptop"
+
+    receipt = client.get(
+        f"/v1/vendors/redemptions/{response.json()['redemption_id']}",
+        headers=auth_headers(vendor_id, role="vendor"),
+    )
+    assert receipt.status_code == 200
+    assert receipt.json()["redemption_id"] == response.json()["redemption_id"]
+    assert "phone" not in receipt.json()
+
+    other_vendor = client.get(
+        f"/v1/vendors/redemptions/{response.json()['redemption_id']}",
+        headers=auth_headers("another_vendor", role="vendor"),
+    )
+    assert other_vendor.status_code == 404
 
     commitment = client.get(f"/v1/commitments/{commitment_id}", headers=auth_headers("redeemer")).json()
     assert commitment["beneficiaries"][0]["status"] == "redeemed"

@@ -145,11 +145,21 @@ def test_member_vendor_bank_lock_journey(client):
     )
     assert review.status_code == 200
     assert review.json()["beneficiary_first_name"] == "Amara"
-    assert client.post(
+    redeemed = client.post(
         "/v1/vendors/redeem",
         json={"voucher_code": voucher.json()["voucher_code"]},
         headers=vendor_headers,
-    ).status_code == 200
+    )
+    assert redeemed.status_code == 200
+    assert redeemed.json()["commitment_title"] == "Amara's laptop"
+    assert redeemed.json()["beneficiary_first_name"] == "Amara"
+
+    member_voucher = client.get(
+        f"/v1/commitments/{commitment_id}/cycles/1/voucher", headers=amara_headers
+    )
+    assert member_voucher.status_code == 200
+    assert member_voucher.json()["status"] == "redeemed"
+    assert member_voucher.json()["redeemed_at"] is not None
 
     settlement = client.get("/v1/bank/settlements", headers=bank_headers)
     assert settlement.status_code == 200
@@ -159,6 +169,10 @@ def test_member_vendor_bank_lock_journey(client):
     assert score.status_code == 200
     assert 0 <= score.json()["current"]["score"] <= 1000
     assert score.json()["history"]
+
+    audit = client.get("/v1/bank/audit-log?user_id=journey_amara", headers=bank_headers)
+    assert audit.status_code == 200
+    assert any(event["type"] == "score" for event in audit.json())
 
     evidence = client.get(f"/v1/bank/commitments/{commitment_id}", headers=bank_headers)
     assert evidence.status_code == 200

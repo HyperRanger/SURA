@@ -53,6 +53,7 @@ After sign-in, call `GET /v1/me` to choose `/app/*` for `individual` or
 | M1 home | `GET /v1/app/home` | PWA convenience read: profile, own score, own commitments, next payout |
 | M3 commitments | `GET /v1/commitments` | authenticated member only |
 | M4 vendor selection | `GET /v1/vendors` | verified vendors only |
+| M4 vendor recommendations | `GET /v1/app/recommendations/vendors` | optional advisory ranking; member still selects |
 | M4 member selection | `POST /v1/app/members/resolve` | exact phone lookup; returns only `user_id` and first name |
 | M4 payout review | `POST /v1/app/commitments/lock-preview` | validates and returns the deterministic plan without storing anything |
 | M4 create Lock | `POST /v1/commitments/lock` | rotating commitments only |
@@ -61,6 +62,7 @@ After sign-in, call `GET /v1/me` to choose `/app/*` for `individual` or
 | M8 join | `POST /v1/commitments/join` | `{ "invite_code": "SURA-..." }` |
 | M9 detail | `GET /v1/commitments/{commitment_id}` | member only; no voucher code exposed |
 | M9 activity | `GET /v1/commitments/{commitment_id}/activity` | member only |
+| M9 group health | `GET /v1/app/commitments/{commitment_id}/group-health` | member-only, aggregate advisory signal |
 | M10 contribute | `POST /v1/commitments/{commitment_id}/contribute` | `{ "amount": 1500, "event_id": "stable-client-uuid" }` |
 | M12 voucher | `GET /v1/commitments/{commitment_id}/cycles/{cycle_number}/voucher` | beneficiary only |
 | M14 cancel | `POST /v1/commitments/{commitment_id}/cancel` | creator, while pending only |
@@ -73,6 +75,14 @@ After sign-in, call `GET /v1/me` to choose `/app/*` for `individual` or
    cycles, or payout order changes. Render its schedule directly.
 4. Record consent with `POST /v1/consent` if it has not been granted.
 5. Submit the same payload to `POST /v1/commitments/lock` only after review.
+
+### Invitation boundary
+
+A Lock invite code is for members selected before creation. The creator resolves
+each member’s exact contact, includes the returned `user_id` in `members`, and
+the backend records that person as `invited`. Only that invited member can
+preview or join the code. Do not build an open public join-by-code flow around
+this contract.
 
 ```json
 {
@@ -104,6 +114,39 @@ Confirm. Reuse that exact `event_id` for retries. A successful replay returns
 M11 uses the contribution response as its receipt. M13 re-fetches the voucher
 endpoint: its state changes from `ready` to `redeemed` after vendor confirmation.
 
+### Commitment display fields
+
+Member-authorised commitment reads include a `vendor` object, privacy-safe
+`first_name` fields for members and beneficiaries, and a backend-derived
+`current_cycle` summary (`required_total`, `contributed_total`,
+`remaining_total`, `paid_member_count`, and `progress_percent`). Render these
+values directly. They do not expose phone numbers or Scores.
+
+Voucher reads include `vendor_name`. They also return `expires_at: null` because
+the current Lock model has no expiry rule; hide expiry UI rather than inventing
+a deadline. Current-cycle member state is `paid`, `partial`, or `not_paid`.
+There is no per-member missed-count or due-date field in this MVP.
+
+## Vendor matching v1
+
+`GET /v1/app/recommendations/vendors` offers optional, deterministic vendor
+recommendations before Lock creation. It accepts optional `category`,
+`target_amount` (the total expected redemption/payout), and `limit` query
+parameters. Results are advisory and include an explainable score, reasons,
+and factor points. The member chooses the vendor and still creates the Lock
+through the normal preview/create flow. See [MATCHING_V1.md](MATCHING_V1.md).
+
+There is no group-discovery or group-recommendation endpoint. Lock membership
+is private and pre-invited, so exposing other groups would violate that model.
+
+## Group health v1
+
+`GET /v1/app/commitments/{commitment_id}/group-health` returns an explainable
+aggregate Lock signal: `low_risk`, `medium_risk`, or `high_risk`, with
+confidence, reasons, and counts. It does not identify an individual as risky,
+block a contribution, alter a payout, or make a lending decision. See
+[GROUP_HEALTH_V1.md](GROUP_HEALTH_V1.md).
+
 ## Member Score
 
 | Screen | Endpoint | Notes |
@@ -119,16 +162,23 @@ decision and must never be labelled as one in the app.
 
 | Screen | Endpoint | Notes |
 |---|---|---|
-| V2 dashboard | `GET /v1/app/vendor/overview` | merchant-scoped today totals and recent redemptions |
+| V2 dashboard | `GET /v1/app/vendor/overview` | merchant profile/verification state, today totals, and recent redemptions |
 | V3/V4 validate | `POST /v1/vendors/redeem/validate` | `{ "voucher_code": "SURA-..." }` |
 | V4 confirm | `POST /v1/vendors/redeem` | same request; records simulated settlement |
 | V7 history | `GET /v1/vendors/redemptions` | merchant-scoped only |
+| V8 receipt detail | `GET /v1/vendors/redemptions/{redemption_id}` | merchant-scoped receipt; returns `404` for another merchant’s record |
 
 The backend derives the merchant from the authenticated vendor account. The
 PWA must not send or choose a `vendor_id` for redemption. A wrong merchant,
 already-used code, unavailable code, or invalid code is rejected by the API.
 Validation returns the commitment title, voucher details, and beneficiary first
 name only; it does not disclose a phone number, score, or full profile.
+
+The dashboard `merchant` object is the vendor record assigned to the current
+session and includes name, category, and verification state. Redemption history
+and receipt details include the commitment title and beneficiary first name,
+but never a beneficiary phone number or Score. The redemption response itself
+also contains these receipt fields after a successful confirmation.
 
 The terminal always validates first, asks the vendor to confirm handover, then
 calls redeem. Validation alone is not settlement.
@@ -179,10 +229,10 @@ wrong-vendor recording, create a fresh two-member commitment. See
 ## Deliberately not part of this P0 contract
 
 - Sura Float applications or credit disbursement.
-- Automatic vendor/group selection. Matching will begin as an explainable
-  recommendation service after the core Lock journey is complete.
+- Automatic vendor/group selection. Matching v1 can recommend vendors only;
+  it never selects one or exposes private groups.
 - Cycle-risk automation, fraud decisions, or payment verification. The bank is
-  the settlement source of truth; future group-health signals are advisory.
+  settlement source of truth; Group Health v1 is advisory only.
 - Real outbound event delivery. Webhook configuration and signed simulated
   test deliveries exist for the bank portal, but there is no production
   webhook worker yet.

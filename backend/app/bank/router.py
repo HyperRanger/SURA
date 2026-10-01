@@ -12,6 +12,7 @@ from app.auth import AuthPrincipal
 from app.bank import developer_service, operations_service, service
 from app.bank.dependencies import require_bank_permission
 from app.database import get_db
+from app.services.group_health import get_group_health
 
 
 class FlagResolutionRequest(BaseModel):
@@ -167,6 +168,17 @@ def bank_commitment(
     db: Session = Depends(get_db),
 ):
     return service.get_commitment(db, current.institution_id, commitment_id)
+
+
+@router.get("/commitments/{commitment_id}/group-health")
+def bank_commitment_group_health(
+    commitment_id: str,
+    current: AuthPrincipal = Depends(require_bank_permission("bank:commitments:read")),
+    db: Session = Depends(get_db),
+):
+    # Reuse the established tenant check before returning aggregate-only health.
+    service.get_commitment(db, current.institution_id, commitment_id)
+    return get_group_health(db, commitment_id)
 
 
 @router.get("/audit-log")
