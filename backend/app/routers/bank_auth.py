@@ -14,7 +14,6 @@ from app.schemas import BankLoginRequest, BankVerifyMfaRequest
 from app.services import bank_auth_service
 from core.config import get_settings
 
-
 router = APIRouter(prefix="/v1/bank", tags=["bank portal auth"])
 
 

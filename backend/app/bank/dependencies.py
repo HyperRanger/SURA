@@ -12,7 +12,6 @@ from app.bank.developer_service import hash_secret
 from app.bank.models import BankApiKey
 from app.database import get_db
 
-
 api_key_header = APIKeyHeader(name="X-Sura-API-Key", auto_error=False)
 
 

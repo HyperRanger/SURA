@@ -3,9 +3,8 @@ import type { Tone } from "@/types"
 import { cn } from "@/lib/utils"
 
 const tones: Record<Tone, string> = {
-  blue: "bg-blue-soft text-link",
-  orange: "bg-orange-soft text-orange-deep dark:text-orange",
-  green: "bg-green-soft text-green-deep dark:text-green",
+  indigo: "bg-indigo-soft text-link",
+  gold: "bg-gold-soft text-gold-deep",
 }
 
 type IconTileProps = {
@@ -15,7 +14,7 @@ type IconTileProps = {
   className?: string
 }
 
-export function IconTile({ icon, tone = "blue", size = "md", className }: IconTileProps) {
+export function IconTile({ icon, tone = "indigo", size = "md", className }: IconTileProps) {
   return (
     <span
       className={cn(

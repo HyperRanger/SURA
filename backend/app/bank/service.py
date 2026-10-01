@@ -11,10 +11,22 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from app.bank.models import BankAuditEvent, BankPartner, BankStaff, RiskFlag
-from app.models import Commitment, CommitmentActivity, CommitmentBeneficiary, CommitmentCase, CommitmentMember, Contribution, Redemption, ScoreHistory, User, UserConsent, Vendor, Voucher
+from app.models import (
+    Commitment,
+    CommitmentActivity,
+    CommitmentBeneficiary,
+    CommitmentCase,
+    CommitmentMember,
+    Contribution,
+    Redemption,
+    ScoreHistory,
+    User,
+    UserConsent,
+    Vendor,
+    Voucher,
+)
 from app.services.commitments import refresh_commitment_lifecycle
 from app.services.score_service import get_score_report
-
 
 SCORE_TIERS = frozenset({"unverified", "entry", "building", "established"})
 FLAG_STATUSES = frozenset({"open", "dismissed", "confirmed", "escalated"})

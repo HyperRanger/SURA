@@ -2,8 +2,7 @@ import sys
 from logging.config import fileConfig
 from pathlib import Path
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 
@@ -19,12 +18,13 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 # Import settings and metadata
-from core.config import get_settings
 from app import models
+
 # The bank domain keeps its tables in a separate module. Without this import they
 # are absent from the metadata, and the next `alembic revision --autogenerate`
 # reads them as tables it should drop.
 from app.bank import models as bank_models  # noqa: F401
+from core.config import get_settings
 
 target_metadata = models.Base.metadata
 settings = get_settings()

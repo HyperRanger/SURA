@@ -6,8 +6,9 @@ Revises: 0002_contribution_engine_states
 
 from datetime import datetime
 
-from alembic import op
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "0003_redemptions"
 down_revision = "0002_contribution_engine_states"

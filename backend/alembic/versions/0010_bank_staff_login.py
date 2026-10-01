@@ -9,9 +9,9 @@ Revision ID: 0010_bank_staff_login
 Revises: 0009_merge_auth_and_bank_scope
 """
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision = "0010_bank_staff_login"
 down_revision = "0009_merge_auth_and_bank_scope"

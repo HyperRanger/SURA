@@ -7,9 +7,9 @@ Revision ID: 0005_score_history_audit
 Revises: 0004_contribution_event_id
 """
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision = "0005_score_history_audit"
 down_revision = "0004_contribution_event_id"

@@ -37,42 +37,42 @@ export const features: Feature[] = [
     description:
       "members agree on an amount, a schedule and a payout order. sura tracks every contribution and releases each cycle's pot to the right person, automatically.",
     icon: RepeatIcon,
-    tone: "blue",
+    tone: "indigo",
   },
   {
     title: "payouts locked to a vendor",
     description:
       "a payout never becomes cash. it is redeemed with a voucher at the verified vendor the group picked on day one, so nobody can collect and disappear.",
     icon: Store01Icon,
-    tone: "orange",
+    tone: "gold",
   },
   {
     title: "a score banks can read",
     description:
       "sura score runs from 0 to 1000 and is built from contribution history, not payslips. every point traces back to one of five named pillars.",
     icon: ChartIncreaseIcon,
-    tone: "green",
+    tone: "gold",
   },
   {
     title: "a safe start for new groups",
     description:
       "if nobody in a circle has a track record yet, the first payout is capped. members with proven history can take early slots, new members start later.",
     icon: ShieldUserIcon,
-    tone: "blue",
+    tone: "indigo",
   },
   {
     title: "missed payments, on record",
     description:
       "when a member misses a contribution, sura flags it and it shows in their score. no hidden penalties and no insurance add-ons.",
     icon: Alert02Icon,
-    tone: "orange",
+    tone: "indigo",
   },
   {
     title: "runs on the bank's own rails",
     description:
       "sura never holds money. it instructs the bank's existing accounts to move funds, and plugs into your product through one api.",
     icon: BankIcon,
-    tone: "green",
+    tone: "indigo",
   },
 ]
 

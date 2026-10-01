@@ -5,11 +5,9 @@ the code is server-issued and single-use, the role is assigned by the backend an
 not taken from the request, and the demo switcher is unavailable in production.
 """
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
-from app.database import get_db
 from app.main import app
 from app.models import User
 from core.config import get_settings
