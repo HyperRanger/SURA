@@ -30,3 +30,36 @@ export function formatCountdown(totalSeconds: number) {
 export function initials(name: string) {
   return name.slice(0, 1)
 }
+
+const dateTimeFormatter = new Intl.DateTimeFormat("en-NG", {
+  day: "numeric",
+  month: "short",
+  year: "numeric",
+  hour: "numeric",
+  minute: "2-digit",
+  timeZone: "Africa/Lagos",
+})
+
+// the api sends naive utc timestamps without a zone, so one is added before parsing
+function parseApiDate(value: string) {
+  return new Date(/[zZ]|[+-]\d{2}:?\d{2}$/.test(value) ? value : `${value}Z`)
+}
+
+// "2026-10-01T14:05:00" → "1 oct 2026, 3:05 pm" in lagos time. "—" when missing
+export function formatDateTime(value: string | null | undefined) {
+  if (!value) return "—"
+  const date = parseApiDate(value)
+  return Number.isNaN(date.getTime()) ? "—" : dateTimeFormatter.format(date)
+}
+
+// 0.875 → "88%". "—" when there is nothing to measure yet
+export function formatPercent(ratio: number | null | undefined) {
+  if (ratio === null || ratio === undefined) return "—"
+  return `${Math.round(ratio * 100)}%`
+}
+
+// "risk_flag_resolved" or "voucher.redeemed" → "risk flag resolved"
+export function humanize(value: string | null | undefined) {
+  if (!value) return "—"
+  return value.replace(/[_.]+/g, " ").trim()
+}

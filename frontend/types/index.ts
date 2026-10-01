@@ -1,6 +1,7 @@
 import type { IconSvgElement } from "@hugeicons/react"
 
 export * from "./auth"
+export * from "./bank"
 
 export type NavLink = {
   label: string
