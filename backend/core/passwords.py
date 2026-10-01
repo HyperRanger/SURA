@@ -13,7 +13,6 @@ surfaced as a validation error rather than quietly trimmed.
 
 import bcrypt
 
-
 # bcrypt hashes at most this many bytes; beyond it the remainder is ignored.
 MAX_PASSWORD_BYTES = 72
 

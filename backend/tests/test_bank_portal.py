@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from app.bank.models import BankPartner, RiskFlag
-from app.models import Redemption, User
+from app.models import User
 
 
 def _bank_headers(auth_headers, institution_id="bank_demo"):

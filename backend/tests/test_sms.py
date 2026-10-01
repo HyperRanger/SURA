@@ -91,11 +91,39 @@ def test_codes_go_out_on_the_dnd_channel_never_generic(client, termii, configure
 
 def test_the_message_carries_the_issued_code(client, termii, configured):
     _signup(client)
-    message = termii[0]["payload"]["message"]
+    message = termii[0]["payload"]["sms"]
 
     assert message
     # The code in the message is the one the response hands back for the demo.
     assert str(configured.otp_ttl_seconds) in message
+
+
+def test_the_payload_uses_exactly_the_fields_termii_binds(client, termii, configured):
+    """Pin the wire contract, because the live API rejects the whole request on a
+    wrong field name.
+
+    Termii reports its recipient list as `toList` in validation errors, but that is
+    not a key it binds: sending it silently produces an empty list. The body field
+    is `sms`, not `message`. Both were wrong here once and the mocked provider hid
+    it, so the key set is asserted exactly rather than field by field.
+    """
+    _signup(client)
+
+    assert set(termii[0]["payload"]) == {"api_key", "to", "from", "channel", "sms"}
+
+
+def test_the_recipient_is_sent_in_dialable_international_form(client, termii, configured):
+    """No leading zero, so Termii can actually route it.
+
+    A local `0803...` number is rejected outright as not dialable, which would turn
+    every real send into a silent failure.
+    """
+    _signup(client, phone="+234 803 000 0041")
+
+    recipient = termii[0]["payload"]["to"]
+    assert recipient == "2348030000041"
+    assert not recipient.startswith("0")
+    assert not recipient.startswith("+")
 
 
 def test_no_provider_configured_means_no_network_call(client, termii):

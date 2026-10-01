@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -8,7 +8,7 @@ from app.auth import AuthPrincipal, get_current_principal
 from app.database import get_db
 from app.models import ScoreHistory
 from app.schemas import ScoreBreakdown, ScoreHistoryEntry, ScoreHistoryResponse, ScoreResponse
-from app.services.score_service import get_score_report
+from app.services.score_service import public_score_report
 
 router = APIRouter(prefix="/v1", tags=["score"])
 
@@ -23,8 +23,10 @@ def get_score(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Member access is required.")
     if current_user.user_id != user_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You may only view your own score.")
-    report = get_score_report(db, user_id)
-    last_updated = report.get("last_updated") or datetime.utcnow()
+    report = public_score_report(db, user_id)
+    # A user with no recorded change has no snapshot time. The schema requires a
+    # datetime, so the read itself is the most recent thing that happened to it.
+    last_updated = report["last_updated"] or datetime.now(timezone.utc)
 
     return ScoreResponse(
         user_id=user_id,
@@ -81,6 +83,6 @@ def get_score_history(
 
     return ScoreHistoryResponse(
         user_id=user_id,
-        current_score=entries[0].score if entries else get_score_report(db, user_id)["score"],
+        current_score=entries[0].score if entries else public_score_report(db, user_id)["score"],
         entries=entries,
     )

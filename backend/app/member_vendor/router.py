@@ -10,10 +10,9 @@ from app.member_vendor.service import get_member_home, get_vendor_overview
 from app.models import User
 from app.schemas import LockRequest, MemberLookupRequest
 from app.services.auth_service import normalize_phone
-from app.services.contact_lookup_rate_limit import consume_contact_lookup
 from app.services.commitments import preview_lock
+from app.services.contact_lookup_rate_limit import consume_contact_lookup
 from app.services.vendor_accounts import get_authenticated_vendor_id
-
 
 router = APIRouter(prefix="/v1/app", tags=["member vendor app"])
 

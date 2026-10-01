@@ -4,9 +4,9 @@ Revision ID: 0013_contact_lookup_limit
 Revises: 0012_bank_portal_operations
 """
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 revision = "0013_contact_lookup_limit"
 down_revision = "0012_bank_portal_operations"

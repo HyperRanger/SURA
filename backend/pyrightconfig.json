@@ -1,0 +1,10 @@
+{
+  "venvPath": ".",
+  "venv": ".venv",
+  "typeCheckingMode": "basic",
+  "reportMissingTypeStubs": "none",
+  "reportArgumentType": "none",
+  "reportAny": "none",
+  "reportCallInDefaultInitializer": "none",
+  "exclude": ["**/__pycache__", "**/.pytest_cache", "**/.venv"]
+}
