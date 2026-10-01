@@ -17,6 +17,10 @@ class User(Base):
     bank_customer_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
     bank_id: Mapped[str | None] = mapped_column(String, ForeignKey("bank_partners.id"), nullable=True, index=True)
 
+    # A bank-owned, demo-safe balance snapshot. It is exposed only through the
+    # tenant-scoped Bank Portal; member and vendor APIs never receive it.
+    available_balance: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
     # Assigned by the backend at signup and carried in the token. The frontend
     # route is never trusted for this; every protected endpoint reads the claim.
     role: Mapped[str] = mapped_column(String, nullable=False, default="individual")
@@ -289,36 +293,30 @@ class Voucher(Base):
         UniqueConstraint("commitment_id", "cycle_number", name="uq_vouchers_commitment_cycle"),
     )
 
-    __table_args__ = (
-        UniqueConstraint("commitment_id", "cycle_number", name="uq_vouchers_commitment_cycle"),
-    )
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    commitment_id: Mapped[str] = mapped_column(String, ForeignKey("commitments.id"), nullable=False)
-    beneficiary_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
-    vendor_id: Mapped[str] = mapped_column(String, ForeignKey("vendors.id"), nullable=False)
-    cycle_number: Mapped[int] = mapped_column(Integer, nullable=False)
-    amount: Mapped[int] = mapped_column(Integer, nullable=False)
-    code: Mapped[str] = mapped_column(String, nullable=False, unique=True)
-    status: Mapped[str] = mapped_column(String, nullable=False, default="ready")
-    issued_at: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.utcnow)
-    redeemed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-
-
-class CommitmentCase(Base):
-    """A bank-operated hold for a disputed Lock; it never alters money terms."""
-
-    __tablename__ = "commitment_cases"
-
-    id: Mapped[str] = mapped_column(String, primary_key=True)
-    commitment_id: Mapped[str] = mapped_column(String, ForeignKey("commitments.id"), nullable=False, index=True)
-    bank_id: Mapped[str] = mapped_column(String, ForeignKey("bank_partners.id"), nullable=False, index=True)
-    opened_by: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
-    reason: Mapped[str] = mapped_column(Text, nullable=False)
-    status: Mapped[str] = mapped_column(String, nullable=False, default="open")
-    resolution_note: Mapped[str | None] = mapped_column(Text, nullable=True)
-    resolved_by: Mapped[str | None] = mapped_column(String, ForeignKey("users.id"), nullable=True)
-    opened_at: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.utcnow)
-    resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    commitment_id: Mapped[str] = mapped_column(String, ForeignKey("commitments.id"), nullable=False)
+    beneficiary_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
+    vendor_id: Mapped[str] = mapped_column(String, ForeignKey("vendors.id"), nullable=False)
+    cycle_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    code: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="ready")
+    issued_at: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.utcnow)
+    redeemed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
+class CommitmentCase(Base):
+    """A bank-operated hold for a disputed Lock; it never alters money terms."""
+
+    __tablename__ = "commitment_cases"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    commitment_id: Mapped[str] = mapped_column(String, ForeignKey("commitments.id"), nullable=False, index=True)
+    bank_id: Mapped[str] = mapped_column(String, ForeignKey("bank_partners.id"), nullable=False, index=True)
+    opened_by: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="open")
+    resolution_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    resolved_by: Mapped[str | None] = mapped_column(String, ForeignKey("users.id"), nullable=True)
+    opened_at: Mapped[datetime | None] = mapped_column(DateTime, default=datetime.utcnow)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

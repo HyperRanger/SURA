@@ -1,5 +1,5 @@
-from app.bank.models import BankAuditEvent, BankStaff
-from app.models import Commitment, Redemption, Voucher
+from app.bank.models import BankAuditEvent, BankPartner, BankStaff
+from app.models import Commitment, Redemption, User, Voucher
 from app.services.demo_data import DEMO_BANK_ID, DEMO_COMMITMENT_ID, DEMO_REDEMPTION_ID, seed_demo_data
 
 
@@ -12,7 +12,12 @@ def test_demo_data_seed_is_idempotent_and_contains_the_demo_story(client):
         assert db.get(Commitment, DEMO_COMMITMENT_ID).status == "active"
         assert db.get(Redemption, DEMO_REDEMPTION_ID).voucher_code == "SURA-DEMO-LAPTOP-01"
         assert db.get(Voucher, "vch_demo_laptop_cycle_1").status == "redeemed"
-        assert db.query(BankStaff).filter(BankStaff.bank_id == DEMO_BANK_ID).count() == 3
+        assert first["user_count"] == 70
+        assert db.query(User).filter(User.id.in_(first["users"])).count() == 70
+        assert db.query(BankPartner).filter(BankPartner.id.in_([bank["bank_id"] for bank in first["banks"]])).count() == 6
+        assert [bank["customer_count"] for bank in first["banks"]] == [20, 14, 12, 10, 8, 6]
+        assert db.query(BankStaff).count() == 1
+        assert db.get(User, "usr_demo_amara").available_balance > 0
         assert db.query(BankAuditEvent).filter(BankAuditEvent.bank_id == DEMO_BANK_ID).count() == 2
 
         second = seed_demo_data(db)
@@ -21,7 +26,7 @@ def test_demo_data_seed_is_idempotent_and_contains_the_demo_story(client):
         third = seed_demo_data(db, reset=True)
         assert third["created"] is True
         db.commit()
-        assert db.query(BankStaff).filter(BankStaff.bank_id == DEMO_BANK_ID).count() == 3
+        assert db.query(BankStaff).count() == 1
     finally:
         db.close()
 
@@ -36,7 +41,7 @@ def test_seeded_bank_story_is_available_through_bank_portal_routes(client):
 
     login = client.post(
         "/v1/bank/login",
-        json={"email": "demo.risk@sura.local", "password": "demo-password-never-in-production"},
+        json={"email": "demo.admin@sura.local", "password": "demo-password-never-in-production"},
     )
     assert login.status_code == 200, login.text
     verified = client.post(
@@ -48,11 +53,24 @@ def test_seeded_bank_story_is_available_through_bank_portal_routes(client):
 
     overview = client.get("/v1/bank/overview", headers=headers)
     assert overview.status_code == 200, overview.text
-    assert overview.json()["customers"] == 2
+    assert overview.json()["customers"] == 20
 
     customer = client.get("/v1/bank/users?bank_customer_id=CUST-DEMO-8241", headers=headers)
     assert customer.status_code == 200, customer.text
     assert customer.json()[0]["user_id"] == "usr_demo_amara"
+    assert customer.json()[0]["available_balance"] > 0
+
+    member_login = client.post(
+        "/v1/auth/demo-token",
+        json={"user_id": "usr_demo_amara", "otp_code": "123456"},
+    )
+    assert member_login.status_code == 200, member_login.text
+    member_score = client.get(
+        "/v1/score/usr_demo_amara",
+        headers={"Authorization": f"Bearer {member_login.json()['access_token']}"},
+    )
+    assert member_score.status_code == 200, member_score.text
+    assert "available_balance" not in member_score.json()
 
     commitments = client.get("/v1/bank/commitments", headers=headers)
     assert commitments.status_code == 200, commitments.text

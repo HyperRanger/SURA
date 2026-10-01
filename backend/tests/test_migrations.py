@@ -22,6 +22,7 @@ from app.models import PlatformAuditEvent, SessionRevocation
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 ALEMBIC_INI = BACKEND_DIR / "alembic.ini"
 ENV_PY = BACKEND_DIR / "alembic" / "env.py"
+RELEASE_READINESS = BACKEND_DIR / "demo docs" / "RELEASE_READINESS.md"
 
 
 def _script_directory() -> ScriptDirectory:
@@ -44,7 +45,13 @@ def test_there_is_exactly_one_migration_head():
 
 def test_bank_migration_paths_merge_at_the_expected_head():
     heads = _script_directory().get_heads()
-    assert heads == ["0015_merge_lock_cert"]
+    assert heads == ["0016_demo_balance"]
+
+
+def test_release_readiness_documents_the_current_migration_head():
+    """The deployment runbook must not direct a release to an old revision."""
+    head = _script_directory().get_heads()[0]
+    assert head in RELEASE_READINESS.read_text(encoding="utf-8")
 
 
 def test_migration_identifiers_fit_the_existing_version_column():
