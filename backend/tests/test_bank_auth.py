@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from fastapi.testclient import TestClient
 
 from app.bank.models import BankAuditEvent, BankPartner, BankStaff
+from app.main import app as main_app
 from app.models import User
 from core.config import get_settings
 from core.passwords import hash_password
@@ -36,7 +37,7 @@ def _provision_staff(
     The session is closed on the way out, so a returned instance would be
     detached and unusable by the caller.
     """
-    db = client.app.state.testing_session()
+    db = main_app.state.testing_session()
     try:
         now = datetime.utcnow()
         if db.get(BankPartner, bank_id) is None:
@@ -139,7 +140,7 @@ def test_a_bank_session_carries_the_bank_tenant_not_a_school(client):
     tenant that does not exist, so the check here is that the bank wins.
     """
     staff = _provision_staff(client)
-    db = client.app.state.testing_session()
+    db = main_app.state.testing_session()
     try:
         from app.models import Institution
 
@@ -205,7 +206,7 @@ def test_a_lockout_expires(client):
     for _ in range(settings.bank_login_max_password_attempts):
         _login(client, password="wrong")
 
-    db = client.app.state.testing_session()
+    db = main_app.state.testing_session()
     try:
         staff = db.query(BankStaff).filter(BankStaff.email == STAFF_EMAIL).one()
         staff.locked_until = datetime.utcnow() - timedelta(seconds=1)
@@ -262,7 +263,7 @@ def test_permissions_are_read_from_the_database_and_not_the_token(client):
 
     # The analyst cannot resolve a flag to begin with.
     assert client.get("/v1/bank/flags", headers=headers).status_code == 200
-    db = client.app.state.testing_session()
+    db = main_app.state.testing_session()
     try:
         row = db.query(BankStaff).filter(BankStaff.email == STAFF_EMAIL).one()
         row.permissions_json = json.dumps(["bank:overview:read"])
@@ -281,7 +282,7 @@ def test_revoking_staff_stops_a_session_that_already_exists(client):
     headers = {"Authorization": f"Bearer {body['access_token']}"}
     assert client.get("/v1/bank/overview", headers=headers).status_code == 200
 
-    db = client.app.state.testing_session()
+    db = main_app.state.testing_session()
     try:
         row = db.query(BankStaff).filter(BankStaff.email == STAFF_EMAIL).one()
         row.status = "revoked"
@@ -297,7 +298,7 @@ def test_a_revoked_staff_cannot_finish_a_second_factor(client):
     staff = _provision_staff(client)
     challenge = _login(client).json()
 
-    db = client.app.state.testing_session()
+    db = main_app.state.testing_session()
     try:
         row = db.get(BankStaff, staff["staff_id"])
         row.status = "revoked"
@@ -373,7 +374,7 @@ def test_sign_ins_are_audited(client):
     _login(client, password="wrong")
     _sign_in(client)
 
-    db = client.app.state.testing_session()
+    db = main_app.state.testing_session()
     try:
         events = {
             row.event_type

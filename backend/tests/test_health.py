@@ -22,4 +22,7 @@ def test_health_check_returns_503_when_database_is_unavailable(client, monkeypat
 def test_settings_require_secret_key(monkeypatch):
     monkeypatch.delenv("SECRET_KEY", raising=False)
     with pytest.raises(ValidationError):
-        Settings(_env_file=None)
+        # _env_file is a real pydantic-settings argument that disables .env
+        # loading, and required fields are otherwise satisfied from the
+        # environment. Neither is visible to a checker.
+        Settings(_env_file=None)  # pyright: ignore[reportCallIssue, reportInvalidTypeForm]

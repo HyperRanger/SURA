@@ -1,4 +1,5 @@
-from importlib.util import module_from_spec, spec_from_file_location
+from importlib.machinery import SourceFileLoader
+from importlib.util import module_from_spec, spec_from_loader
 from pathlib import Path
 
 
@@ -304,9 +305,11 @@ def test_0002_migration_downgrade_is_explicitly_irreversible():
         / "versions"
         / "0002_contribution_engine_states.py"
     )
-    spec = spec_from_file_location("migration_0002", migration_path)
+    loader = SourceFileLoader("migration_0002", str(migration_path))
+    spec = spec_from_loader(loader.name, loader)
+    assert spec is not None, "could not build a module spec for the migration file"
     module = module_from_spec(spec)
-    assert spec.loader is not None
+    assert spec.loader is not None, "module spec carries no loader"
     spec.loader.exec_module(module)
 
     try:

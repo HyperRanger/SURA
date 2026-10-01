@@ -239,6 +239,11 @@ def get_commitment(db: Session, bank_id: str, commitment_id: str) -> dict:
     if not db.query(CommitmentMember).join(User, User.id == CommitmentMember.user_id).filter(CommitmentMember.commitment_id == commitment_id, User.bank_id == bank_id).first():
         raise HTTPException(status_code=404, detail="Commitment not found for this bank.")
     row = db.get(Commitment, commitment_id)
+    # The membership check above passed, so a missing commitment row means the
+    # member rows outlived their commitment. Reading row.id unguarded here would
+    # raise AttributeError and return a 500 instead of the 404 the caller expects.
+    if row is None:
+        raise HTTPException(status_code=404, detail="Commitment not found for this bank.")
     if refresh_commitment_lifecycle(db, row):
         db.commit()
     vendor = db.get(Vendor, row.vendor_id)

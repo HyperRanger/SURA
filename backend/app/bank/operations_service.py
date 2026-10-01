@@ -71,7 +71,13 @@ def update_staff(db: Session, bank_id: str, actor_id: str, staff_id: str, *, rol
         if role not in BANK_PORTAL_ROLES:
             raise HTTPException(status_code=400, detail="Unsupported bank staff role.")
         staff.role = role
-        db.get(User, staff.user_id).role = role
+        # BankStaff.user_id has a foreign key to users.id, so this lookup cannot
+        # miss in practice; it is checked anyway because a missing row here would
+        # raise AttributeError and surface as a 500 on a role change.
+        linked_user = db.get(User, staff.user_id)
+        if linked_user is None:
+            raise HTTPException(status_code=404, detail="Staff account has no linked user.")
+        linked_user.role = role
         if permissions is None:
             staff.permissions_json = json.dumps(sorted(BANK_STAFF_ROLE_PERMISSIONS[role]))
     if permissions is not None:

@@ -213,10 +213,14 @@ def signup(
     db.add(user)
 
     if role == VENDOR_ROLE:
+        # The guard above rejects a vendor signup without these, but that check sits
+        # on a different condition, so nothing narrows them to str here.
+        vendor_name = business_name or ""
+        vendor_category = business_category or ""
         vendor = Vendor(
             id=str(uuid.uuid4()),
-            name=business_name.strip(),
-            category=business_category.strip(),
+            name=vendor_name.strip(),
+            category=vendor_category.strip(),
             verified_at=None,
         )
         db.add(vendor)
