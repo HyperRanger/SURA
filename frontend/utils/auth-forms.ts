@@ -1,4 +1,4 @@
-import { incomeContexts } from "@/config/auth"
+import { incomeContexts, type SignupStepId } from "@/config/auth"
 import type { IncomeContext, SelfServiceRole, SignupPayload } from "@/types"
 import { normalizePhone } from "@/utils/phone"
 import { checked, compose, maxLength, nigerianMobile, oneOf, required } from "@/utils/validators"
@@ -26,7 +26,15 @@ export const initialSignupValues: SignupValues = {
   termsAccepted: false,
 }
 
-const phoneRule = compose(required("enter your phone number"), nigerianMobile())
+// the fields each signup step is responsible for, validated before moving on
+export const signupStepFields: Record<SignupStepId, readonly (keyof SignupValues)[]> = {
+  account: ["role"],
+  details: ["name", "phone"],
+  earning: ["context", "termsAccepted"],
+  business: ["businessName", "businessCategory", "termsAccepted"],
+}
+
+const phoneRule =compose(required("enter your phone number"), nigerianMobile())
 
 export function signupSchema(values: SignupValues) {
   const shared = {

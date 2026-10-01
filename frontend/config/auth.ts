@@ -31,4 +31,48 @@ export const incomeContextOptions: ChoiceOption<IncomeContext>[] = [
   { value: "other", label: "other", description: "something else", icon: MoreHorizontalCircle01Icon },
 ]
 
-export const incomeContexts = incomeContextOptions.map((option) => option.value)
+// signup is split into short steps. savers end on how they earn, vendors on their business
+export type SignupStepId = "account" | "details" | "earning" | "business"
+
+export type SignupStep = {
+  id: SignupStepId
+  title: string
+  description: string
+}
+
+const accountStep: SignupStep = {
+  id: "account",
+  title: "what brings you to sura?",
+  description: "you can't switch later, so pick the one that fits.",
+}
+
+export const signupSteps: Record<SelfServiceRole, SignupStep[]> = {
+  individual: [
+    accountStep,
+    {
+      id: "details",
+      title: "tell us who you are",
+      description: "we'll text a 6-digit code to this number to confirm it's yours.",
+    },
+    {
+      id: "earning",
+      title: "how do you earn?",
+      description: "this helps us shape sura around your income. it never limits what you can do.",
+    },
+  ],
+  vendor: [
+    accountStep,
+    {
+      id: "details",
+      title: "who runs the shop?",
+      description: "we'll text a 6-digit code to this number to confirm it's yours.",
+    },
+    {
+      id: "business",
+      title: "about your business",
+      description: "we verify every vendor before they can accept vouchers.",
+    },
+  ],
+}
+
+export const incomeContexts =incomeContextOptions.map((option) => option.value)

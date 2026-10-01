@@ -1,5 +1,5 @@
 import { HugeiconsIcon } from "@hugeicons/react"
-import { ArrowRight01Icon, CheckmarkCircle02Icon } from "@hugeicons/core-free-icons"
+import { ArrowRight01Icon, } from "@hugeicons/core-free-icons"
 import Link from "next/link"
 import { isDemoEnabled } from "@/config/env"
 import { heroStats } from "@/config/landing"
@@ -7,8 +7,6 @@ import { routes } from "@/config/routes"
 import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 import { HeroPreview } from "@/components/sections/hero-preview"
-
-const assurances = ["sura never holds funds", "no cash payouts", "every score point explained"]
 
 export function Hero() {
   return (

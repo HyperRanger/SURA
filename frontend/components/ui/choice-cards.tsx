@@ -10,12 +10,11 @@ type ChoiceCardsProps<T extends string> = {
   labelledBy?: string
   describedBy?: string
   invalid?: boolean
-  columns?: 1 | 2
   className?: string
 }
 
-// a radio group drawn as tappable cards. native radios underneath keep arrow-key
-// navigation and form semantics for free
+// a radio group drawn as full-width rows: icon, text, then a radio dot. native
+// radios underneath keep arrow-key navigation and form semantics for free
 export function ChoiceCards<T extends string>({
   name,
   options,
@@ -24,7 +23,6 @@ export function ChoiceCards<T extends string>({
   labelledBy,
   describedBy,
   invalid,
-  columns = 2,
   className,
 }: ChoiceCardsProps<T>) {
   return (
@@ -33,7 +31,7 @@ export function ChoiceCards<T extends string>({
       aria-labelledby={labelledBy}
       aria-describedby={describedBy}
       aria-invalid={invalid || undefined}
-      className={cn("grid gap-3", columns === 2 && "grid-cols-2", className)}
+      className={cn("flex flex-col gap-3", className)}
     >
       {options.map((option) => {
         const id = `${name}-${option.value}`
@@ -44,7 +42,7 @@ export function ChoiceCards<T extends string>({
             key={option.value}
             htmlFor={id}
             className={cn(
-              "relative flex cursor-pointer flex-col gap-2 rounded-2xl border-2 border-b-4 bg-card p-4 transition-colors",
+              "flex cursor-pointer items-center gap-4 rounded-2xl border-2 border-b-4 bg-card px-4 py-3.5 transition-colors",
               "has-focus-visible:ring-4 has-focus-visible:ring-ring/20",
               selected
                 ? "border-primary bg-indigo-soft"
@@ -62,19 +60,37 @@ export function ChoiceCards<T extends string>({
               className="sr-only"
             />
             {option.icon && (
-              <HugeiconsIcon
-                icon={option.icon}
-                size={22}
-                strokeWidth={2}
-                className={selected ? "text-link" : "text-muted-foreground"}
-              />
-            )}
-            <span className="text-sm font-extrabold text-foreground">{option.label}</span>
-            {option.description && (
-              <span className="text-xs leading-snug font-semibold text-muted-foreground">
-                {option.description}
+              <span
+                className={cn(
+                  "flex size-11 shrink-0 items-center justify-center rounded-full transition-colors",
+                  selected ? "bg-primary text-primary-foreground" : "bg-cloud text-muted-foreground"
+                )}
+              >
+                <HugeiconsIcon icon={option.icon} size={22} strokeWidth={2} />
               </span>
             )}
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] font-extrabold text-foreground">{option.label}</span>
+              {option.description && (
+                <span className="block text-xs leading-snug font-semibold text-muted-foreground">
+                  {option.description}
+                </span>
+              )}
+            </span>
+            <span
+              aria-hidden="true"
+              className={cn(
+                "flex size-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                selected ? "border-primary" : "border-hairline-strong"
+              )}
+            >
+              <span
+                className={cn(
+                  "size-3 rounded-full bg-primary transition-transform",
+                  selected ? "scale-100" : "scale-0"
+                )}
+              />
+            </span>
           </label>
         )
       })}

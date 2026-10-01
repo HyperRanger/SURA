@@ -12,10 +12,11 @@ const assurances = [
 ]
 
 // mobile: logo bar and a single column. desktop: an indigo brand panel on the left
+// that stays pinned to the viewport while the form side scrolls
 export function AuthShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-1 lg:grid lg:grid-cols-[0.9fr_1.1fr]">
-      <aside className="relative hidden overflow-hidden bg-primary p-12 text-primary-foreground lg:flex lg:flex-col">
+      <aside className="relative hidden overflow-hidden bg-primary p-12 text-primary-foreground lg:sticky lg:top-0 lg:flex lg:h-dvh lg:flex-col lg:self-start">
         <div
           aria-hidden="true"
           className="pointer-events-none absolute -top-24 -right-24 size-96 rounded-full bg-primary-bright/60 blur-3xl"

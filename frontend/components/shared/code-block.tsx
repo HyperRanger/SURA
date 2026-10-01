@@ -15,7 +15,7 @@ export function CodeBlock({ code, label, className }: CodeBlockProps) {
           {label}
         </figcaption>
       )}
-      <pre className="overflow-x-auto p-4 text-[13px] leading-relaxed text-primary-foreground/90 normal-case">
+      <pre className="scrollbar-inverse overflow-x-auto p-4 text-[13px] leading-relaxed text-primary-foreground/90 normal-case">
         <code className="font-mono">{code}</code>
       </pre>
     </figure>
