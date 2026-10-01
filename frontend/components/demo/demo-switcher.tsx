@@ -40,7 +40,7 @@ export function DemoSwitcher() {
           variant="info"
           title="you're signed in"
           action={
-            <div className="flex shrink-0 gap-2">
+            <div className="flex shrink-0 flex-wrap gap-2">
               <Link href={homeForRole(session.role)} className={buttonVariants({ size: "sm" })}>
                 continue
               </Link>
@@ -60,17 +60,16 @@ export function DemoSwitcher() {
         </Alert>
       )}
 
-      {demoAreas.map(({ area, title, description }) => {
+      {demoAreas.map(({ area, title }) => {
         const personas = availablePersonas.filter((persona) => persona.area === area)
         if (personas.length === 0) return null
 
         return (
           <section key={area} aria-labelledby={`demo-${area}`}>
-            <div className="mb-3 flex items-baseline justify-between gap-3">
+            <div className="mb-3 flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
               <h2 id={`demo-${area}`} className="text-lg font-black">
                 {title}
               </h2>
-              <p className="text-xs font-bold text-muted-foreground">{description}</p>
             </div>
             <div className="flex flex-col gap-3">
               {personas.map((persona) => (
@@ -87,13 +86,13 @@ export function DemoSwitcher() {
         )
       })}
 
-      {hiddenCount > 0 && (
+      {/*{hiddenCount > 0 && (
         <p className="text-xs font-semibold text-muted-foreground">
           {hiddenCount} named {hiddenCount === 1 ? "person is" : "people are"} hidden. set{" "}
           <code className="font-mono normal-case">NEXT_PUBLIC_DEMO_OTP_CODE</code> to the api&apos;s demo
           code to show them.
         </p>
-      )}
+      )}*/}
     </div>
   )
 }

@@ -15,6 +15,7 @@ export default function DemoPage() {
 
   return (
     <AuthCard
+      className="max-w-xl"
       title="try sura as anyone"
       description="pick a person to sign in instantly, no code needed. this page only exists outside production."
     >

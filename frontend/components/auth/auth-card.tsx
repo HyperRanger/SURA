@@ -4,9 +4,7 @@ import { cn } from "@/lib/utils"
 type AuthCardProps = {
   title: ReactNode
   description?: ReactNode
-  // sits above the title, e.g. a step progress bar
   header?: ReactNode
-  // lets a form point aria-labelledby at the title, e.g. a radio group that is the question
   titleId?: string
   children: ReactNode
   footer?: ReactNode
@@ -23,8 +21,8 @@ export function AuthCard({
   className,
 }: AuthCardProps) {
   return (
-    <div className={cn("w-full", className)}>
-      <div className="card-raised rounded-3xl p-6 sm:p-8">
+    <div className={cn("w-full max-w-md", className)}>
+      <div className="card-raised rounded-3xl p-5 sm:p-8">
         {header && <div className="mb-6">{header}</div>}
         <h1 id={titleId} className="text-2xl font-black tracking-tight text-balance sm:text-3xl">
           {title}

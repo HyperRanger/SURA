@@ -20,7 +20,7 @@ export function PersonaCard({ persona, onSelect, loading, disabled }: PersonaCar
       disabled={disabled}
       aria-busy={loading || undefined}
       className={cn(
-        "card-raised group flex w-full items-center gap-4 rounded-3xl p-4 text-left transition-all",
+        "cursor-pointer card-raised group flex w-full items-center gap-4 rounded-3xl p-4 text-left transition-all",
         "hover:border-hairline-strong active:translate-y-0.5 active:border-b-2",
         "focus-visible:ring-4 focus-visible:ring-ring/20 focus-visible:outline-none",
         "disabled:pointer-events-none disabled:opacity-60",
