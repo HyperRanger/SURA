@@ -1,6 +1,8 @@
 "use client"
 
 import { useRef, type PointerEvent } from "react"
+import Link from "next/link"
+import { routes } from "@/config/routes"
 import { mainNav } from "@/config/site"
 import { buttonVariants } from "@/components/ui/button"
 import { Logo } from "@/components/layout/logo"
@@ -40,24 +42,24 @@ export function Header() {
             <ul className="hidden items-center gap-8 lg:flex">
               {mainNav.map((link) => (
                 <li key={link.href}>
-                  <a
+                  <Link
                     href={link.href}
                     className="text-sm font-bold text-muted-foreground transition-colors hover:text-link"
                   >
                     {link.label}
-                  </a>
+                  </Link>
                 </li>
               ))}
             </ul>
           </div>
 
           <div className="hidden items-center gap-3 lg:flex">
-            <a href="#how-it-works" className={buttonVariants({ variant: "outline", size: "sm" })}>
-              see how it works
-            </a>
-            <a href="#get-started" className={buttonVariants({ size: "sm" })}>
-              partner with us
-            </a>
+            <Link href={routes.login} className={buttonVariants({ variant: "outline", size: "sm" })}>
+              log in
+            </Link>
+            <Link href={routes.signup} className={buttonVariants({ size: "sm" })}>
+              get started
+            </Link>
           </div>
 
           <div className="flex items-center gap-2 lg:hidden">

@@ -3,6 +3,8 @@
 import { useState } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { Menu01Icon } from "@hugeicons/core-free-icons"
+import Link from "next/link"
+import { routes } from "@/config/routes"
 import { mainNav } from "@/config/site"
 import { buttonVariants } from "@/components/ui/button"
 import { Logo } from "@/components/layout/logo"
@@ -38,32 +40,32 @@ export function MobileNav() {
 
         <nav aria-label="mobile" className="flex flex-col gap-1 px-3">
           {mainNav.map((link) => (
-            <a
+            <Link
               key={link.href}
               href={link.href}
               onClick={close}
               className="rounded-full px-4 py-3 text-lg font-bold text-foreground transition-colors hover:bg-cloud hover:text-link"
             >
               {link.label}
-            </a>
+            </Link>
           ))}
         </nav>
 
         <div className="mt-auto flex flex-col gap-3 p-5">
-          <a
-            href="#how-it-works"
+          <Link
+            href={routes.login}
             onClick={close}
             className={buttonVariants({ variant: "outline", className: "w-full" })}
           >
-            see how it works
-          </a>
-          <a
-            href="#get-started"
+            log in
+          </Link>
+          <Link
+            href={routes.signup}
             onClick={close}
             className={buttonVariants({ className: "w-full" })}
           >
-            partner with us
-          </a>
+            get started
+          </Link>
         </div>
       </SheetContent>
     </Sheet>

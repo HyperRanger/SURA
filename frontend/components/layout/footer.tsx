@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { footerNav, siteConfig } from "@/config/site"
 import { ApiStatus } from "@/components/layout/api-status"
 import { Logo } from "@/components/layout/logo"
@@ -8,7 +9,7 @@ export function Footer() {
   return (
     <footer className="bg-primary-deep text-primary-foreground">
       <div className="container-page py-14">
-        <div className="grid gap-10 md:grid-cols-[1.6fr_1fr_1fr]">
+        <div className="grid gap-10 sm:grid-cols-2 md:grid-cols-[1.6fr_1fr_1fr_1fr]">
           <div className="max-w-sm">
             <Logo tone="inverse" />
             <p className="mt-4 text-sm leading-relaxed text-primary-foreground/70">
@@ -31,12 +32,12 @@ export function Footer() {
               <ul className="mt-4 flex flex-col gap-3">
                 {group.links.map((link) => (
                   <li key={link.label}>
-                    <a
+                    <Link
                       href={link.href}
                       className="text-sm font-semibold text-primary-foreground/80 transition-colors hover:text-gold"
                     >
                       {link.label}
-                    </a>
+                    </Link>
                   </li>
                 ))}
               </ul>
