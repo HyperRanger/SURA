@@ -13,7 +13,7 @@ python -m pytest tests -q
 python -m alembic -c alembic.ini heads
 ```
 
-Expected migration result: exactly one head, `0013_contact_lookup_limit`.
+Expected migration result: exactly one head, `0015_merge_lock_cert`.
 
 Confirm that `.env` is ignored and no secret appears in tracked files:
 
@@ -32,6 +32,18 @@ git grep -n -I -e "postgresql://" -e "TERMII_API_KEY=" -e "SECRET_KEY=" -- ":!ba
 5. Confirm the OpenAPI document includes the intended PWA additions:
    - `/v1/app/recommendations/vendors`
    - `/v1/app/commitments/{commitment_id}/group-health`
+
+Render service settings for this repository:
+
+```text
+Root directory: backend
+Build command: pip install -r requirements.txt && alembic upgrade head
+Start command: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+Set `DATABASE_URL`, `SECRET_KEY`, JWT settings, and production Termii values in
+Render environment variables. Never place any of them in the repository or in
+the service commands.
 
 ## Demo database gate
 
