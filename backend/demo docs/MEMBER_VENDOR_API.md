@@ -60,6 +60,8 @@ After sign-in, call `GET /v1/me` to choose `/app/*` for `individual` or
 | M6 invite preview | `GET /v1/commitments/preview?code={invite_code}` | intended invitee only |
 | M7 consent | `POST /v1/consent` | `{ "granted": true }` required before creating or joining |
 | M8 join | `POST /v1/commitments/join` | `{ "invite_code": "SURA-..." }` |
+| M8 decline | `POST /v1/commitments/{commitment_id}/decline` | invited member, while pending only |
+| M8 replace invitee | `POST /v1/commitments/{commitment_id}/members/{invited_user_id}/replace` | creator only; `{ "replacement_user_id": "..." }`, before activation only |
 | M9 detail | `GET /v1/commitments/{commitment_id}` | member only; no voucher code exposed |
 | M9 activity | `GET /v1/commitments/{commitment_id}/activity` | member only |
 | M9 group health | `GET /v1/app/commitments/{commitment_id}/group-health` | member-only, aggregate advisory signal |
@@ -93,7 +95,9 @@ this contract.
   "contribution_frequency": "weekly",
   "cycles": 2,
   "members": ["usr_demo_amara", "usr_demo_tunde"],
-  "payout_order": ["usr_demo_amara", "usr_demo_tunde"]
+  "payout_order": ["usr_demo_amara", "usr_demo_tunde"],
+  "first_cycle_due_at": "2026-10-10T12:00:00Z",
+  "grace_period_hours": 72
 }
 ```
 
@@ -124,8 +128,17 @@ values directly. They do not expose phone numbers or Scores.
 
 Voucher reads include `vendor_name`. They also return `expires_at: null` because
 the current Lock model has no expiry rule; hide expiry UI rather than inventing
-a deadline. Current-cycle member state is `paid`, `partial`, or `not_paid`.
-There is no per-member missed-count or due-date field in this MVP.
+a deadline. Commitment reads expose `current_cycle_due_at`,
+`grace_period_hours`, and `missed_cycle_count`; current-cycle member state is
+`paid`, `partial`, or `not_paid`.
+
+An unpaid cycle is `active` before its deadline, `overdue` during the grace
+period, and `missed` after it. Members may continue contributing after a missed
+deadline. Full funding records `cycle_recovered`, pays the beneficiary, and
+advances the rotation; no partial payout is ever issued. An invited member may
+decline before activation. The creator can replace only an unresolved invitee
+before activation, and the replacement must grant score-processing consent and
+join normally.
 
 ## Vendor matching v1
 

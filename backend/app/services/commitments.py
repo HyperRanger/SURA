@@ -1,6 +1,6 @@
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import HTTPException
@@ -12,6 +12,7 @@ from app.models import (
     Commitment,
     CommitmentActivity,
     CommitmentBeneficiary,
+    CommitmentCase,
     CommitmentMember,
     Contribution,
     Redemption,
@@ -23,12 +24,22 @@ from app.models import (
 )
 from app.schemas import ContributionRequest, LockRequest
 from app.services.contribution_engine import dump_rule_trace, evaluate_contribution
+from app.services.lock_lifecycle import SUPPORTED_FREQUENCIES, advance_due_at, deadline_state, default_first_due_at
 from app.services.payout_rules import apply_anchor_and_cap_rule, build_payout_schedule
 from app.services.score_service import public_score_report, refresh_commitment_member_scores
 from app.services.scoring import ENTRY_TIER_BASELINE
 from core.config import get_settings
 
 ENTRY_TIER_SCORE = ENTRY_TIER_BASELINE
+
+
+def _normalize_due_at(value: datetime | None) -> datetime | None:
+    """Persist all Lock schedule times as naive UTC, matching existing models."""
+    if value is None:
+        return None
+    if value.tzinfo is not None:
+        return value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value
 
 
 def _record_activity(
@@ -129,6 +140,8 @@ def _require_member(db: Session, commitment_id: str, user_id: str) -> Commitment
     )
     if member is None:
         raise HTTPException(status_code=403, detail="You are not a member of this commitment.")
+    if member.role == "replaced":
+        raise HTTPException(status_code=403, detail="You were replaced before this commitment became active.")
     return member
 
 
@@ -139,8 +152,66 @@ def _activate_if_fully_joined(db: Session, commitment: Commitment) -> None:
         .filter(CommitmentMember.commitment_id == commitment.id, CommitmentMember.role == "invited")
         .count()
     )
-    if invited_count == 0 and commitment.status == "pending_members":
+    declined_count = (
+        db.query(CommitmentMember)
+        .filter(CommitmentMember.commitment_id == commitment.id, CommitmentMember.role == "declined")
+        .count()
+    )
+    if invited_count == 0 and declined_count == 0 and commitment.status == "pending_members":
         commitment.status = "active"
+        commitment.current_cycle_due_at = commitment.first_cycle_due_at
+
+
+def _refresh_lifecycle(db: Session, commitment: Commitment, *, now: datetime | None = None) -> bool:
+    """Persist deadline-driven state transitions for the current unpaid cycle."""
+    if commitment.status in {"pending_members", "cancelled", "completed", "under_review"}:
+        return False
+    now = now or datetime.utcnow()
+    beneficiary = (
+        db.query(CommitmentBeneficiary)
+        .filter(
+            CommitmentBeneficiary.commitment_id == commitment.id,
+            CommitmentBeneficiary.cycle_number == commitment.current_cycle_number,
+        )
+        .one_or_none()
+    )
+    if beneficiary is None or beneficiary.status in {"paid", "redeemed"}:
+        return False
+    next_state = deadline_state(
+        due_at=commitment.current_cycle_due_at,
+        grace_period_hours=commitment.grace_period_hours,
+        now=now,
+    )
+    if next_state == commitment.status:
+        return False
+    previous = commitment.status
+    commitment.status = next_state
+    beneficiary.status = next_state if next_state in {"overdue", "missed"} else "scheduled"
+    if next_state == "missed" and previous != "missed":
+        commitment.missed_cycle_count += 1
+    _record_activity(
+        db,
+        commitment.id,
+        f"cycle_{next_state}",
+        cycle_number=commitment.current_cycle_number,
+        details={
+            "due_at": commitment.current_cycle_due_at.isoformat() if commitment.current_cycle_due_at else None,
+            "grace_period_hours": commitment.grace_period_hours,
+            "previous_status": previous,
+        },
+    )
+    return True
+
+
+def refresh_commitment_lifecycle(db: Session, commitment: Commitment, *, now: datetime | None = None) -> bool:
+    """Refresh a Lock's deadline state for read models outside this module.
+
+    The Bank Portal is a consumer of the same Lock record, not a second
+    lifecycle engine. Keeping this small public boundary prevents the portal
+    from duplicating deadline rules or showing stale evidence when no member
+    request happens first.
+    """
+    return _refresh_lifecycle(db, commitment, now=now)
 
 
 def _normalize_member_ids(member_ids: list[str]) -> list[str]:
@@ -233,6 +304,7 @@ def preview_lock(
     db: Session, payload: LockRequest, authenticated_creator_id: str
 ) -> dict[str, Any]:
     """Return the deterministic Lock plan without storing a commitment."""
+    payload.first_cycle_due_at = _normalize_due_at(payload.first_cycle_due_at)
     if payload.type != "rotating":
         raise HTTPException(status_code=400, detail="Only rotating commitments are supported.")
     if not payload.members:
@@ -241,6 +313,10 @@ def preview_lock(
         raise HTTPException(status_code=400, detail="Contribution amount must be positive.")
     if payload.cycles <= 0:
         raise HTTPException(status_code=400, detail="Cycles must be positive.")
+    if payload.contribution_frequency not in SUPPORTED_FREQUENCIES:
+        raise HTTPException(status_code=400, detail="Contribution frequency must be weekly or monthly.")
+    if payload.first_cycle_due_at is not None and payload.first_cycle_due_at <= datetime.utcnow():
+        raise HTTPException(status_code=400, detail="first_cycle_due_at must be in the future.")
 
     member_ids = _normalize_member_ids(payload.members)
     if payload.creator_id and payload.creator_id != authenticated_creator_id:
@@ -308,6 +384,7 @@ def _serialize_commitment(commitment: Commitment, db: Session) -> dict[str, Any]
         .all()
     )
     member_ids = [member.user_id for member in members]
+    economic_members = [member for member in members if member.role not in {"replaced", "declined"}]
     users_by_id = {
         user.id: user
         for user in db.query(User).filter(User.id.in_(member_ids)).all()
@@ -327,7 +404,7 @@ def _serialize_commitment(commitment: Commitment, db: Session) -> dict[str, Any]
         )
         for member_id in member_ids
     }
-    required_cycle_total = commitment.contribution_amount * len(members)
+    required_cycle_total = commitment.contribution_amount * len(economic_members)
     current_cycle_total = sum(current_member_totals.values())
     current_beneficiary = next(
         (item for item in beneficiaries if item.cycle_number == commitment.current_cycle_number),
@@ -347,6 +424,10 @@ def _serialize_commitment(commitment: Commitment, db: Session) -> dict[str, Any]
         },
         "contribution_amount": commitment.contribution_amount,
         "contribution_frequency": commitment.frequency,
+        "first_cycle_due_at": commitment.first_cycle_due_at.isoformat() if commitment.first_cycle_due_at else None,
+        "current_cycle_due_at": commitment.current_cycle_due_at.isoformat() if commitment.current_cycle_due_at else None,
+        "grace_period_hours": commitment.grace_period_hours,
+        "missed_cycle_count": commitment.missed_cycle_count,
         "cycles": commitment.cycles,
         "status": commitment.status,
         "invite_code": commitment.invite_code,
@@ -360,6 +441,11 @@ def _serialize_commitment(commitment: Commitment, db: Session) -> dict[str, Any]
                 "beneficiary_first_name": _first_name(users_by_id.get(beneficiary.user_id)),
                 "payout_amount": beneficiary.payout_amount,
                 "status": beneficiary.status,
+                "due_at": (
+                    commitment.current_cycle_due_at.isoformat()
+                    if beneficiary.cycle_number == commitment.current_cycle_number and commitment.current_cycle_due_at
+                    else None
+                ),
                 "contributions": [
                     {
                         "id": contribution.id,
@@ -381,6 +467,7 @@ def _serialize_commitment(commitment: Commitment, db: Session) -> dict[str, Any]
                 "first_name": _first_name(users_by_id.get(member.user_id)),
                 "role": member.role,
                 "joined_at": member.joined_at.isoformat() if member.joined_at else None,
+                "declined_at": member.declined_at.isoformat() if member.declined_at else None,
                 "current_cycle_contribution_total": current_member_totals[member.user_id],
                 "current_cycle_payment_status": (
                     "paid"
@@ -425,7 +512,7 @@ def _serialize_commitment(commitment: Commitment, db: Session) -> dict[str, Any]
             "paid_member_count": sum(
                 total >= commitment.contribution_amount for total in current_member_totals.values()
             ),
-            "member_count": len(members),
+            "member_count": len(economic_members),
             "progress_percent": (
                 min(100, round((current_cycle_total / required_cycle_total) * 100))
                 if required_cycle_total
@@ -442,6 +529,7 @@ def _serialize_commitment(commitment: Commitment, db: Session) -> dict[str, Any]
 def create_commitment(
     db: Session, payload: LockRequest, authenticated_creator_id: str
 ) -> tuple[dict[str, Any], dict[str, Any]]:
+    payload.first_cycle_due_at = _normalize_due_at(payload.first_cycle_due_at)
     if payload.type != "rotating":
         raise HTTPException(status_code=400, detail="Only rotating commitments are supported.")
     if not payload.members:
@@ -450,6 +538,10 @@ def create_commitment(
         raise HTTPException(status_code=400, detail="Contribution amount must be positive.")
     if payload.cycles <= 0:
         raise HTTPException(status_code=400, detail="Cycles must be positive.")
+    if payload.contribution_frequency not in SUPPORTED_FREQUENCIES:
+        raise HTTPException(status_code=400, detail="Contribution frequency must be weekly or monthly.")
+    if payload.first_cycle_due_at is not None and payload.first_cycle_due_at <= datetime.utcnow():
+        raise HTTPException(status_code=400, detail="first_cycle_due_at must be in the future.")
 
     member_ids = _normalize_member_ids(payload.members)
     if payload.creator_id and payload.creator_id != authenticated_creator_id:
@@ -497,6 +589,8 @@ def create_commitment(
                 payout_order_json=json.dumps(payout_order),
                 current_cycle_number=1,
                 completed_cycle_count=0,
+                first_cycle_due_at=payload.first_cycle_due_at or default_first_due_at(payload.contribution_frequency, datetime.utcnow()),
+                grace_period_hours=payload.grace_period_hours,
             )
             db.add(commitment)
             db.flush()
@@ -577,6 +671,7 @@ def record_contribution(
             )
             if commitment is None:
                 raise HTTPException(status_code=404, detail="Commitment not found.")
+            _refresh_lifecycle(db, commitment)
             member = _require_member(db, commitment_id, contributor_user_id)
             if member.role == "invited":
                 raise HTTPException(status_code=400, detail="Join this commitment before contributing.")
@@ -610,7 +705,7 @@ def record_contribution(
                 response["score"] = public_score_report(db, contributor_user_id)
                 return response
 
-            if commitment.status != "active":
+            if commitment.status not in {"active", "overdue", "missed"}:
                 raise HTTPException(status_code=400, detail="Commitment is not accepting contributions.")
 
             if payload.amount > commitment.contribution_amount:
@@ -656,7 +751,10 @@ def record_contribution(
             )
             db.flush()
 
-            member_count = db.query(CommitmentMember).filter(CommitmentMember.commitment_id == commitment_id).count()
+            member_count = db.query(CommitmentMember).filter(
+                CommitmentMember.commitment_id == commitment_id,
+                CommitmentMember.role.in_(("creator", "contributor")),
+            ).count()
             contributions_for_cycle = (
                 db.query(Contribution)
                 .filter(Contribution.commitment_id == commitment_id, Contribution.cycle_number == current_cycle)
@@ -705,14 +803,19 @@ def record_contribution(
             )
 
             if evaluation.cycle_complete:
+                was_missed = commitment.status == "missed" or (beneficiary_row is not None and beneficiary_row.status == "missed")
                 if beneficiary_row is not None:
                     beneficiary_row.status = "paid"
                     _record_activity(
                         db,
                         commitment_id,
-                        "cycle_paid",
+                        "cycle_recovered" if was_missed else "cycle_paid",
                         cycle_number=current_cycle,
-                        details={"beneficiary_id": beneficiary_row.user_id, "amount": beneficiary_row.payout_amount},
+                        details={
+                            "beneficiary_id": beneficiary_row.user_id,
+                            "amount": beneficiary_row.payout_amount,
+                            "recovered": was_missed,
+                        },
                     )
                     _issue_voucher_if_needed(db, commitment, beneficiary_row)
 
@@ -722,12 +825,12 @@ def record_contribution(
                 else:
                     commitment.current_cycle_number = current_cycle + 1
                     commitment.status = "active"
-            elif evaluation.cycle_missed:
-                if beneficiary_row is not None:
-                    beneficiary_row.status = "missed"
-                commitment.status = "missed"
+                    commitment.current_cycle_due_at = advance_due_at(
+                        commitment.current_cycle_due_at or commitment.first_cycle_due_at,
+                        commitment.frequency,
+                    )
             else:
-                commitment.status = "active"
+                _refresh_lifecycle(db, commitment)
 
             _refresh_score_history_for_commitment(
                 db,
@@ -774,6 +877,8 @@ def get_commitment_details(db: Session, commitment_id: str, requester_user_id: s
     if commitment is None:
         raise HTTPException(status_code=404, detail="Commitment not found.")
     _require_member(db, commitment_id, requester_user_id)
+    if _refresh_lifecycle(db, commitment):
+        db.commit()
     return _serialize_commitment(commitment, db)
 
 
@@ -785,6 +890,9 @@ def list_member_commitments(db: Session, user_id: str) -> list[dict[str, Any]]:
         .order_by(Commitment.created_at.desc(), Commitment.id.desc())
         .all()
     )
+    changed = any(_refresh_lifecycle(db, commitment) for commitment in commitments)
+    if changed:
+        db.commit()
     return [_serialize_commitment(commitment, db) for commitment in commitments]
 
 
@@ -823,6 +931,8 @@ def join_commitment(db: Session, invite_code: str, user_id: str) -> dict[str, An
                 details={"user_id": user_id},
             )
             _activate_if_fully_joined(db, commitment)
+        elif member.role != "contributor" and member.role != "creator":
+            raise HTTPException(status_code=400, detail="This invitation is no longer available. Ask the creator for a replacement invite.")
         response = _serialize_commitment(commitment, db)
         response["join_status"] = "joined"
         return response
@@ -892,6 +1002,141 @@ def cancel_pending_commitment(db: Session, commitment_id: str, requester_user_id
             raise HTTPException(status_code=400, detail="Only pending commitments can be cancelled.")
         commitment.status = "cancelled"
         _record_activity(db, commitment_id, "commitment_cancelled", actor_user_id=requester_user_id)
+        return _serialize_commitment(commitment, db)
+
+
+def open_commitment_case(db: Session, commitment_id: str, bank_id: str, actor_id: str, reason: str) -> dict[str, Any]:
+    """Pause a disputed Lock without changing membership, amounts, or payout order."""
+    with db.begin():
+        commitment = db.query(Commitment).filter(Commitment.id == commitment_id).with_for_update().one_or_none()
+        if commitment is None:
+            raise HTTPException(status_code=404, detail="Commitment not found.")
+        creator = db.get(User, commitment.creator_id)
+        if creator is None or creator.bank_id != bank_id:
+            raise HTTPException(status_code=404, detail="Commitment not found for this bank.")
+        if db.query(CommitmentCase).filter(
+            CommitmentCase.commitment_id == commitment_id,
+            CommitmentCase.bank_id == bank_id,
+            CommitmentCase.status == "open",
+        ).one_or_none() is not None:
+            raise HTTPException(status_code=409, detail="An open support case already exists for this commitment.")
+        case = CommitmentCase(
+            id=str(uuid.uuid4()), commitment_id=commitment_id, bank_id=bank_id,
+            opened_by=actor_id, reason=reason.strip(), status="open", opened_at=datetime.utcnow(),
+        )
+        db.add(case)
+        previous_status = commitment.status
+        commitment.status = "under_review"
+        _record_activity(
+            db, commitment_id, "commitment_under_review", actor_user_id=actor_id,
+            cycle_number=commitment.current_cycle_number,
+            details={"case_id": case.id, "previous_status": previous_status},
+        )
+        return {"case_id": case.id, "commitment_id": commitment_id, "status": "open", "commitment_status": "under_review"}
+
+
+def resolve_commitment_case(db: Session, commitment_id: str, bank_id: str, actor_id: str, case_id: str, note: str) -> dict[str, Any]:
+    with db.begin():
+        case = db.query(CommitmentCase).filter(
+            CommitmentCase.id == case_id,
+            CommitmentCase.commitment_id == commitment_id,
+            CommitmentCase.bank_id == bank_id,
+        ).with_for_update().one_or_none()
+        if case is None:
+            raise HTTPException(status_code=404, detail="Support case not found.")
+        if case.status != "open":
+            raise HTTPException(status_code=400, detail="Support case is already resolved.")
+        commitment = db.query(Commitment).filter(Commitment.id == commitment_id).with_for_update().one()
+        case.status = "resolved"
+        case.resolution_note = note.strip()
+        case.resolved_by = actor_id
+        case.resolved_at = datetime.utcnow()
+        commitment.status = "active"
+        _refresh_lifecycle(db, commitment)
+        _record_activity(
+            db, commitment_id, "commitment_review_resolved", actor_user_id=actor_id,
+            cycle_number=commitment.current_cycle_number, details={"case_id": case.id},
+        )
+        return {"case_id": case.id, "commitment_id": commitment_id, "status": "resolved", "commitment_status": commitment.status}
+
+
+def decline_commitment_invitation(db: Session, commitment_id: str, requester_user_id: str) -> dict[str, Any]:
+    with db.begin():
+        commitment = db.query(Commitment).filter(Commitment.id == commitment_id).with_for_update().one_or_none()
+        if commitment is None:
+            raise HTTPException(status_code=404, detail="Commitment not found.")
+        if commitment.status != "pending_members":
+            raise HTTPException(status_code=400, detail="Only pending commitment invitations may be declined.")
+        member = _require_member(db, commitment_id, requester_user_id)
+        if member.role != "invited":
+            raise HTTPException(status_code=400, detail="Only an invited member may decline this commitment.")
+        member.role = "declined"
+        member.declined_at = datetime.utcnow()
+        _record_activity(
+            db,
+            commitment_id,
+            "member_declined",
+            actor_user_id=requester_user_id,
+            details={"user_id": requester_user_id},
+        )
+        return _serialize_commitment(commitment, db)
+
+
+def replace_pending_member(
+    db: Session,
+    commitment_id: str,
+    creator_user_id: str,
+    invited_user_id: str,
+    replacement_user_id: str,
+) -> dict[str, Any]:
+    """Replace only an unresolved invitation before activation.
+
+    A paid or active group cannot change membership because that would change
+    the agreed pool and payout order.
+    """
+    with db.begin():
+        commitment = db.query(Commitment).filter(Commitment.id == commitment_id).with_for_update().one_or_none()
+        if commitment is None:
+            raise HTTPException(status_code=404, detail="Commitment not found.")
+        if commitment.creator_id != creator_user_id:
+            raise HTTPException(status_code=403, detail="Only the commitment creator can replace an invitee.")
+        if commitment.status != "pending_members":
+            raise HTTPException(status_code=400, detail="Members cannot be replaced after commitment activation.")
+        if invited_user_id == replacement_user_id:
+            raise HTTPException(status_code=400, detail="Replacement member must be different from the existing invitee.")
+        old_member = _require_member(db, commitment_id, invited_user_id)
+        if old_member.role not in {"invited", "declined"}:
+            raise HTTPException(status_code=400, detail="Only unresolved invitations may be replaced.")
+        if db.query(CommitmentMember).filter(
+            CommitmentMember.commitment_id == commitment_id,
+            CommitmentMember.user_id == replacement_user_id,
+        ).one_or_none() is not None:
+            raise HTTPException(status_code=409, detail="Replacement user is already part of this commitment.")
+        _ensure_member_user(db, replacement_user_id)
+        _require_score_processing_consent(db, replacement_user_id)
+        old_member.role = "replaced"
+        old_member.declined_at = datetime.utcnow()
+        db.add(CommitmentMember(
+            commitment_id=commitment_id,
+            user_id=replacement_user_id,
+            role="invited",
+            joined_at=datetime.utcnow(),
+        ))
+        payout_order = json.loads(commitment.payout_order_json)
+        commitment.payout_order_json = json.dumps([
+            replacement_user_id if user_id == invited_user_id else user_id for user_id in payout_order
+        ])
+        db.query(CommitmentBeneficiary).filter(
+            CommitmentBeneficiary.commitment_id == commitment_id,
+            CommitmentBeneficiary.user_id == invited_user_id,
+        ).update({CommitmentBeneficiary.user_id: replacement_user_id}, synchronize_session=False)
+        _record_activity(
+            db,
+            commitment_id,
+            "member_replaced",
+            actor_user_id=creator_user_id,
+            details={"replaced_user_id": invited_user_id, "replacement_user_id": replacement_user_id},
+        )
         return _serialize_commitment(commitment, db)
 
 
@@ -981,6 +1226,8 @@ def validate_vendor_voucher(db: Session, voucher_code: str, vendor_id: str) -> d
     if voucher.status != "ready":
         raise HTTPException(status_code=400, detail="Voucher is not ready for redemption.")
     commitment = db.get(Commitment, voucher.commitment_id)
+    if commitment is not None and commitment.status == "under_review":
+        raise HTTPException(status_code=409, detail="Commitment redemption is paused while a support case is under review.")
     beneficiary = db.get(User, voucher.beneficiary_id)
     return {
         "voucher": _serialize_voucher(voucher),
@@ -1005,6 +1252,9 @@ def redeem_vendor_voucher(db: Session, voucher_code: str, vendor_id: str) -> dic
             raise HTTPException(status_code=409, detail="Voucher has already been redeemed.")
         if voucher.status != "ready":
             raise HTTPException(status_code=400, detail="Voucher is not ready for redemption.")
+        commitment = db.get(Commitment, voucher.commitment_id)
+        if commitment is not None and commitment.status == "under_review":
+            raise HTTPException(status_code=409, detail="Commitment redemption is paused while a support case is under review.")
         beneficiary = (
             db.query(CommitmentBeneficiary)
             .filter(
@@ -1041,7 +1291,6 @@ def redeem_vendor_voucher(db: Session, voucher_code: str, vendor_id: str) -> dic
             # beneficiary and authenticated-vendor flows.
             details={"vendor_id": vendor_id, "amount": voucher.amount},
         )
-        commitment = db.get(Commitment, voucher.commitment_id)
         beneficiary_user = db.get(User, voucher.beneficiary_id)
         return {
             "redemption_id": redemption.id,

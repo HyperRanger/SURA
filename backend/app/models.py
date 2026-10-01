@@ -97,6 +97,12 @@ class Commitment(Base):
     payout_order_json = Column(Text, nullable=False)
     current_cycle_number = Column(Integer, nullable=False, default=1)
     completed_cycle_count = Column(Integer, nullable=False, default=0)
+    # Deadlines are stored rather than inferred at read time, so a frequency
+    # change or a later code release cannot rewrite the group agreement.
+    first_cycle_due_at = Column(DateTime, nullable=True)
+    current_cycle_due_at = Column(DateTime, nullable=True)
+    grace_period_hours = Column(Integer, nullable=False, default=72)
+    missed_cycle_count = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
@@ -107,6 +113,7 @@ class CommitmentMember(Base):
     user_id = Column(String, ForeignKey("users.id"), primary_key=True)
     role = Column(String, nullable=False, default="contributor")
     joined_at = Column(DateTime, default=datetime.utcnow)
+    declined_at = Column(DateTime, nullable=True)
 
 
 class CommitmentBeneficiary(Base):
@@ -222,3 +229,20 @@ class Voucher(Base):
     status = Column(String, nullable=False, default="ready")
     issued_at = Column(DateTime, default=datetime.utcnow)
     redeemed_at = Column(DateTime, nullable=True)
+
+
+class CommitmentCase(Base):
+    """A bank-operated hold for a disputed Lock; it never alters money terms."""
+
+    __tablename__ = "commitment_cases"
+
+    id = Column(String, primary_key=True)
+    commitment_id = Column(String, ForeignKey("commitments.id"), nullable=False, index=True)
+    bank_id = Column(String, ForeignKey("bank_partners.id"), nullable=False, index=True)
+    opened_by = Column(String, ForeignKey("users.id"), nullable=False)
+    reason = Column(Text, nullable=False)
+    status = Column(String, nullable=False, default="open")
+    resolution_note = Column(Text, nullable=True)
+    resolved_by = Column(String, ForeignKey("users.id"), nullable=True)
+    opened_at = Column(DateTime, default=datetime.utcnow)
+    resolved_at = Column(DateTime, nullable=True)

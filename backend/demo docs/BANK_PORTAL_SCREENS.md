@@ -98,6 +98,8 @@ The authentication provider must issue a token containing `sub`, `role`, `instit
 - The persisted payout order and contribution activity. Genesis and cap decisions are not stored as standalone records in this MVP.
 - Activity timeline: created, joined, contributed, cycle paid, voucher issued, redeemed.
 - Links to associated customer profiles and settlement record.
+- Shows current-cycle deadline, grace period, missed-cycle count, and support-case history.
+- A bank administrator may open a support case to pause a disputed commitment and resolve it to resume the normal lifecycle. A case cannot alter amounts, members, payout order, or voucher identity.
 
 ### B5 — Customer search
 
@@ -265,6 +267,8 @@ GET  /v1/bank/users/{user_id}/flags
 GET  /v1/bank/commitments?q=&status=&vendor_id=&member_id=
 GET  /v1/bank/commitments/{commitment_id}
 GET  /v1/bank/commitments/{commitment_id}/group-health
+POST /v1/bank/commitments/{commitment_id}/cases
+POST /v1/bank/commitments/{commitment_id}/cases/{case_id}/resolve
 GET  /v1/bank/audit-log?user_id=&commitment_id=&event_type=&actor_id=&date_from=&date_to=
 POST /v1/bank/audit-log/export
 GET  /v1/bank/flags?user_id=&status=&severity=&rule=
