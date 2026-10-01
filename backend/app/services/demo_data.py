@@ -45,6 +45,7 @@ LEGACY_DEMO_BANK_STAFF_USER_IDS = (
     "usr_demo_bank_admin",
     "usr_demo_bank_risk",
     "usr_demo_bank_integration",
+    "usr_demo_bank",
 )
 DEMO_VENDOR_IDS = ("vnd_demo_electronics", "vnd_demo_education", "vnd_demo_equipment")
 DEMO_COMMITMENT_ID = "cmt_demo_laptop_rotation"
@@ -152,7 +153,17 @@ def _reset_demo_data(db: Session) -> None:
     db.execute(delete(Commitment).where(Commitment.id == DEMO_COMMITMENT_ID))
     db.execute(delete(ScoreHistory).where(ScoreHistory.user_id.in_(DEMO_CUSTOMER_IDS)))
     db.execute(delete(User).where(User.id.in_(demo_user_ids)))
-    db.execute(delete(BankPartner).where(BankPartner.id.in_(DEMO_RESET_BANK_IDS)))
+    # An old demo shortcut may have created additional users under ``bnk_demo``.
+    # Do not turn a reproducible demo reset into a broad user delete merely to
+    # remove its parent bank row. Current demo banks are deleted when empty;
+    # any bank still referenced by an unknown row is left intact.
+    empty_bank_ids = [
+        bank_id
+        for bank_id in DEMO_RESET_BANK_IDS
+        if db.query(User.id).filter(User.bank_id == bank_id).first() is None
+    ]
+    if empty_bank_ids:
+        db.execute(delete(BankPartner).where(BankPartner.id.in_(empty_bank_ids)))
 
 
 def seed_demo_data(db: Session, *, reset: bool = False) -> dict[str, object]:
