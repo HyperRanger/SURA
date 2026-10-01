@@ -54,17 +54,14 @@ def evaluate_contribution(
 
     contribution_status = "full" if member_total_after >= expected_member_amount else "partial"
     cycle_complete = member_total_after >= expected_member_amount and cycle_total_after >= required_cycle_total
-    all_members_have_contributed = distinct_contributors >= member_count
-    cycle_missed = all_members_have_contributed and not cycle_complete
+    # A missed cycle is a deadline decision, not a contribution-total decision.
+    # All members may have made partial contributions before the due date.
+    cycle_missed = False
 
     if cycle_complete:
         cycle_status = "completed"
         commitment_status = "completed"
         beneficiary_status = "paid"
-    elif cycle_missed:
-        cycle_status = "missed"
-        commitment_status = "missed"
-        beneficiary_status = "missed"
     else:
         cycle_status = "active"
         commitment_status = "active"

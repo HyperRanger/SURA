@@ -3,10 +3,11 @@ from sqlalchemy.orm import Session
 
 from app.auth import AuthPrincipal, get_current_principal
 from app.database import get_db
-from app.schemas import ConsentRequest, ContributionRequest, JoinCommitmentRequest, LockRequest, LockResponse
+from app.schemas import ConsentRequest, ContributionRequest, JoinCommitmentRequest, LockRequest, LockResponse, ReplaceCommitmentMemberRequest
 from app.services.commitments import (
     cancel_pending_commitment,
     create_commitment,
+    decline_commitment_invitation,
     get_commitment_activity,
     get_commitment_details,
     get_cycle_voucher,
@@ -15,6 +16,7 @@ from app.services.commitments import (
     preview_commitment_by_code,
     record_contribution,
     record_score_consent,
+    replace_pending_member,
 )
 
 router = APIRouter(prefix="/v1/commitments", tags=["commitments"])
@@ -95,6 +97,28 @@ def cancel_commitment(
 ):
     _require_individual(current_user)
     return cancel_pending_commitment(db, commitment_id, current_user.user_id)
+
+
+@router.post("/{commitment_id}/decline")
+def decline_invitation(
+    commitment_id: str,
+    current_user: AuthPrincipal = Depends(get_current_principal),
+    db: Session = Depends(get_db),
+):
+    _require_individual(current_user)
+    return decline_commitment_invitation(db, commitment_id, current_user.user_id)
+
+
+@router.post("/{commitment_id}/members/{invited_user_id}/replace")
+def replace_invited_member(
+    commitment_id: str,
+    invited_user_id: str,
+    payload: ReplaceCommitmentMemberRequest,
+    current_user: AuthPrincipal = Depends(get_current_principal),
+    db: Session = Depends(get_db),
+):
+    _require_individual(current_user)
+    return replace_pending_member(db, commitment_id, current_user.user_id, invited_user_id, payload.replacement_user_id)
 
 
 @router.get("/{commitment_id}/activity")

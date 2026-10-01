@@ -7,7 +7,7 @@ BANK_PORTAL_ROLES = frozenset({"bank_admin", "bank_risk_analyst", "bank_integrat
 REQUIRED_BANK_CLAIMS = frozenset({"sub", "role", "institution_id", "permissions"})
 
 BANK_STAFF_ROLE_PERMISSIONS = {
-    "bank_admin": frozenset({"bank:overview:read", "bank:users:read", "bank:commitments:read", "bank:flags:read", "bank:flags:write", "bank:audit:read", "bank:settlements:read", "bank:developer:write", "bank:team:write", "bank:settings:write"}),
+    "bank_admin": frozenset({"bank:overview:read", "bank:users:read", "bank:commitments:read", "bank:commitments:write", "bank:flags:read", "bank:flags:write", "bank:audit:read", "bank:settlements:read", "bank:developer:write", "bank:team:write", "bank:settings:write"}),
     "bank_risk_analyst": frozenset({"bank:overview:read", "bank:users:read", "bank:commitments:read", "bank:flags:read", "bank:flags:write", "bank:audit:read", "bank:settlements:read"}),
     "bank_integration_engineer": frozenset({"bank:developer:write"}),
 }
