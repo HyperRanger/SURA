@@ -22,9 +22,6 @@ function isActive(pathname: string, href: string) {
   return href === routes.bank.home ? pathname === href : pathname === href || pathname.startsWith(`${href}/`)
 }
 
-// the bank console frame. only bank staff sessions get past it; anyone else is
-// sent to B1 with ?next= so they land back here after signing in. wide screens get
-// a sidebar, phones a top bar whose menu opens the same links in a sheet
 export function BankShell({ children }: { children: ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -80,7 +77,6 @@ function BankBrand() {
   return (
     <div className="flex items-center gap-2.5">
       <Logo />
-      <span className="rounded-full bg-gold-soft px-2.5 py-0.5 text-[11px] font-extrabold text-gold-deep">bank</span>
     </div>
   )
 }
