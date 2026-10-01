@@ -14,10 +14,14 @@ export function Hero() {
         aria-hidden="true"
         className="pointer-events-none absolute top-10 right-[-15%] size-144 rounded-full bg-primary/15 blur-3xl"
       />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute top-1/2 right-[8%] size-64 rounded-full bg-gold/15 blur-3xl"
+      />
 
       <div className="container-page relative grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr]">
         <div>
-          <Badge variant="orange">for income that doesn&apos;t arrive monthly</Badge>
+          <Badge>for income that doesn&apos;t arrive monthly</Badge>
 
           <h1 className="mt-6 text-4xl leading-[1.05] font-black tracking-tight text-balance sm:text-5xl md:text-6xl">
             save together. build a record{" "}

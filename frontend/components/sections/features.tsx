@@ -37,7 +37,7 @@ export function Features() {
                 key={audience.title}
                 className="flex items-center gap-3 rounded-full bg-card p-2 pr-5"
               >
-                <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-white">
+                <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
                   <HugeiconsIcon icon={audience.icon} size={22} strokeWidth={2} />
                 </span>
                 <span>

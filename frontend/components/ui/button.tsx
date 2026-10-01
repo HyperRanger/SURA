@@ -9,12 +9,12 @@ const buttonVariants = cva(
       variant: {
         default:
           "border-b-4 border-primary-deep bg-primary text-primary-foreground hover:bg-primary-bright active:translate-y-0.5 active:border-b-2",
-        orange:
-          "border-b-4 border-orange-deep bg-orange text-white hover:brightness-105 active:translate-y-0.5 active:border-b-2",
+        gold:
+          "border-b-4 border-[#a97a24] bg-gold text-gold-foreground hover:brightness-105 active:translate-y-0.5 active:border-b-2",
         outline:
           "border-2 border-b-4 border-hairline bg-card text-link hover:border-hairline-strong hover:bg-cloud active:translate-y-0.5 active:border-b-2",
         inverse:
-          "border-b-4 border-hairline-strong bg-white text-primary hover:bg-blue-soft active:translate-y-0.5 active:border-b-2 dark:border-primary-deep dark:bg-background dark:text-link",
+          "border-b-4 border-hairline-strong bg-ivory text-primary hover:bg-indigo-soft active:translate-y-0.5 active:border-b-2",
         ghost: "text-muted-foreground hover:bg-cloud hover:text-link",
         link: "text-link underline-offset-4 hover:underline",
       },

@@ -21,7 +21,7 @@ export function HowItWorks() {
           />
           {steps.map((step, i) => (
             <li key={step.title} className="relative flex flex-col items-center text-center">
-              <span className="relative z-10 flex h-14 w-14 items-center justify-center rounded-full border-b-4 border-primary-deep bg-primary text-xl font-black text-white">
+              <span className="relative z-10 flex h-14 w-14 items-center justify-center rounded-full border-b-4 border-primary-deep bg-primary text-xl font-black text-primary-foreground">
                 {i + 1}
               </span>
               <div className="card-raised mt-5 flex h-full w-full flex-col items-center rounded-[2rem] p-6">
@@ -35,9 +35,9 @@ export function HowItWorks() {
           ))}
         </ol>
 
-        <div className="card-raised mt-10 grid items-center gap-8 rounded-[2rem] p-7 md:grid-cols-[1fr_1.2fr] md:p-10">
+        <div className="mt-10 grid items-center gap-8 rounded-[2rem] border-b-8 border-primary-deep bg-primary p-7 text-primary-foreground md:grid-cols-[1fr_1.2fr] md:p-10">
           <div>
-            <p className="text-sm font-extrabold text-orange-deep dark:text-orange">
+            <p className="text-sm font-extrabold text-gold">
               for banks and fintechs
             </p>
             <h3 className="mt-2 text-2xl font-black tracking-tight text-balance sm:text-3xl">
@@ -48,13 +48,13 @@ export function HowItWorks() {
             {bankPoints.map((point) => (
               <li
                 key={point}
-                className="flex items-center gap-2.5 rounded-3xl bg-cloud p-4 text-sm leading-snug font-bold"
+                className="flex items-center gap-2.5 rounded-3xl bg-ivory/10 p-4 text-sm leading-snug font-bold"
               >
                 <HugeiconsIcon
                   icon={CheckmarkCircle02Icon}
                   size={20}
                   strokeWidth={2.2}
-                  className="mt-px shrink-0 text-primary"
+                  className="mt-px shrink-0 text-gold"
                 />
                 {point}
               </li>

@@ -6,7 +6,7 @@ export const siteConfig = {
   description:
     "sura lets banks and fintechs offer rotating savings circles with enforced rules, vendor-locked payouts and a transparent score that turns on-time contributions into a credit record.",
   // placeholder inbox until the team confirms a real one
-  contactEmail: "hello@sura.finance",
+  contactEmail: "",
   apiUrl: process.env.NEXT_PUBLIC_API_URL ?? "",
 } as const
 
