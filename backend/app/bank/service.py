@@ -10,6 +10,7 @@ from fastapi import HTTPException
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
+from app.bank import risk_rules
 from app.bank.models import BankAuditEvent, BankPartner, BankStaff, RiskFlag
 from app.models import (
     Commitment,
@@ -27,6 +28,7 @@ from app.models import (
 )
 from app.services.commitments import refresh_commitment_lifecycle
 from app.services.score_service import get_score_report, public_score_report, serialize_score_history_entry
+from app.services import audit
 
 SCORE_TIERS = frozenset({"unverified", "entry", "building", "established"})
 FLAG_STATUSES = frozenset({"open", "dismissed", "confirmed", "escalated"})
@@ -70,6 +72,8 @@ def _user_summary(db: Session, user: User) -> dict:
         "user_id": user.id,
         "name": user.name,
         "phone": _masked(user.phone),
+        "account_status": user.account_status,
+        "restriction_reason": user.restriction_reason,
         "bank_customer_id": _masked(user.bank_customer_id),
         "verified": user.verified_at is not None,
         "score": score["score"],
@@ -370,8 +374,35 @@ def get_flag(db: Session, bank_id: str, flag_id: str) -> dict:
     return {**_serialize_flag(row), "review_history": [{"event_type": event.event_type, "actor_id": event.actor_id, "details": json.loads(event.detail_json), "occurred_at": event.occurred_at.isoformat() if event.occurred_at else None} for event in history]}
 
 
+def revoke_member_sessions(db: Session, bank_id: str, actor_id: str, user_id: str) -> dict:
+    """End every live session for one of this bank's members.
+
+    The only reliable way to sign a member out everywhere is to raise the
+    generation on their account, because the platform deliberately does not
+    store live tokens: it is not a session store. Every session this service
+    issued then fails the re-check on its next request, and any session still
+    outstanding stops working without waiting for its expiry.
+    """
+    member = _user_or_404(db, bank_id, user_id)
+    member.session_invalidated_at = datetime.utcnow()
+    _audit(db, bank_id, actor_id, "member_sessions_revoked", "user", user_id, {})
+    audit.record(
+        db,
+        event_type=audit.SESSION_REVOKED_BY_STAFF,
+        subject_type="user",
+        subject_id=user_id,
+        actor_id=actor_id,
+        institution_id=bank_id,
+        detail={"scope": "all_sessions"},
+    )
+    db.commit()
+    return {"user_id": member.id, "sessions_revoked": True, "at": datetime.utcnow().isoformat()}
+
+
 def _serialize_flag(row: RiskFlag) -> dict:
-    return {"flag_id": row.id, "user_id": row.user_id, "rule": row.rule, "severity": row.severity, "status": row.status, "evidence": json.loads(row.evidence_json), "resolution_note": row.resolution_note, "created_at": row.created_at.isoformat() if row.created_at else None, "resolved_at": row.resolved_at.isoformat() if row.resolved_at else None}
+    # resolved_by is returned because a reviewer who cannot see who decided a
+    # flag cannot audit the queue they are working through.
+    return {"flag_id": row.id, "user_id": row.user_id, "rule": row.rule, "severity": row.severity, "status": row.status, "evidence": json.loads(row.evidence_json), "resolution_note": row.resolution_note, "resolved_by": row.resolved_by, "created_at": row.created_at.isoformat() if row.created_at else None, "resolved_at": row.resolved_at.isoformat() if row.resolved_at else None}
 
 
 def resolve_flag(db: Session, bank_id: str, actor_id: str, flag_id: str, action: str, note: str) -> dict:
@@ -380,10 +411,26 @@ def resolve_flag(db: Session, bank_id: str, actor_id: str, flag_id: str, action:
     row = db.query(RiskFlag).filter(RiskFlag.id == flag_id, RiskFlag.bank_id == bank_id).one_or_none()
     if row is None:
         raise HTTPException(status_code=404, detail="Risk flag not found.")
+    if row.status != "open":
+        # Re-resolving an already-decided flag would overwrite who decided it,
+        # destroying the only record of the original call.
+        raise HTTPException(status_code=409, detail=f"This flag is already {row.status}.")
     row.status, row.resolution_note, row.resolved_by, row.resolved_at = action, note, actor_id, datetime.utcnow()
     _audit(db, bank_id, actor_id, "risk_flag_resolved", "risk_flag", flag_id, {"action": action})
     db.commit()
     return _serialize_flag(row)
+
+
+def run_risk_rules(db: Session, bank_id: str, actor_id: str, user_ids: list[str] | None = None) -> dict:
+    """Evaluate the rule set for this bank and open a flag for each new finding.
+
+    The engine only ever opens flags. Restricting an account stays a separate,
+    explicit, human decision through ``apply_restriction``.
+    """
+    result = risk_rules.run_rules(db, bank_id, user_ids)
+    _audit(db, bank_id, actor_id, "risk_rules_evaluated", "bank", bank_id, {"members_evaluated": result["members_evaluated"], "flags_created_count": result["flags_created_count"]})
+    db.commit()
+    return result
 
 
 def settlements(db: Session, bank_id: str, *, query: str | None = None, status_filter: str | None = None, vendor_id: str | None = None, user_id: str | None = None, commitment_id: str | None = None) -> list[dict]:

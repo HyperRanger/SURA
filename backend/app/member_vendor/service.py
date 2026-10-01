@@ -9,10 +9,10 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.models import Vendor
 from app.services import auth_service
 from app.services.commitments import list_member_commitments, list_vendor_redemptions
 from app.services.score_service import public_score_report
-from app.models import Vendor
 
 
 def get_member_home(db: Session, user_id: str) -> dict[str, Any]:

@@ -15,10 +15,16 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import AuthChallenge, User, Vendor
+from app.models import AuthChallenge, SessionRevocation, User, Vendor
 from app.services.sms import SmsDeliveryError, send_otp
 from core.config import get_settings
-from core.security import create_token, generate_otp, hash_otp, new_otp_salt, otp_matches
+from core.security import (
+    create_token,
+    generate_otp,
+    hash_otp,
+    new_otp_salt,
+    otp_matches,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -186,9 +192,8 @@ def signup(
         # Bank and admin accounts are provisioned, never self-assigned at signup.
         raise HTTPException(status_code=400, detail="That account type cannot be self-registered.")
 
-    if role == INDIVIDUAL_ROLE:
-        if not terms_accepted:
-            raise HTTPException(status_code=400, detail="You must accept the terms to continue.")
+    if role == INDIVIDUAL_ROLE and not terms_accepted:
+        raise HTTPException(status_code=400, detail="You must accept the terms to continue.")
     if role == VENDOR_ROLE and (not business_name or not business_category):
         raise HTTPException(status_code=400, detail="Vendor accounts need a business name and category.")
 
@@ -330,3 +335,47 @@ def get_profile(db: Session, user_id: str) -> dict[str, Any]:
         )
 
     return profile
+
+
+def revoke_session(
+    db: Session,
+    token_id: str | None,
+    user_id: str | None,
+    *,
+    reason: str = "logout",
+    expires_at: datetime | None = None,
+) -> dict[str, Any]:
+    """Mark one session as signed out.
+
+    The row lives until the token it names would have expired anyway. Presenting
+    that token afterwards is refused by signature validation, so keeping the row
+    longer would only grow the table with entries that can never match.
+    """
+    if not token_id:
+        # A token minted before this column existed carries no identifier, so it
+        # cannot be revoked individually. It is refused at its own expiry.
+        return {"status": "signed_out", "revoked": False}
+
+    existing = db.get(SessionRevocation, token_id)
+    if existing is not None:
+        return {"status": "signed_out", "revoked": False}
+
+    now = datetime.utcnow()
+    db.add(
+        SessionRevocation(
+            jti=token_id,
+            user_id=user_id or "",
+            reason=reason,
+            revoked_at=now,
+            expires_at=expires_at or (now + timedelta(days=30)),
+        )
+    )
+    db.commit()
+    return {"status": "signed_out", "revoked": True}
+
+
+def purge_expired_revocations(db: Session) -> int:
+    """Drop revocations whose token has expired and can no longer be presented."""
+    removed = db.query(SessionRevocation).filter(SessionRevocation.expires_at <= datetime.utcnow()).delete(synchronize_session=False)
+    db.commit()
+    return removed

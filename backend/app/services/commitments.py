@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.bank import risk_rules
 from app.bank.models import BankStaff
 from app.models import (
     Commitment,
@@ -164,7 +165,7 @@ def _activate_if_fully_joined(db: Session, commitment: Commitment) -> None:
 
 def _refresh_lifecycle(db: Session, commitment: Commitment, *, now: datetime | None = None) -> bool:
     """Persist deadline-driven state transitions for the current unpaid cycle."""
-    if commitment.status in {"pending_members", "cancelled", "completed", "under_review"}:
+    if commitment.status in {"pending_members", "cancelled", "completed", "under_review", "missed"}:
         return False
     now = now or datetime.utcnow()
     beneficiary = (
@@ -694,6 +695,11 @@ def record_contribution(
             member = _require_member(db, commitment_id, contributor_user_id)
             if member.role == "invited":
                 raise HTTPException(status_code=400, detail="Join this commitment before contributing.")
+
+            # Membership is checked first so a non-member still gets the 403 that
+            # says nothing about whether they could contribute, rather than a 403
+            # that reveals the account is under bank review.
+            risk_rules.assert_can_transact(db, contributor_user_id)
 
             prior_event = (
                 db.query(Contribution)
@@ -1296,6 +1302,10 @@ def redeem_vendor_voucher(db: Session, voucher_code: str, vendor_id: str) -> dic
         )
         if beneficiary is None or beneficiary.status != "paid":
             raise HTTPException(status_code=400, detail="Voucher cycle is not ready for redemption.")
+        # The beneficiary is the person the money is paid out to, so a
+        # restriction stops the payout as well as new contributions. Locking the
+        # row first means the status check and the redemption cannot race.
+        risk_rules.assert_can_transact(db, voucher.beneficiary_id)
         redemption = Redemption(
             id=str(uuid.uuid4()),
             commitment_id=voucher.commitment_id,

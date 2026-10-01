@@ -3,17 +3,34 @@
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.responses import PlainTextResponse
 from pydantic import AnyHttpUrl, BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.auth import AuthPrincipal
-from app.bank import developer_service, operations_service, service
+from app.bank import developer_service, operations_service, risk_rules, service
 from app.bank.dependencies import require_bank_permission
+from app.bank.models import BankStaff
 from app.database import get_db
+from app.services import bank_auth_service
 from app.services.group_health import get_group_health
 from app.services.commitments import open_commitment_case, resolve_commitment_case
+
+
+def _staff_for_principal(db: Session, current: AuthPrincipal) -> BankStaff:
+    """The staff row behind a Bank Portal session.
+
+    Credential changes need one, so an external identity-provider session gets a
+    plain refusal rather than an endpoint that appears to work.
+    """
+    staff = db.query(BankStaff).filter(BankStaff.user_id == current.user_id).one_or_none()
+    if staff is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This session is issued by an external identity provider and manages no local credentials.",
+        )
+    return staff
 
 
 class FlagResolutionRequest(BaseModel):
@@ -27,6 +44,18 @@ class CommitmentCaseRequest(BaseModel):
 
 class CommitmentCaseResolutionRequest(BaseModel):
     note: str = Field(min_length=1, max_length=2000)
+
+
+class RuleRunRequest(BaseModel):
+    # Optional so a bank can run the whole book. Supplying ids scopes the run,
+    # which is what a scheduled job wants when re-checking recent members only.
+    user_ids: list[str] | None = Field(default=None, max_length=500)
+
+
+class RestrictionRequest(BaseModel):
+    action: str = Field(pattern="^(restricted|suspended|reinstated)$")
+    reason: str = Field(min_length=1, max_length=1000)
+    flag_id: str | None = None
 
 
 class ApiKeyCreateRequest(BaseModel):
@@ -60,6 +89,14 @@ class BankStaffUpdateRequest(BaseModel):
     role: str | None = None
     permissions: list[str] | None = None
     status: str | None = None
+
+
+class BankResetPasswordRequest(BaseModel):
+    new_password: str = Field(min_length=12, max_length=72)
+
+
+class BankPermissionsRequest(BaseModel):
+    permissions: list[str] = Field(min_length=1)
 
 
 class BankSettingsUpdateRequest(BaseModel):
@@ -270,6 +307,63 @@ def bank_resolve_flag(
     return service.resolve_flag(db, current.institution_id, current.user_id, flag_id, payload.action, payload.note)
 
 
+@router.post("/risk-rules/run")
+def bank_run_risk_rules(
+    payload: RuleRunRequest,
+    current: AuthPrincipal = Depends(require_bank_permission("bank:flags:write")),
+    db: Session = Depends(get_db),
+):
+    """Evaluate the rule set and open a flag per new finding.
+
+    Never restricts an account. A rule that could lock a member would be a rule
+    that decides eligibility, and eligibility belongs to the fixed-weight model
+    and to a named analyst.
+    """
+    return service.run_risk_rules(db, current.institution_id, current.user_id, payload.user_ids)
+
+
+@router.post("/users/{user_id}/restriction")
+def bank_apply_restriction(
+    user_id: str,
+    payload: RestrictionRequest,
+    current: AuthPrincipal = Depends(require_bank_permission("bank:flags:write")),
+    db: Session = Depends(get_db),
+):
+    return risk_rules.apply_restriction(
+        db,
+        current.institution_id,
+        current.user_id,
+        user_id,
+        payload.action,
+        payload.reason,
+        flag_id=payload.flag_id,
+    )
+
+
+@router.get("/users/{user_id}/restrictions")
+def bank_list_restrictions(
+    user_id: str,
+    current: AuthPrincipal = Depends(require_bank_permission("bank:flags:read")),
+    db: Session = Depends(get_db),
+):
+    return risk_rules.list_restrictions(db, current.institution_id, user_id)
+
+
+@router.post("/users/{user_id}/sessions/revoke")
+def bank_revoke_member_sessions(
+    user_id: str,
+    current: AuthPrincipal = Depends(require_bank_permission("bank:flags:write")),
+    db: Session = Depends(get_db),
+):
+    """End every live session for one of this bank's members.
+
+    The response to a session being in use by someone who should not have it.
+    Shares the flag-write permission because it is the same decision: this
+    account stops acting until a human says otherwise.
+    """
+    return service.revoke_member_sessions(db, current.institution_id, current.user_id, user_id)
+
+
 @router.get("/settlements")
 def bank_settlements(
     q: str | None = Query(default=None),
@@ -425,6 +519,39 @@ def bank_update_staff(
     db: Session = Depends(get_db),
 ):
     return operations_service.update_staff(db, current.institution_id, current.user_id, staff_id, **payload.model_dump())
+
+
+@router.post("/team/{staff_id}/password-reset")
+def bank_reset_staff_password(
+    staff_id: str,
+    payload: BankResetPasswordRequest,
+    current: AuthPrincipal = Depends(require_bank_permission("bank:team:write")),
+    db: Session = Depends(get_db),
+):
+    """Set a colleague's password. Bank administrators only.
+
+    The recovery path for someone locked out. Refused on your own account, so it
+    cannot be used to bypass proving possession of the current password.
+    """
+    actor = _staff_for_principal(db, current)
+    return bank_auth_service.reset_password(db, actor, staff_id, payload.new_password)
+
+
+@router.put("/team/{staff_id}/permissions")
+def bank_set_staff_permissions(
+    staff_id: str,
+    payload: BankPermissionsRequest,
+    current: AuthPrincipal = Depends(require_bank_permission("bank:team:write")),
+    db: Session = Depends(get_db),
+):
+    """Replace a colleague's permission set. Bank administrators only.
+
+    Narrowing and widening are the same call, so both are guarded the same way.
+    Permissions outside the role's map are refused rather than stored and failed
+    later at the route.
+    """
+    actor = _staff_for_principal(db, current)
+    return bank_auth_service.change_permissions(db, actor, staff_id, payload.permissions)
 
 
 @router.get("/settings")
