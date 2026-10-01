@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.models import Vendor
 from app.services import auth_service
 from app.services.commitments import list_member_commitments, list_vendor_redemptions
-from app.services.score_service import get_score_report
+from app.services.score_service import public_score_report
 
 
 def get_member_home(db: Session, user_id: str) -> dict[str, Any]:
@@ -35,7 +35,9 @@ def get_member_home(db: Session, user_id: str) -> dict[str, Any]:
             }
             break
 
-    score = get_score_report(db, user_id)
+    # Match the dedicated Score endpoint exactly. The PWA should not need to
+    # account for internal snapshot fields appearing only after a score change.
+    score = public_score_report(db, user_id)
     return {
         "profile": auth_service.get_profile(db, user_id),
         "score": score,

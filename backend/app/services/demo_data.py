@@ -21,6 +21,7 @@ from app.models import (
     Redemption,
     ScoreHistory,
     User,
+    UserConsent,
     Vendor,
     Voucher,
 )
@@ -46,6 +47,7 @@ def _reset_demo_data(db: Session) -> None:
     db.execute(delete(RiskFlag).where(RiskFlag.bank_id == DEMO_BANK_ID))
     db.execute(delete(BankStaff).where(BankStaff.user_id.in_(DEMO_BANK_STAFF_USER_IDS)))
     db.execute(delete(AuthChallenge).where(AuthChallenge.user_id.in_(demo_user_ids)))
+    db.execute(delete(UserConsent).where(UserConsent.user_id.in_(demo_user_ids)))
     db.execute(delete(AccountActivitySignal).where(AccountActivitySignal.user_id.in_(DEMO_USER_IDS)))
     db.execute(delete(Redemption).where(Redemption.commitment_id == DEMO_COMMITMENT_ID))
     db.execute(delete(Voucher).where(Voucher.commitment_id == DEMO_COMMITMENT_ID))
@@ -137,6 +139,25 @@ def seed_demo_data(db: Session, *, reset: bool = False) -> dict[str, object]:
     # PostgreSQL enforces the staff-to-user foreign key immediately. Flush the
     # user rows before adding their BankStaff records; SQLite's test defaults do
     # not reliably expose this ordering requirement.
+    db.flush()
+
+    for user_id in DEMO_USER_IDS:
+        consent = (
+            db.query(UserConsent)
+            .filter(UserConsent.user_id == user_id, UserConsent.consent_type == "score_processing")
+            .one_or_none()
+        )
+        if consent is None:
+            db.add(UserConsent(
+                id=f"consent_demo_{user_id[4:]}",
+                user_id=user_id,
+                consent_type="score_processing",
+                granted=True,
+                recorded_at=now,
+            ))
+        else:
+            consent.granted = True
+            consent.recorded_at = now
     db.flush()
 
     for user_id, name, email, role, permissions, mfa_phone in staff_specs:

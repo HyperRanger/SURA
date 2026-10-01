@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Literal, Optional
+from typing import Any, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -155,6 +155,7 @@ class ScoreResponse(BaseModel):
 
 
 class ScoreHistoryEntry(BaseModel):
+    id: str
     score: int
     score_before: Optional[int] = None
     event_type: Optional[str] = None
@@ -162,6 +163,9 @@ class ScoreHistoryEntry(BaseModel):
     reason: Optional[str] = None
     computed_at: datetime
     breakdown: Optional[ScoreBreakdown] = None
+    weights: dict[str, float] = Field(default_factory=dict)
+    signals: dict[str, Any] = Field(default_factory=dict)
+    score_version: Optional[str] = None
 
 
 class ScoreHistoryResponse(BaseModel):

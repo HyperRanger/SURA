@@ -38,6 +38,14 @@ class FlagResolutionRequest(BaseModel):
     note: str = Field(min_length=1, max_length=1000)
 
 
+class CommitmentCaseRequest(BaseModel):
+    reason: str = Field(min_length=1, max_length=2000)
+
+
+class CommitmentCaseResolutionRequest(BaseModel):
+    note: str = Field(min_length=1, max_length=2000)
+
+
 class RuleRunRequest(BaseModel):
     # Optional so a bank can run the whole book. Supplying ids scopes the run,
     # which is what a scheduled job wants when re-checking recent members only.

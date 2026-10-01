@@ -7,7 +7,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.models import AccountActivitySignal, Commitment, CommitmentBeneficiary, CommitmentMember, Contribution, ScoreHistory, User
+from app.models import AccountActivitySignal, Commitment, CommitmentBeneficiary, CommitmentMember, Contribution, ScoreHistory, User, UserConsent
 from app.services.scoring import ScoreSignals, build_score_report
 
 
@@ -46,10 +46,34 @@ def latest_score_history(db: Session, user_id: str) -> ScoreHistory | None:
     return db.query(ScoreHistory).filter(ScoreHistory.user_id == user_id).order_by(ScoreHistory.computed_at.desc(), ScoreHistory.id.desc()).first()
 
 
-def record_score_snapshot(db: Session, user_id: str, *, event_type: str, reason: str, source_id: str | None = None) -> ScoreHistory:
+def has_score_processing_consent(db: Session, user_id: str) -> bool:
+    """Return whether the member currently permits new Score processing."""
+    consent = (
+        db.query(UserConsent)
+        .filter(UserConsent.user_id == user_id, UserConsent.consent_type == "score_processing")
+        .one_or_none()
+    )
+    return bool(consent and consent.granted)
+
+
+def record_score_snapshot(
+    db: Session,
+    user_id: str,
+    *,
+    event_type: str,
+    reason: str,
+    source_id: str | None = None,
+) -> ScoreHistory | None:
+    """Persist a changed Score with its complete, immutable explanation.
+
+    A withdrawn consent stops new processing. Existing snapshots are audit
+    records, so they are never silently altered or erased by this function.
+    """
     user = db.get(User, user_id)
     if user is None:
         raise ValueError("Cannot record a score for an unknown user.")
+    if not has_score_processing_consent(db, user_id):
+        return None
     signals = build_score_signals(db, user_id)
     report = build_score_report(signals)
     previous = latest_score_history(db, user_id)
@@ -66,6 +90,27 @@ def get_score_report(db: Session, user_id: str) -> dict:
     if latest and latest.breakdown_json:
         return json.loads(latest.breakdown_json)
     return build_score_report(build_score_signals(db, user_id))
+
+
+def serialize_score_history_entry(row: ScoreHistory) -> dict[str, Any]:
+    """Expose the exact versioned evidence captured with one snapshot."""
+    stored = json.loads(row.breakdown_json) if row.breakdown_json else {}
+    signals = stored.get("signals")
+    if signals is None and row.signals_json:
+        signals = json.loads(row.signals_json)
+    return {
+        "id": row.id,
+        "score": row.score,
+        "score_before": row.score_before,
+        "event_type": row.event_type,
+        "source_id": row.source_id,
+        "reason": row.reason,
+        "computed_at": row.computed_at,
+        "breakdown": stored.get("breakdown", stored),
+        "weights": stored.get("weights", {}),
+        "signals": signals or {},
+        "score_version": row.score_version,
+    }
 
 
 def public_score_report(db: Session, user_id: str) -> dict[str, Any]:
@@ -119,6 +164,7 @@ def refresh_commitment_member_scores(
     commitment_id: str,
     *,
     event_id: str | None = None,
+    event_type: str = "contribution_processed",
     reason: str = "contribution_processed",
 ) -> None:
     commitment = db.get(Commitment, commitment_id)
@@ -135,7 +181,7 @@ def refresh_commitment_member_scores(
             record_score_snapshot(
                 db,
                 member.user_id,
-                event_type="contribution_processed",
+                event_type=event_type,
                 reason=reason,
                 source_id=event_id or commitment_id,
             )

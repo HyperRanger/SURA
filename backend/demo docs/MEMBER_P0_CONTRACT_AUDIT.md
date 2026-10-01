@@ -28,16 +28,17 @@ the PWA.
 | M6 invite preview | same preview endpoint | Needs response adjustment | Title, amounts, schedule, and slot are present. Vendor and member display names are not; only IDs are returned. Add presentation-safe first names and vendor name if the screen must show them. |
 | M7 consent | `POST /v1/consent` | Ready | Persists granted/declined score-processing consent; creation and joining enforce it. Consent copy remains frontend/static content. |
 | M8 joined confirmation | `POST /v1/commitments/join` | Needs response adjustment | Join state and commitment data are returned. The “who else joined” UI needs privacy-safe first-name display fields rather than raw IDs. |
-| M9 commitment overview | `GET /v1/commitments/{id}` | Needs response adjustment | Status, current cycle, schedules, contributions, and beneficiary state exist. Add derived current-cycle progress and display-safe names so the client does not reimplement Lock calculations. |
-| M9 schedule | same detail endpoint | Needs response adjustment | Cycle, beneficiary ID, payout amount, and status exist. No planned due date is stored, so the UI must not claim one. Add beneficiary first names; due-date support requires a separate agreed schedule model. |
-| M9 members | same detail endpoint | Needs response adjustment | Member role and join time exist. Add first names and a server-derived current-cycle payment state. Per-member missed counts are intentionally unsupported because no due-date/missed-member event is recorded. |
+| M9 commitment overview | `GET /v1/commitments/{id}` | Ready | Returns status, current-cycle progress, schedules, contributions, deadlines, lifecycle state, and display-safe names. The client does not reimplement Lock calculations. |
+| M9 schedule | same detail endpoint | Ready | Returns cycle, beneficiary, payout amount, status, and agreed current-cycle deadline. The server owns schedule advancement. |
+| M9 members | same detail endpoint | Ready | Returns first names, role, join time, and server-derived current-cycle payment state. Individual lateness labels remain intentionally unsupported. |
 | M9 activity | `GET /v1/commitments/{id}/activity` | Ready | Returns chronological commitment events with cycle and safe event details. |
 | M10 contribution | `POST /v1/commitments/{id}/contribute` | Ready | Server validates membership, active state, positive/remaining amount, and cycle transitions. The client must send body field `event_id`; it is **not** an `Idempotency-Key` header in this API. |
 | M11 contribution receipt/retry | contribution response | Ready | Returns stable `event_id`, `idempotent_replay`, contribution/cycle status, updated commitment state, and rule trace. |
 | M12/M13 beneficiary voucher | `GET /v1/commitments/{id}/cycles/{n}/voucher` | Needs response adjustment | Correctly beneficiary-only and supports locked/ready/redeemed state. The response has vendor ID but not vendor display name; there is no voucher expiry in the model, so the PWA must not invent one. QR rendering is frontend work from `voucher_code`. |
 | M14 pending cancellation | `POST /v1/commitments/{id}/cancel` | Ready | Creator-only and pending-only, exactly as required. |
 | M16 private score | `GET /v1/score/{user_id}` | Ready | Individual role only; the caller may request only their own score, tier, five-pillar breakdown, weights, and version. |
-| M17 private score history | `GET /v1/score/{user_id}/history` | Ready for the list | Individual role only; returns newest-first explainable history. Entry IDs and a dedicated entry route are absent, but M18 is P1. A client-side event-type filter is possible; a true pillar filter needs a separately agreed response/query contract. |
+| M17 private score history | `GET /v1/score/{user_id}/history` | Ready | Individual role only; returns newest-first explainable history with immutable entry IDs, source signals, weights, and score version. |
+| M18 score history detail | `GET /v1/score/{user_id}/history/{entry_id}` | Ready | Individual role only; returns one immutable Score snapshot for the explainability screen. |
 
 ## Phase 3 resolutions
 

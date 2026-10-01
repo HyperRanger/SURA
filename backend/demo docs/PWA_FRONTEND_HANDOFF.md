@@ -47,7 +47,7 @@ workstream.
 | Contribution receipt | `POST /v1/commitments/{commitment_id}/contribute` |
 | Beneficiary voucher | `GET /v1/commitments/{commitment_id}/cycles/{cycle_number}/voucher` |
 | Cancel pending Lock | `POST /v1/commitments/{commitment_id}/cancel` |
-| Private Score | `GET /v1/score/{user_id}`, `GET /v1/score/{user_id}/history` |
+| Private Score | `GET /v1/score/{user_id}`, `GET /v1/score/{user_id}/history`, `GET /v1/score/{user_id}/history/{entry_id}` |
 | Vendor dashboard | `GET /v1/app/vendor/overview` |
 | Vendor redemption | `POST /v1/vendors/redeem/validate`, `POST /v1/vendors/redeem` |
 | Vendor receipts | `GET /v1/vendors/redemptions`, `GET /v1/vendors/redemptions/{redemption_id}` |
@@ -68,6 +68,12 @@ workstream.
 - A voucher code belongs only in the beneficiary voucher view and the
   authenticated vendor terminal. Never display it in a general commitment
   screen.
+- Treat a Score history entry as immutable evidence. Render its stored
+  `signals`, `weights`, and `score_version`; do not recalculate or relabel a
+  historical score using a newer client rule.
+- The `score` object in `GET /v1/app/home` uses the same stable shape as
+  `GET /v1/score/{user_id}`. Deadline outcomes arrive through commitment state
+  and Score history; do not create a client-side missed-score calculation.
 - The vendor terminal never sends a `vendor_id` during validation or
   redemption. The API derives the merchant from the vendor session.
 - Validate a voucher, show the handover confirmation, then redeem it.

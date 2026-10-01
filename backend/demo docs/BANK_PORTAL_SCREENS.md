@@ -136,7 +136,8 @@ The authentication provider must issue a token containing `sub`, `role`, `instit
 - Current score and tier.
 - Five pillars: commitment behaviour, repayment behaviour, transaction stability, institutional verification, social reliability.
 - Score history with point changes and human-readable reasons.
-- Explainability view: event, inputs, score before/after, and policy rule used.
+- Explainability view: event, immutable source inputs, score before/after,
+  pillar weights, and the exact policy version used.
 
 ### B6c — Customer activity
 

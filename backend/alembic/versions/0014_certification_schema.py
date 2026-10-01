@@ -65,6 +65,24 @@ def upgrade() -> None:
         unique=False,
     )
 
+    op.create_table(
+        "account_restrictions",
+        sa.Column("id", sa.String(), nullable=False),
+        sa.Column("bank_id", sa.String(), sa.ForeignKey("bank_partners.id"), nullable=False),
+        sa.Column("user_id", sa.String(), sa.ForeignKey("users.id"), nullable=False),
+        sa.Column("action", sa.String(), nullable=False),
+        sa.Column("reason", sa.Text(), nullable=False),
+        sa.Column("evidence_json", sa.Text(), nullable=False, server_default="{}"),
+        sa.Column("flag_id", sa.String(), sa.ForeignKey("risk_flags.id"), nullable=True),
+        sa.Column("actor_id", sa.String(), nullable=False),
+        sa.Column("created_at", sa.DateTime(), nullable=True),
+        sa.Column("lifted_at", sa.DateTime(), nullable=True),
+        sa.Column("lifted_by", sa.String(), nullable=True),
+        sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_index("ix_account_restrictions_bank_id", "account_restrictions", ["bank_id"], unique=False)
+    op.create_index("ix_account_restrictions_user_id", "account_restrictions", ["user_id"], unique=False)
+
     op.add_column(
         "users",
         sa.Column("session_invalidated_at", sa.DateTime(), nullable=True),
@@ -79,6 +97,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.drop_index("ix_account_restrictions_user_id", table_name="account_restrictions")
+    op.drop_index("ix_account_restrictions_bank_id", table_name="account_restrictions")
+    op.drop_table("account_restrictions")
     op.drop_column("users", "restricted_at")
     op.drop_column("users", "restricted_by")
     op.drop_column("users", "restriction_reason")
