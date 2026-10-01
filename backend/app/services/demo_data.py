@@ -27,6 +27,7 @@ from app.models import (
     CommitmentBeneficiary,
     CommitmentMember,
     Contribution,
+    Institution,
     Redemption,
     PlatformAuditEvent,
     ScoreHistory,
@@ -50,56 +51,68 @@ LEGACY_DEMO_BANK_STAFF_USER_IDS = (
 DEMO_VENDOR_IDS = ("vnd_demo_electronics", "vnd_demo_education", "vnd_demo_equipment")
 DEMO_COMMITMENT_ID = "cmt_demo_laptop_rotation"
 DEMO_REDEMPTION_ID = "rdm_demo_laptop_cycle_1"
-DEMO_BANK_ID = "bnk_banter"
+DEMO_BANK_ID = "bnk_sura_partner"
 DEMO_BANK_PASSWORD = "demo-password-never-in-production"
 
-# The portfolio deliberately varies bank tenancy, onboarding context, balance,
-# consent, score inputs, and account state. It is deterministic so a reset
-# produces the same screen-recording story every time.
-DEMO_BANKS = (
-    ("bnk_banter", "Banter Bank", 20),
-    ("bnk_chai", "Chai Bank", 14),
-    ("bnk_kolo", "Kolo Bank", 12),
-    ("bnk_jollof", "Jollof Bank", 10),
-    ("bnk_gbedu", "Gbedu Bank", 8),
-    ("bnk_sapa", "Sapa Bank", 6),
+# There is deliberately one Sura API partner, not six bank tenants. ``bank_id``
+# is the security boundary for the Bank Portal, so every demo member belongs to
+# this tenant and is visible to its one administrator. The six institutions
+# below describe the bank a member uses; they are source context, not portals.
+DEMO_PARTNER_BANK = (DEMO_BANK_ID, "Sura Partner Bank")
+DEMO_SOURCE_INSTITUTIONS = (
+    ("inst_banter", "Banter Bank", 16),
+    ("inst_chai", "Chai Bank", 14),
+    ("inst_kolo", "Kolo Bank", 12),
+    ("inst_jollof", "Jollof Bank", 10),
+    ("inst_gbedu", "Gbedu Bank", 10),
+    ("inst_sapa", "Sapa Bank", 8),
 )
+LEGACY_DEMO_BANK_IDS = ("bnk_banter", "bnk_chai", "bnk_kolo", "bnk_jollof", "bnk_gbedu", "bnk_sapa", "bnk_demo")
 
-_EXTRA_DEMO_NAMES = (
-    "Bisi Lawal", "Chidi Nwosu", "Dami Akinola", "Efe Ighalo", "Fola Bamidele",
-    "Gburugburu Obi", "Hauwa Bello", "Ireti Cole", "Jide Martins", "Kemi Sanni",
-    "Lekan Yusuf", "Muna Kalu", "Nene Osei", "Ola Peters", "Pemi Adebayo",
-    "Qudus Balogun", "Rukayat Musa", "Seyi Adekunle", "Tari Briggs", "Uche Nnamdi",
-    "Vera Eze", "Wale Johnson", "Xena Okoro", "Yinka Fashola", "Zainab Garba",
-    "Adaeze Ibe", "Boma George", "Chuka Ekwueme", "Dera Nwachukwu", "Ebuka Obi",
-    "Favour Umeh", "Ganiyu Afolabi", "Hadiza Sani", "Ifeanyi Nduka", "Jumoke Adeyemi",
-    "Kelechi Obi", "Lami Abdullahi", "Moyo Adeniran", "Nkiru Okafor", "Ogechi Ude",
-    "Precious James", "Raliat Ibrahim", "Somi Eze", "Tolu Ojo", "Ugochukwu Nwankwo",
-    "Vicky Okon", "Wuraola Taiwo", "Xavier Ekanem", "Yejide Adewale", "Zara Mohammed",
-    "Ayo Bassey", "Bunmi Aina", "Cynthia Ezeani", "Deji Ajayi", "Ese Akpan",
-    "Feyi Akinyemi", "Gbemisola Ayo", "Halima Tanko", "Ikenna Okeke", "Jemima Udo",
-    "Kola Ogunleye", "Lola Nwafor", "Mariam Danjuma", "Nnamdi Okafor", "Oluwatobi Akin",
-    "Pere Davies", "Rasheed Adebisi", "Sade Olatunji",
+# First 30: contemporary English/Yoruba names. Then five Igbo, five Hausa,
+# five names from other Nigerian ethnicities, and a final mixed set. These are
+# fictional identities, intentionally suitable for a public demo.
+_DEMO_NAMES = (
+    "Amara Okafor", "Tunde Adeyemi", "Johnson Mitchell", "Adeayo Michael", "Adeogo Emmanuel",
+    "Tolulope Toluwanimi", "Kaly David", "Damilola Grace", "Folarin James", "Temilade Ayo",
+    "Oluwaseun Daniel", "Bimpe Williams", "Aderinsola Mercy", "Kehinde Samuel", "Ayomide Victoria",
+    "Tobi Emmanuel", "Morenike David", "Seyi Nathan", "Olamide Hope", "Yewande Michael",
+    "Bolanle Esther", "Dara Johnson", "Femi Alexander", "Kemi Grace", "Lekan Matthew",
+    "Reni Adewale", "Sola David", "Wale Emmanuel", "Zainab Tolu", "Ireti James",
+    "Muna Adebayo", "Pemi Oluwanifemi",
+    "Chiamaka Nwosu", "Ikenna Okafor", "Ngozi Eze", "Obinna Kalu", "Somto Umeh",
+    "Aisha Bello", "Hauwa Danjuma", "Sadiq Musa", "Maryam Abdullahi", "Yusuf Garba",
+    "Ebiere Tamuno", "Boma Briggs", "Efe Oghene", "Mfon Akpan", "Zibah Kpeen",
+    "Adaeze Ibe", "Chuka Ekwueme", "Dera Nwachukwu", "Ebuka Obi", "Favour Umeh",
+    "Ganiyu Afolabi", "Hadiza Sani", "Ifeanyi Nduka", "Jumoke Adeyemi", "Kelechi Obi",
+    "Lami Tanko", "Moyo Adeniran", "Nkiru Ude", "Ogechi Ezeani", "Precious James",
+    "Raliat Ibrahim", "Tari Briggs", "Ugochukwu Nwankwo", "Vicky Okon", "Wuraola Taiwo",
+    "Xavier Ekanem", "Yejide Adewale", "Zara Mohammed",
 )
+assert len(_DEMO_NAMES) == 70
 
-_BANK_ASSIGNMENTS = tuple(bank_id for bank_id, _, count in DEMO_BANKS for _ in range(count))
+_SOURCE_INSTITUTION_ASSIGNMENTS = tuple(
+    institution_id
+    for institution_id, _, count in DEMO_SOURCE_INSTITUTIONS
+    for _ in range(count)
+)
+assert len(_SOURCE_INSTITUTION_ASSIGNMENTS) == 70
 _CONTEXTS = ("student", "trader", "freelancer", "other")
 _BALANCES = (0, 450, 1_250, 3_800, 8_500, 15_000, 27_500, 43_000, 68_000, 125_000, 240_000, 510_000)
-_NON_ACTIVE_STATUSES = {17: "restricted", 36: "suspended", 58: "restricted", 67: "restricted"}
+_NON_ACTIVE_STATUSES = {17: "restricted", 36: "suspended", 58: "restricted"}
 
 
 def _customer_specs() -> tuple[tuple[str, str, str, str, str, int, str], ...]:
-    names = (("usr_demo_amara", "Amara Okafor"), ("usr_demo_tunde", "Tunde Adeyemi")) + tuple(
-        (f"usr_demo_member_{index:02d}", name)
-        for index, name in enumerate(_EXTRA_DEMO_NAMES, start=3)
+    names = tuple(
+        ("usr_demo_amara" if index == 1 else "usr_demo_tunde" if index == 2 else f"usr_demo_member_{index:02d}", name)
+        for index, name in enumerate(_DEMO_NAMES, start=1)
     )
-    assert len(names) == 70
     return tuple(
         (
             user_id,
             name,
             f"demo.member.{index:02d}@sura.local" if index > 2 else f"demo-{name.split()[0].lower()}@sura.local",
-            _BANK_ASSIGNMENTS[index - 1],
+            _SOURCE_INSTITUTION_ASSIGNMENTS[index - 1],
             _CONTEXTS[(index - 1) % len(_CONTEXTS)],
             _BALANCES[(index * 3) % len(_BALANCES)],
             _NON_ACTIVE_STATUSES.get(index, "active"),
@@ -110,8 +123,56 @@ def _customer_specs() -> tuple[tuple[str, str, str, str, str, int, str], ...]:
 
 DEMO_CUSTOMER_SPECS = _customer_specs()
 DEMO_CUSTOMER_IDS = tuple(row[0] for row in DEMO_CUSTOMER_SPECS)
-DEMO_BANK_IDS = tuple(row[0] for row in DEMO_BANKS)
-DEMO_RESET_BANK_IDS = (*DEMO_BANK_IDS, "bnk_demo")
+DEMO_RESET_BANK_IDS = (DEMO_BANK_ID, *LEGACY_DEMO_BANK_IDS)
+
+_ADDITIONAL_LOCK_TITLES = (
+    "Market Stock Circle", "Tuition Support Circle", "Studio Equipment Circle", "Tailoring Kit Circle",
+    "Phone Upgrade Circle", "Food Cart Circle", "Certification Fund", "Laptop Repair Circle",
+    "Creative Tools Circle", "Hostel Essentials Circle", "Camera Gear Circle", "Small Shop Circle",
+    "Design Course Circle", "Generator Service Circle", "Festival Stock Circle", "Medical Supplies Circle",
+    "Printing Press Circle", "Farm Inputs Circle", "Workwear Circle", "Solar Kit Circle",
+    "Bakery Tools Circle", "Trade Fair Circle", "Home Office Circle", "Graduation Fund",
+)
+assert len(_ADDITIONAL_LOCK_TITLES) == 24
+DEMO_COMMITMENT_IDS = (DEMO_COMMITMENT_ID, *(f"cmt_demo_circle_{index:02d}" for index in range(2, 26)))
+
+
+def _demo_lock_specs() -> tuple[dict[str, object], ...]:
+    specs: list[dict[str, object]] = [{
+        "id": DEMO_COMMITMENT_ID, "title": "Laptop Fund - Demo Rotation", "vendor_id": "vnd_demo_electronics",
+        "amount": 5_000, "cycles": 2, "status": "active", "current_cycle": 2, "completed_cycles": 1,
+        "members": ("usr_demo_amara", "usr_demo_tunde"),
+    }]
+    for index, title in enumerate(_ADDITIONAL_LOCK_TITLES, start=2):
+        status = "active" if index <= 10 else "pending_members" if index <= 17 else "completed"
+        members = tuple(DEMO_CUSTOMER_IDS[(index * 3 + offset) % len(DEMO_CUSTOMER_IDS)] for offset in range(4))
+        specs.append({
+            "id": f"cmt_demo_circle_{index:02d}", "title": title,
+            "vendor_id": DEMO_VENDOR_IDS[(index - 2) % len(DEMO_VENDOR_IDS)],
+            "amount": (2_000, 3_500, 5_000, 7_500)[index % 4], "cycles": 3, "status": status,
+            "current_cycle": 2 if status == "active" else 1 if status == "pending_members" else 3,
+            "completed_cycles": 1 if status == "active" else 0 if status == "pending_members" else 3,
+            "members": members,
+        })
+    return tuple(specs)
+
+
+DEMO_LOCK_SPECS = _demo_lock_specs()
+DEMO_RISK_FLAG_SPECS = (
+    ("usr_demo_tunde", "unusual_contribution_pattern", "low", "open"),
+    ("usr_demo_member_09", "identity_review", "medium", "open"),
+    ("usr_demo_member_17", "account_access_review", "high", "open"),
+    ("usr_demo_member_22", "duplicate_contact_review", "medium", "confirmed"),
+    ("usr_demo_member_28", "voucher_redemption_review", "low", "dismissed"),
+    ("usr_demo_member_36", "account_access_review", "high", "escalated"),
+    ("usr_demo_member_41", "contribution_timing_review", "medium", "open"),
+    ("usr_demo_member_47", "identity_review", "low", "dismissed"),
+    ("usr_demo_member_52", "unusual_contribution_pattern", "medium", "open"),
+    ("usr_demo_member_58", "account_access_review", "high", "confirmed"),
+    ("usr_demo_member_63", "voucher_redemption_review", "medium", "open"),
+    ("usr_demo_member_69", "duplicate_contact_review", "low", "dismissed"),
+)
+assert len(DEMO_RISK_FLAG_SPECS) == 12
 
 
 def _bank_customer_reference(user_id: str, bank_id: str, index: int) -> str:
@@ -144,13 +205,13 @@ def _reset_demo_data(db: Session) -> None:
     db.execute(delete(SessionRevocation).where(SessionRevocation.user_id.in_(demo_user_ids)))
     db.execute(delete(PlatformAuditEvent).where(PlatformAuditEvent.subject_id.in_(demo_user_ids)))
     db.execute(delete(AccountActivitySignal).where(AccountActivitySignal.user_id.in_(DEMO_CUSTOMER_IDS)))
-    db.execute(delete(Redemption).where(Redemption.commitment_id == DEMO_COMMITMENT_ID))
-    db.execute(delete(Voucher).where(Voucher.commitment_id == DEMO_COMMITMENT_ID))
-    db.execute(delete(Contribution).where(Contribution.commitment_id == DEMO_COMMITMENT_ID))
-    db.execute(delete(CommitmentActivity).where(CommitmentActivity.commitment_id == DEMO_COMMITMENT_ID))
-    db.execute(delete(CommitmentBeneficiary).where(CommitmentBeneficiary.commitment_id == DEMO_COMMITMENT_ID))
-    db.execute(delete(CommitmentMember).where(CommitmentMember.commitment_id == DEMO_COMMITMENT_ID))
-    db.execute(delete(Commitment).where(Commitment.id == DEMO_COMMITMENT_ID))
+    db.execute(delete(Redemption).where(Redemption.commitment_id.in_(DEMO_COMMITMENT_IDS)))
+    db.execute(delete(Voucher).where(Voucher.commitment_id.in_(DEMO_COMMITMENT_IDS)))
+    db.execute(delete(Contribution).where(Contribution.commitment_id.in_(DEMO_COMMITMENT_IDS)))
+    db.execute(delete(CommitmentActivity).where(CommitmentActivity.commitment_id.in_(DEMO_COMMITMENT_IDS)))
+    db.execute(delete(CommitmentBeneficiary).where(CommitmentBeneficiary.commitment_id.in_(DEMO_COMMITMENT_IDS)))
+    db.execute(delete(CommitmentMember).where(CommitmentMember.commitment_id.in_(DEMO_COMMITMENT_IDS)))
+    db.execute(delete(Commitment).where(Commitment.id.in_(DEMO_COMMITMENT_IDS)))
     db.execute(delete(ScoreHistory).where(ScoreHistory.user_id.in_(DEMO_CUSTOMER_IDS)))
     db.execute(delete(User).where(User.id.in_(demo_user_ids)))
     # An old demo shortcut may have created additional users under ``bnk_demo``.
@@ -164,6 +225,14 @@ def _reset_demo_data(db: Session) -> None:
     ]
     if empty_bank_ids:
         db.execute(delete(BankPartner).where(BankPartner.id.in_(empty_bank_ids)))
+    source_institution_ids = [row[0] for row in DEMO_SOURCE_INSTITUTIONS]
+    empty_institution_ids = [
+        institution_id
+        for institution_id in source_institution_ids
+        if db.query(User.id).filter(User.institution_id == institution_id).first() is None
+    ]
+    if empty_institution_ids:
+        db.execute(delete(Institution).where(Institution.id.in_(empty_institution_ids)))
 
 
 def seed_demo_data(db: Session, *, reset: bool = False) -> dict[str, object]:
@@ -190,15 +259,21 @@ def seed_demo_data(db: Session, *, reset: bool = False) -> dict[str, object]:
             vendor.category = category
             vendor.verified_at = now
 
-    for bank_id, bank_name, _ in DEMO_BANKS:
-        bank = db.get(BankPartner, bank_id)
-        if bank is None:
-            db.add(BankPartner(id=bank_id, name=bank_name, created_at=now))
-        else:
-            bank.name = bank_name
-            bank.environment = "sandbox"
+    bank = db.get(BankPartner, DEMO_BANK_ID)
+    if bank is None:
+        db.add(BankPartner(id=DEMO_BANK_ID, name=DEMO_PARTNER_BANK[1], environment="sandbox", created_at=now))
+    else:
+        bank.name = DEMO_PARTNER_BANK[1]
+        bank.environment = "sandbox"
 
-    for index, (user_id, name, phone, bank_id, context, balance, account_status) in enumerate(DEMO_CUSTOMER_SPECS, start=1):
+    for institution_id, name, _ in DEMO_SOURCE_INSTITUTIONS:
+        institution = db.get(Institution, institution_id)
+        if institution is None:
+            db.add(Institution(id=institution_id, name=name, fee_calendar_json=None))
+        else:
+            institution.name = name
+
+    for index, (user_id, name, phone, source_institution_id, context, balance, account_status) in enumerate(DEMO_CUSTOMER_SPECS, start=1):
         user = db.get(User, user_id)
         if user is None:
             db.add(User(
@@ -206,8 +281,9 @@ def seed_demo_data(db: Session, *, reset: bool = False) -> dict[str, object]:
                 name=name,
                 phone=phone,
                 verified_at=now,
-                bank_id=bank_id,
-                bank_customer_id=_bank_customer_reference(user_id, bank_id, index),
+                bank_id=DEMO_BANK_ID,
+                institution_id=source_institution_id,
+                bank_customer_id=_bank_customer_reference(user_id, source_institution_id, index),
                 role="individual",
                 context=context,
                 terms_accepted_at=now,
@@ -219,8 +295,9 @@ def seed_demo_data(db: Session, *, reset: bool = False) -> dict[str, object]:
             user.name = name
             user.phone = phone
             user.verified_at = now
-            user.bank_id = bank_id
-            user.bank_customer_id = _bank_customer_reference(user_id, bank_id, index)
+            user.bank_id = DEMO_BANK_ID
+            user.institution_id = source_institution_id
+            user.bank_customer_id = _bank_customer_reference(user_id, source_institution_id, index)
             user.role = "individual"
             user.context = context
             user.terms_accepted_at = now
@@ -233,7 +310,7 @@ def seed_demo_data(db: Session, *, reset: bool = False) -> dict[str, object]:
     # One portal identity only. Its administrator role carries every portal
     # permission so the demo never needs role switching or multiple OTP flows.
     staff_specs = (
-        ("usr_demo_bank_admin", "Banter Bank Portal Admin", "demo.admin@sura.local", "bank_admin", [], "2347065250811"),
+        ("usr_demo_bank_admin", "Sura Partner Bank Portal Admin", "demo.admin@sura.local", "bank_admin", [], "2347065250811"),
     )
     for user_id, name, email, role, permissions, mfa_phone in staff_specs:
         user = db.get(User, user_id)
@@ -286,24 +363,14 @@ def seed_demo_data(db: Session, *, reset: bool = False) -> dict[str, object]:
         staff.failed_password_attempts = 0
         staff.locked_until = None
         staff.password_changed_at = now
-    db.add(
-        Commitment(
-            id=DEMO_COMMITMENT_ID,
-            creator_id="usr_demo_amara",
-            type="rotating",
-            title="Laptop Fund — Demo Rotation",
-            vendor_id="vnd_demo_electronics",
-            contribution_amount=5000,
-            frequency="weekly",
-            cycles=2,
-            status="active",
-            invite_code="SURA-DEMO-LAPTOP",
-            payout_order_json=json.dumps(["usr_demo_amara", "usr_demo_tunde"]),
-            current_cycle_number=2,
-            completed_cycle_count=1,
-            created_at=now,
-        )
-    )
+    # Keep the two-member laptop story compact for the narrated walkthrough.
+    db.add(Commitment(
+        id=DEMO_COMMITMENT_ID, creator_id="usr_demo_amara", type="rotating",
+        title="Laptop Fund - Demo Rotation", vendor_id="vnd_demo_electronics", contribution_amount=5_000,
+        frequency="weekly", cycles=2, status="active", invite_code="SURA-DEMO-LAPTOP",
+        payout_order_json=json.dumps(["usr_demo_amara", "usr_demo_tunde"]), current_cycle_number=2,
+        completed_cycle_count=1, created_at=now - timedelta(days=14),
+    ))
     for index, user_id in enumerate(DEMO_CUSTOMER_IDS, start=1):
         # Different cadence lengths feed the transaction-stability Score pillar
         # without claiming to have verified a real bank transaction.
@@ -312,7 +379,7 @@ def seed_demo_data(db: Session, *, reset: bool = False) -> dict[str, object]:
             db.add(AccountActivitySignal(
                 id=f"act_demo_{user_id}_{offset_days}",
                 user_id=user_id,
-                institution_id=None,
+                institution_id=db.get(User, user_id).institution_id,
                 source="simulated_bank_rail",
                 occurred_at=now - timedelta(days=offset_days),
             ))
@@ -320,10 +387,10 @@ def seed_demo_data(db: Session, *, reset: bool = False) -> dict[str, object]:
         id="flag_demo_tunde_review",
         bank_id=DEMO_BANK_ID,
         user_id="usr_demo_tunde",
-        rule="demo_account_review",
+        rule="unusual_contribution_pattern",
         severity="low",
         status="open",
-        evidence_json='{"note":"Seeded demo review flag"}',
+        evidence_json='{"source":"seeded_demo","review_reason":"unusual_contribution_pattern"}',
         created_at=now,
     ))
     db.add_all(
@@ -399,6 +466,80 @@ def seed_demo_data(db: Session, *, reset: bool = False) -> dict[str, object]:
             voucher_code="SURA-DEMO-LAPTOP-01", status="settled", redeemed_at=now,
         )
     )
+    # The primary walkthrough above remains intentionally small and easy to
+    # narrate. The rest of the portfolio gives every screen realistic density:
+    # 25 Locks in total, overlapping membership, active/pending/completed states,
+    # and several vendor-linked historical settlements.
+    for lock_index, spec in enumerate(DEMO_LOCK_SPECS[1:], start=2):
+        commitment_id = str(spec["id"])
+        members = tuple(spec["members"])
+        status = str(spec["status"])
+        amount = int(spec["amount"])
+        cycles = int(spec["cycles"])
+        completed_cycles = int(spec["completed_cycles"])
+        created_at = now - timedelta(days=lock_index * 3)
+        db.add(Commitment(
+            id=commitment_id, creator_id=members[0], type="rotating", title=str(spec["title"]),
+            vendor_id=str(spec["vendor_id"]), contribution_amount=amount, frequency="weekly", cycles=cycles,
+            status=status, invite_code=f"SURA-DEMO-{lock_index:02d}", payout_order_json=json.dumps(members),
+            current_cycle_number=int(spec["current_cycle"]), completed_cycle_count=completed_cycles,
+            created_at=created_at,
+        ))
+        for member_index, user_id in enumerate(members):
+            role = "invited" if status == "pending_members" and member_index == len(members) - 1 else "contributor"
+            db.add(CommitmentMember(commitment_id=commitment_id, user_id=user_id, role=role, joined_at=created_at))
+        db.add(CommitmentActivity(
+            id=f"act_demo_{lock_index:02d}_created", commitment_id=commitment_id, event_type="commitment_created",
+            actor_user_id=members[0], detail_json=json.dumps({"title": spec["title"]}), occurred_at=created_at,
+        ))
+        payout_amount = amount * len(members)
+        for cycle_number in range(1, cycles + 1):
+            settled = cycle_number <= completed_cycles
+            beneficiary_id = members[(cycle_number - 1) % len(members)]
+            db.add(CommitmentBeneficiary(
+                id=f"bnf_demo_{lock_index:02d}_{cycle_number}", commitment_id=commitment_id, cycle_number=cycle_number,
+                user_id=beneficiary_id, payout_amount=payout_amount, status="redeemed" if settled else "scheduled",
+            ))
+            if settled:
+                code = f"SURA-DEMO-{lock_index:02d}-{cycle_number:02d}"
+                redeemed_at = now - timedelta(days=10 + lock_index + cycle_number)
+                db.add(Voucher(
+                    id=f"vch_demo_{lock_index:02d}_{cycle_number}", commitment_id=commitment_id,
+                    beneficiary_id=beneficiary_id, vendor_id=str(spec["vendor_id"]), cycle_number=cycle_number,
+                    amount=payout_amount, code=code, status="redeemed", issued_at=redeemed_at - timedelta(days=1),
+                    redeemed_at=redeemed_at,
+                ))
+                db.add(Redemption(
+                    id=f"rdm_demo_{lock_index:02d}_{cycle_number}", commitment_id=commitment_id,
+                    beneficiary_id=beneficiary_id, vendor_id=str(spec["vendor_id"]), cycle_number=cycle_number,
+                    amount=payout_amount, voucher_code=code, status="settled", redeemed_at=redeemed_at,
+                ))
+                db.add(CommitmentActivity(
+                    id=f"act_demo_{lock_index:02d}_cycle_{cycle_number}_paid", commitment_id=commitment_id,
+                    event_type="cycle_paid", cycle_number=cycle_number,
+                    detail_json=json.dumps({"beneficiary_id": beneficiary_id, "amount": payout_amount}),
+                    occurred_at=redeemed_at - timedelta(days=1),
+                ))
+            contributors = (
+                members if settled else members[:1]
+                if status == "active" and cycle_number == int(spec["current_cycle"])
+                else ()
+            )
+            for member_index, user_id in enumerate(contributors, start=1):
+                db.add(Contribution(
+                    id=f"ctr_demo_{lock_index:02d}_{cycle_number}_{member_index}", commitment_id=commitment_id,
+                    cycle_number=cycle_number, user_id=user_id, amount=amount,
+                    event_id=f"evt_demo_{lock_index:02d}_{cycle_number}_{member_index}", status="full",
+                    rule_trace_json="{}", paid_at=now - timedelta(days=max(0, 2 + lock_index - cycle_number)),
+                ))
+
+    for flag_index, (user_id, rule, severity, flag_status) in enumerate(DEMO_RISK_FLAG_SPECS[1:], start=2):
+        db.add(RiskFlag(
+            id=f"flag_demo_{flag_index:02d}", bank_id=DEMO_BANK_ID, user_id=user_id, rule=rule,
+            severity=severity, status=flag_status,
+            evidence_json=json.dumps({"source": "seeded_demo", "review_reason": rule}),
+            created_at=now - timedelta(days=flag_index),
+        ))
     db.flush()
     for user_id in DEMO_CUSTOMER_IDS:
         record_score_snapshot(
@@ -426,9 +567,15 @@ def seed_demo_data(db: Session, *, reset: bool = False) -> dict[str, object]:
         "created": True,
         "users": list(DEMO_CUSTOMER_IDS),
         "user_count": len(DEMO_CUSTOMER_IDS),
-        "banks": [{"bank_id": bank_id, "name": name, "customer_count": count} for bank_id, name, count in DEMO_BANKS],
+        "partner_bank": {"bank_id": DEMO_BANK_ID, "name": DEMO_PARTNER_BANK[1], "customer_count": len(DEMO_CUSTOMER_IDS)},
+        "source_institutions": [
+            {"institution_id": institution_id, "name": name, "customer_count": count}
+            for institution_id, name, count in DEMO_SOURCE_INSTITUTIONS
+        ],
         "bank_id": DEMO_BANK_ID,
         "bank_staff": [email for _, _, email, _, _, _ in staff_specs],
+        "commitment_count": len(DEMO_LOCK_SPECS),
+        "open_risk_flag_count": sum(status == "open" for _, _, _, status in DEMO_RISK_FLAG_SPECS),
         "commitment_id": DEMO_COMMITMENT_ID,
         "vendor_id": "vnd_demo_electronics",
         "voucher_code": "SURA-DEMO-LAPTOP-01",

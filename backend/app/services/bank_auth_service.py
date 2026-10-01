@@ -31,6 +31,7 @@ from app.bank.contracts import BANK_PORTAL_ROLES, BANK_STAFF_ROLE_PERMISSIONS
 from app.bank.models import BankAuditEvent, BankPartner, BankStaff
 from app.models import AuthChallenge, User
 from app.services import audit, auth_service
+from app.services.demo_data import DEMO_BANK_ID, DEMO_BANK_PASSWORD, DEMO_PARTNER_BANK
 from core.config import get_settings
 from core.passwords import PasswordTooLong, hash_password, verify_password
 from core.security import create_token, is_local_session, otp_matches, token_expiry
@@ -548,8 +549,7 @@ def change_permissions(db: Session, actor: BankStaff, target_staff_id: str, perm
 
 DEMO_BANK_STAFF_EMAIL = "demo.admin@sura.local"
 DEMO_BANK_STAFF_ROLE = "bank_admin"
-DEMO_BANK_ID = "bnk_banter"
-DEMO_BANK_NAME = "Banter Bank"
+DEMO_BANK_NAME = DEMO_PARTNER_BANK[1]
 DEMO_BANK_STAFF_USER_ID = "usr_demo_bank_admin"
 
 
@@ -571,7 +571,7 @@ def demo_login(db: Session) -> dict[str, Any]:
     if user is None:
         user = User(
             id=DEMO_BANK_STAFF_USER_ID,
-            name="Banter Bank Portal Admin",
+            name="Sura Partner Bank Portal Admin",
             phone=DEMO_BANK_STAFF_EMAIL,
             role=DEMO_BANK_STAFF_ROLE,
             phone_verified_at=now,
@@ -591,7 +591,7 @@ def demo_login(db: Session) -> dict[str, Any]:
             bank_id=bank.id,
             user_id=user.id,
             email=DEMO_BANK_STAFF_EMAIL,
-            password_hash=hash_password("demo-password-never-in-production"),
+            password_hash=hash_password(DEMO_BANK_PASSWORD),
             role=DEMO_BANK_STAFF_ROLE,
             permissions_json=json.dumps(sorted(BANK_STAFF_ROLE_PERMISSIONS[DEMO_BANK_STAFF_ROLE])),
             mfa_phone="2347065250817",

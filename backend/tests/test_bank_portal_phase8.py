@@ -24,12 +24,12 @@ def test_monitoring_filters_details_and_audit_export(client, auth_headers):
 
     overview = client.get("/v1/bank/overview", headers=headers)
     assert overview.status_code == 200, overview.text
-    assert overview.json()["customers"] == 20
+    assert overview.json()["customers"] == 70
     assert "recent_settlements" in overview.json()
 
     users = client.get("/v1/bank/users?verified=true&commitment_status=active", headers=headers)
     assert users.status_code == 200, users.text
-    assert {row["user_id"] for row in users.json()} == {"usr_demo_amara", "usr_demo_tunde"}
+    assert {"usr_demo_amara", "usr_demo_tunde"}.issubset({row["user_id"] for row in users.json()})
 
     commitments = client.get("/v1/bank/commitments?q=Laptop&status=active", headers=headers)
     assert commitments.status_code == 200, commitments.text

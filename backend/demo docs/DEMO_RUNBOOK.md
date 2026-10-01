@@ -55,10 +55,10 @@ GET /v1/bank/settlements
 GET /v1/bank/audit-log
 ```
 
-Banter Bank sees its 20-customer portfolio, including the Lock, advisory Group
-Health, simulated settlement, Score history, and audit trail. The seed holds 70
-customers across six tenants, allowing tenant-isolation and filter scenarios.
-Bank staff records are excluded from customer counts.
+Sura Partner Bank sees its 70-customer portfolio, including the Lock, advisory
+Group Health, simulated settlement, Score history, and audit trail. Members use
+six different source institutions, while all 70 belong to this one Sura API
+tenant. Bank staff records are excluded from customer counts.
 
 ## 4. Explain the score plainly
 

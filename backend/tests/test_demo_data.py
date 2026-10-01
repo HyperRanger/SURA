@@ -1,5 +1,5 @@
 from app.bank.models import BankAuditEvent, BankPartner, BankStaff, RiskFlag
-from app.models import Commitment, Redemption, User, Voucher
+from app.models import Commitment, CommitmentMember, Redemption, User, Voucher
 from app.services.demo_data import DEMO_BANK_ID, DEMO_COMMITMENT_ID, DEMO_REDEMPTION_ID, seed_demo_data
 
 
@@ -14,8 +14,26 @@ def test_demo_data_seed_is_idempotent_and_contains_the_demo_story(client):
         assert db.get(Voucher, "vch_demo_laptop_cycle_1").status == "redeemed"
         assert first["user_count"] == 70
         assert db.query(User).filter(User.id.in_(first["users"])).count() == 70
-        assert db.query(BankPartner).filter(BankPartner.id.in_([bank["bank_id"] for bank in first["banks"]])).count() == 6
-        assert [bank["customer_count"] for bank in first["banks"]] == [20, 14, 12, 10, 8, 6]
+        assert db.query(BankPartner).filter(BankPartner.id == DEMO_BANK_ID).count() == 1
+        assert first["partner_bank"]["customer_count"] == 70
+        assert [bank["customer_count"] for bank in first["source_institutions"]] == [16, 14, 12, 10, 10, 8]
+        assert first["commitment_count"] == 25
+        commitments = db.query(Commitment).filter(Commitment.id.like("cmt_demo_%")).all()
+        assert len(commitments) == 25
+        assert {row.status for row in commitments} == {"active", "pending_members", "completed"}
+        assert sum(row.status == "active" for row in commitments) == 10
+        assert sum(row.status == "pending_members" for row in commitments) == 7
+        assert sum(row.status == "completed" for row in commitments) == 8
+        member_ids = {
+            row[0]
+            for row in db.query(CommitmentMember.user_id)
+            .filter(CommitmentMember.commitment_id.in_([row.id for row in commitments]))
+            .distinct()
+            .all()
+        }
+        assert member_ids == set(first["users"])
+        assert db.query(RiskFlag).filter(RiskFlag.bank_id == DEMO_BANK_ID).count() == 12
+        assert db.query(RiskFlag.status).filter(RiskFlag.bank_id == DEMO_BANK_ID).distinct().count() == 4
         assert db.query(BankStaff).count() == 1
         assert db.get(User, "usr_demo_amara").available_balance > 0
         assert db.query(BankAuditEvent).filter(BankAuditEvent.bank_id == DEMO_BANK_ID).count() == 2
@@ -91,12 +109,13 @@ def test_seeded_bank_story_is_available_through_bank_portal_routes(client):
 
     overview = client.get("/v1/bank/overview", headers=headers)
     assert overview.status_code == 200, overview.text
-    assert overview.json()["customers"] == 20
+    assert overview.json()["customers"] == 70
 
     customer = client.get("/v1/bank/users?bank_customer_id=CUST-DEMO-8241", headers=headers)
     assert customer.status_code == 200, customer.text
     assert customer.json()[0]["user_id"] == "usr_demo_amara"
     assert customer.json()[0]["available_balance"] > 0
+    assert customer.json()[0]["source_institution"] == {"institution_id": "inst_banter", "name": "Banter Bank"}
 
     member_login = client.post(
         "/v1/auth/demo-token",
@@ -112,7 +131,7 @@ def test_seeded_bank_story_is_available_through_bank_portal_routes(client):
 
     commitments = client.get("/v1/bank/commitments", headers=headers)
     assert commitments.status_code == 200, commitments.text
-    assert commitments.json()[0]["commitment_id"] == DEMO_COMMITMENT_ID
+    assert DEMO_COMMITMENT_ID in {row["commitment_id"] for row in commitments.json()}
 
     settlements = client.get("/v1/bank/settlements", headers=headers)
     assert settlements.status_code == 200, settlements.text

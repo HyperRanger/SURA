@@ -12,26 +12,38 @@ unrelated records.
 
 ## Population
 
-The seed creates 70 individual customer identities across six sandbox bank
-tenants. The customers deliberately vary by onboarding context, available
-balance, activity cadence, Score-processing consent, and account-review state.
-This supports realistic search, filter, empty-state, tenant-isolation, and
-Score scenarios without representing real people or bank balances.
+The seed creates 70 fictional individual identities for **one** Sura API
+partner: Sura Partner Bank (`bnk_sura_partner`). Its sole portal administrator
+can search and review all 70 customers. The six banks below are the source
+institutions members use; they are not separate Sura Portal tenants.
 
-| Bank | ID | Customers |
+Customers deliberately vary by onboarding context, available balance, activity
+cadence, Score-processing consent, account-review state, and Lock membership.
+This supports realistic search, filters, empty states, portfolio views, and
+Score scenarios without representing real people, banks, or balances.
+
+| Source institution | ID | Customers |
 |---|---|---:|
-| Banter Bank | `bnk_banter` | 20 |
-| Chai Bank | `bnk_chai` | 14 |
-| Kolo Bank | `bnk_kolo` | 12 |
-| Jollof Bank | `bnk_jollof` | 10 |
-| Gbedu Bank | `bnk_gbedu` | 8 |
-| Sapa Bank | `bnk_sapa` | 6 |
+| Banter Bank | `inst_banter` | 16 |
+| Chai Bank | `inst_chai` | 14 |
+| Kolo Bank | `inst_kolo` | 12 |
+| Jollof Bank | `inst_jollof` | 10 |
+| Gbedu Bank | `inst_gbedu` | 10 |
+| Sapa Bank | `inst_sapa` | 8 |
 
-The primary Bank Portal tenant is Banter Bank. Its portfolio contains the
-existing Lock walkthrough members, Amara Okafor and Tunde Adeyemi, plus 18
-additional tenant-scoped customers. Account balances are stored as integer
-NGN snapshots and are available only to the Bank Portal, never to member or
-vendor APIs.
+Names include modern English/Yoruba names, plus Igbo, Hausa, and other Nigerian
+ethnicities. Every identity has a name. Account balances are integer NGN
+snapshots available only to the Bank Portal, never to member or vendor APIs.
+
+## Lock and review portfolio
+
+- 25 rotating Locks: 10 active, 7 awaiting members, and 8 completed.
+- Membership overlaps intentionally, so some members appear in more than one
+  group and all 70 people can appear in realistic portfolio searches.
+- Completed cycles have voucher and simulated vendor-redemption history.
+- 12 varied review flags at most, with open, confirmed, dismissed, and
+  escalated states. They are demo review records, not a claim that Sura has
+  independently detected or verified fraud.
 
 ## Main Lock story
 
@@ -47,7 +59,7 @@ vendor APIs.
 ## Bank Portal login
 
 Only one Bank Portal account is seeded. It uses the administrator role, which
-has every portal permission for Banter Bank. The password is demo-only; MFA is
+has every portal permission for Sura Partner Bank. The password is demo-only; MFA is
 still required.
 
 | Role | Email |
