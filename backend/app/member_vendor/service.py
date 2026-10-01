@@ -4,7 +4,7 @@ These functions deliberately compose established domain services. They do not
 reimplement commitment, score, or voucher rules.
 """
 
-from datetime import date, datetime
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -50,7 +50,10 @@ def get_member_home(db: Session, user_id: str) -> dict[str, Any]:
 def get_vendor_overview(db: Session, vendor_id: str) -> dict[str, Any]:
     redemptions = list_vendor_redemptions(db, vendor_id)
     vendor = db.get(Vendor, vendor_id)
-    today = date.today()
+    # Redemption timestamps are persisted as naive UTC across the current
+    # schema. Compare them with the same clock; using local ``date.today()``
+    # made the dashboard report zero just after midnight in a non-UTC region.
+    today = datetime.utcnow().date()
     today_rows = [
         item
         for item in redemptions

@@ -49,7 +49,6 @@ directory search endpoint.
 | GET | `/v1/commitments/preview?code={invite_code}` | Preview a pending invitation for the intended invitee. | Individual |
 | POST | `/v1/commitments/join` | Join an invitation. Body: `{ "invite_code": "SURA-..." }`. | Invited individual |
 | POST | `/v1/commitments/{commitment_id}/decline` | Decline an unresolved invitation before activation. | Invited individual |
-| POST | `/v1/commitments/{commitment_id}/members/{invited_user_id}/replace` | Replace an unresolved invitee. Body: `{ "replacement_user_id": "..." }`. | Creator only |
 | POST | `/v1/commitments/{commitment_id}/cancel` | Cancel a pending Lock. | Creator only |
 | GET | `/v1/commitments/{commitment_id}` | Read the authorised member-safe Lock detail, schedule, and current cycle. | Group member |
 | GET | `/v1/commitments/{commitment_id}/activity` | Read Lock activity. | Group member |
@@ -70,9 +69,14 @@ The Lock preview and create requests use the same body:
   "members": ["usr_demo_amara", "usr_demo_tunde"],
   "payout_order": ["usr_demo_amara", "usr_demo_tunde"],
   "first_cycle_due_at": "2026-10-10T12:00:00Z",
-  "grace_period_hours": 72
+  "grace_period_hours": 72,
+  "missed_cycle_policy": "carry_forward"
 }
 ```
+
+`grace_period_hours` is fixed at `72` for every demo Lock. The client must
+choose and send one missed-cycle policy: `cover_shortfall`, `carry_forward`,
+or `cancel_and_refund`.
 
 For contributions, create one UUID when the user confirms payment and reuse it
 only to retry the same request:

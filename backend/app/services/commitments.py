@@ -199,6 +199,7 @@ def _refresh_lifecycle(db: Session, commitment: Commitment, *, now: datetime | N
             "due_at": commitment.current_cycle_due_at.isoformat() if commitment.current_cycle_due_at else None,
             "grace_period_hours": commitment.grace_period_hours,
             "previous_status": previous,
+            "missed_cycle_policy": commitment.missed_cycle_policy,
         },
     )
     if next_state == "missed":
@@ -213,6 +214,31 @@ def _refresh_lifecycle(db: Session, commitment: Commitment, *, now: datetime | N
             event_type="cycle_missed",
             reason="cycle_missed",
         )
+        if commitment.missed_cycle_policy == "cancel_and_refund":
+            # Sura does not custody funds. In the demo this is a durable,
+            # auditable refund instruction for the bank rail simulator; a
+            # production adapter will execute and reconcile the transfer.
+            paid_total = (
+                db.query(func.coalesce(func.sum(Contribution.amount), 0))
+                .filter(
+                    Contribution.commitment_id == commitment.id,
+                    Contribution.cycle_number == commitment.current_cycle_number,
+                )
+                .scalar()
+            )
+            commitment.status = "cancelled"
+            beneficiary.status = "cancelled"
+            _record_activity(
+                db,
+                commitment.id,
+                "refund_instruction_created",
+                cycle_number=commitment.current_cycle_number,
+                details={
+                    "policy": "cancel_and_refund",
+                    "simulated_refund_total": int(paid_total or 0),
+                    "settlement": "bank_rail_required",
+                },
+            )
     return True
 
 
@@ -236,6 +262,15 @@ def _normalize_member_ids(member_ids: list[str]) -> list[str]:
         seen.add(member_id)
         normalized.append(member_id)
     return normalized
+
+
+def _require_rotating_group_size(member_ids: list[str]) -> None:
+    """A rotating pool cannot have fewer than two final members."""
+    if len(member_ids) < 2:
+        raise HTTPException(
+            status_code=400,
+            detail="A rotating commitment requires at least two distinct members.",
+        )
 
 
 def _ensure_member_user(db: Session, user_id: str) -> None:
@@ -336,6 +371,7 @@ def preview_lock(
         raise HTTPException(status_code=403, detail="creator_id must match the authenticated user.")
     if authenticated_creator_id not in member_ids:
         member_ids = _normalize_member_ids([authenticated_creator_id, *member_ids])
+    _require_rotating_group_size(member_ids)
     if payload.cycles != len(member_ids):
         raise HTTPException(status_code=400, detail="A rotating commitment must have one cycle per member.")
 
@@ -440,6 +476,7 @@ def _serialize_commitment(commitment: Commitment, db: Session) -> dict[str, Any]
         "first_cycle_due_at": commitment.first_cycle_due_at.isoformat() if commitment.first_cycle_due_at else None,
         "current_cycle_due_at": commitment.current_cycle_due_at.isoformat() if commitment.current_cycle_due_at else None,
         "grace_period_hours": commitment.grace_period_hours,
+        "missed_cycle_policy": commitment.missed_cycle_policy,
         "missed_cycle_count": commitment.missed_cycle_count,
         "cycles": commitment.cycles,
         "status": commitment.status,
@@ -562,6 +599,7 @@ def create_commitment(
     creator_id = authenticated_creator_id
     if creator_id not in member_ids:
         member_ids = _normalize_member_ids([creator_id, *member_ids])
+    _require_rotating_group_size(member_ids)
     if payload.cycles != len(member_ids):
         raise HTTPException(
             status_code=400,
@@ -604,6 +642,7 @@ def create_commitment(
                 completed_cycle_count=0,
                 first_cycle_due_at=payload.first_cycle_due_at or default_first_due_at(payload.contribution_frequency, datetime.utcnow()),
                 grace_period_hours=payload.grace_period_hours,
+                missed_cycle_policy=payload.missed_cycle_policy,
             )
             db.add(commitment)
             db.flush()
@@ -639,7 +678,12 @@ def create_commitment(
                 commitment.id,
                 "commitment_created",
                 actor_user_id=creator_id,
-                details={"title": commitment.title, "vendor_id": commitment.vendor_id, "member_count": len(member_ids)},
+                details={
+                    "title": commitment.title,
+                    "vendor_id": commitment.vendor_id,
+                    "member_count": len(member_ids),
+                    "missed_cycle_policy": commitment.missed_cycle_policy,
+                },
             )
 
             return _serialize_commitment(commitment, db), {
@@ -733,9 +777,6 @@ def record_contribution(
             if commitment.status not in {"active", "overdue", "missed"}:
                 raise HTTPException(status_code=400, detail="Commitment is not accepting contributions.")
 
-            if payload.amount > commitment.contribution_amount:
-                raise HTTPException(status_code=400, detail="Contribution amount cannot exceed the commitment amount.")
-
             current_cycle = commitment.current_cycle_number
             member_total_before = (
                 db.query(Contribution)
@@ -747,10 +788,6 @@ def record_contribution(
                 .with_entities(func.coalesce(func.sum(Contribution.amount), 0))
                 .scalar()
             )
-            if member_total_before >= commitment.contribution_amount:
-                raise HTTPException(status_code=400, detail="This member has already completed the current cycle contribution.")
-            if member_total_before + payload.amount > commitment.contribution_amount:
-                raise HTTPException(status_code=400, detail="Contribution exceeds the member's remaining amount for this cycle.")
             cycle_total_before = (
                 db.query(Contribution)
                 .filter(
@@ -760,6 +797,26 @@ def record_contribution(
                 .with_entities(func.coalesce(func.sum(Contribution.amount), 0))
                 .scalar()
             )
+            required_cycle_total = commitment.contribution_amount * db.query(CommitmentMember).filter(
+                CommitmentMember.commitment_id == commitment_id,
+                CommitmentMember.role.in_(("creator", "contributor")),
+            ).count()
+            allows_shortfall_cover = (
+                commitment.status == "missed"
+                and commitment.missed_cycle_policy == "cover_shortfall"
+                and member_total_before >= commitment.contribution_amount
+                and cycle_total_before < required_cycle_total
+            )
+            if allows_shortfall_cover:
+                remaining = required_cycle_total - cycle_total_before
+                if payload.amount > remaining:
+                    raise HTTPException(status_code=400, detail="Contribution exceeds the remaining cycle shortfall.")
+            elif payload.amount > commitment.contribution_amount:
+                raise HTTPException(status_code=400, detail="Contribution amount cannot exceed the commitment amount.")
+            if member_total_before >= commitment.contribution_amount and not allows_shortfall_cover:
+                raise HTTPException(status_code=400, detail="This member has already completed the current cycle contribution.")
+            if not allows_shortfall_cover and member_total_before + payload.amount > commitment.contribution_amount:
+                raise HTTPException(status_code=400, detail="Contribution exceeds the member's remaining amount for this cycle.")
 
             contribution_row = Contribution(
                 id=str(uuid.uuid4()),
@@ -768,7 +825,7 @@ def record_contribution(
                 user_id=contributor_user_id,
                 amount=payload.amount,
                 event_id=payload.event_id,
-                status="full" if payload.amount == commitment.contribution_amount else "partial",
+                status="shortfall_cover" if allows_shortfall_cover else "full" if payload.amount == commitment.contribution_amount else "partial",
                 rule_trace_json="{}",
                 paid_at=datetime.utcnow(),
             )
@@ -794,6 +851,7 @@ def record_contribution(
                 cycle_total_before=cycle_total_before,
                 member_count=member_count,
                 distinct_contributors=distinct_contributors,
+                allows_shortfall_cover=allows_shortfall_cover,
             )
 
             # The row inserted just above is already in hand, so the engine's verdict

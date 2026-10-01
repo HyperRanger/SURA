@@ -15,7 +15,13 @@ class LockRequest(BaseModel):
     payout_order: Optional[List[str]] = None
     creator_id: Optional[str] = None
     first_cycle_due_at: datetime | None = None
-    grace_period_hours: int = Field(default=72, ge=1, le=168)
+    # This is a fixed, disclosed demo policy. Keeping the field in the request
+    # makes the agreement visible to clients while rejecting ad-hoc per-group
+    # grace windows that would make the rules harder to explain.
+    grace_period_hours: int = Field(default=72, ge=72, le=72)
+    # Clients should always send this explicitly. The default preserves the
+    # contract for an already-created invite or an older demo client.
+    missed_cycle_policy: Literal["cover_shortfall", "carry_forward", "cancel_and_refund"] = "carry_forward"
 
 
 class ContributionRequest(BaseModel):

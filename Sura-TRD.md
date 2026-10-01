@@ -1,6 +1,6 @@
 # Sura Technical Requirements Document
 
-Version 1.0  
+Version 1.1
 Companion to PRD.md. Read that first for scope and priorities.  
 Regional pitch date: October 8, 2026
 
@@ -104,7 +104,11 @@ The floats table exists in the schema for forward compatibility with the full bl
 
 ## 4. API Specification
 
-Base path: /v1. All requests and responses are JSON. Every write endpoint should accept an Idempotency-Key header even in the MVP, since retried requests during a live demo are a real risk.
+Base path: /v1. All requests and responses are JSON. For the regional demo, the
+contribution write uses the durable request-body `event_id` contract: a retry
+must reuse the same ID and amount. Other writes do not yet implement a generic
+`Idempotency-Key` header; that is a production requirement recorded in
+`backend/demo docs/DEMO_TO_PRODUCTION.md`.
 
 ### POST /v1/commitments/lock
 
@@ -118,9 +122,10 @@ Request body:
   "title": "string",
   "vendor_id": "string",
   "contribution_amount": 1000,
-  "contribution_frequency": "daily",
+  "contribution_frequency": "weekly",
   "cycles": 4,
-  "members": ["user_id", "user_id2"]
+  "members": ["user_id", "user_id2"],
+  "missed_cycle_policy": "carry_forward"
 }
 ```
 
@@ -138,7 +143,10 @@ Response, 201:
 }
 ```
 
-The payout schedule returned here must already reflect the anchor and cap rule in section 5.1, not a naive order-of-invitation assignment.
+The final group must contain at least two distinct people. The payout schedule
+returned here must already reflect the anchor and cap rule in section 5.1, not
+a naive order-of-invitation assignment. The demo supports weekly and monthly
+frequencies and a fixed 72-hour grace window.
 
 ### POST /v1/commitments/{id}/contribute
 
@@ -148,8 +156,8 @@ Request body:
 
 ```json
 {
-  "user_id": "string",
-  "amount": 1000
+  "amount": 1000,
+  "event_id": "stable-client-uuid"
 }
 ```
 
@@ -218,6 +226,11 @@ Recalculation trigger: Recompute a user's score after every contribution, every 
 ### 5.3 Vendor lock and redemption
 
 A commitment's vendor_id is fixed at creation and cannot be changed. A redemption event can only be created for a commitment's already linked vendor. There is no code path that allows a payout to be marked as cash. If this constraint is ever relaxed for testing convenience, it must be reverted before the demo, since it is one of the product's core honesty claims.
+
+For the regional demo, a vendor must be verified before a Lock can be created.
+The production onboarding flow will allow a user to express interest in an
+unverified vendor while keeping the Lock pending and unreleasable until the
+vendor has passed verification.
 
 ---
 
