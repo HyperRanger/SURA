@@ -5,19 +5,13 @@ import { isDemoEnabled } from "@/config/env"
 import { bankGuarantees } from "@/config/for-banks"
 import { routes } from "@/config/routes"
 import { siteConfig } from "@/config/site"
-import { Badge } from "@/components/ui/badge"
 import { buttonVariants } from "@/components/ui/button"
 
 export function ForBanksHero() {
   return (
     <section className="relative overflow-hidden pt-10 pb-16 md:pt-16 md:pb-24">
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute -top-20 left-[-10%] size-144 rounded-full bg-primary/12 blur-3xl"
-      />
       <div className="container-page relative grid items-center gap-12 lg:grid-cols-[1.15fr_0.85fr]">
         <div>
-          <Badge>for banks and fintechs</Badge>
           <h1 className="mt-6 text-4xl leading-[1.05] font-black tracking-tight text-balance sm:text-5xl md:text-6xl">
             a savings product and a credit signal, <span className="text-primary">in one api.</span>
           </h1>
