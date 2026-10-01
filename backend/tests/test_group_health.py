@@ -1,4 +1,6 @@
-"""Phase 8 group-health contract tests."""
+"""Phase F group-health contract tests."""
+
+from datetime import datetime, timedelta
 
 from app.models import Commitment, CommitmentBeneficiary
 from app.services.demo_data import DEMO_BANK_ID, DEMO_COMMITMENT_ID, seed_demo_data
@@ -28,8 +30,8 @@ def test_member_group_health_is_aggregate_advisory_and_member_scoped(client, aut
     assert body["confidence"] == "moderate"
     assert body["metrics"]["completed_cycles"] == 1
     assert body["metrics"]["current_cycle_unpaid_member_count"] == 1
+    assert body["metrics"]["current_cycle_deadline_state"] == "active"
     assert body["unavailable_signals"] == [
-        "due dates and lateness",
         "external payment-rail settlement",
         "member exit reason",
     ]
@@ -75,3 +77,40 @@ def test_missed_cycle_is_high_risk_and_bank_receives_same_aggregate_report(clien
     assert member_report.json()["group_health"] == "high_risk"
     assert member_report.json()["metrics"]["missed_cycles"] == 1
     assert bank_report.json() == member_report.json()
+
+
+def test_deadline_state_is_explainable_without_changing_the_lock(client, auth_headers):
+    _seed(client)
+    db = client.app.state.testing_session()
+    try:
+        commitment = db.get(Commitment, DEMO_COMMITMENT_ID)
+        commitment.current_cycle_due_at = datetime.utcnow() - timedelta(hours=1)
+        commitment.grace_period_hours = 72
+        db.commit()
+    finally:
+        db.close()
+
+    overdue = client.get(
+        f"/v1/app/commitments/{DEMO_COMMITMENT_ID}/group-health",
+        headers=auth_headers("usr_demo_amara"),
+    )
+    assert overdue.status_code == 200, overdue.text
+    assert overdue.json()["group_health"] == "medium_risk"
+    assert overdue.json()["metrics"]["current_cycle_deadline_state"] == "overdue"
+    assert overdue.json()["metrics"]["current_cycle_due_at"] is not None
+
+    db = client.app.state.testing_session()
+    try:
+        commitment = db.get(Commitment, DEMO_COMMITMENT_ID)
+        commitment.current_cycle_due_at = datetime.utcnow() - timedelta(hours=73)
+        db.commit()
+    finally:
+        db.close()
+
+    overdue_grace = client.get(
+        f"/v1/app/commitments/{DEMO_COMMITMENT_ID}/group-health",
+        headers=auth_headers("usr_demo_amara"),
+    )
+    assert overdue_grace.status_code == 200, overdue_grace.text
+    assert overdue_grace.json()["group_health"] == "high_risk"
+    assert overdue_grace.json()["metrics"]["current_cycle_deadline_state"] == "missed"

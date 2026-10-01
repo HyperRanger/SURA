@@ -40,6 +40,9 @@ Authorization: Bearer <member-access-token>
     "missed_cycles": 0,
     "historical_cycle_completion_rate": 1.0,
     "current_cycle_number": 2,
+    "current_cycle_due_at": "2026-10-08T12:00:00",
+    "current_cycle_grace_period_hours": 72,
+    "current_cycle_deadline_state": "active",
     "current_cycle_required_total": 10000,
     "current_cycle_contributed_total": 5000,
     "current_cycle_paid_member_count": 1,
@@ -47,7 +50,6 @@ Authorization: Bearer <member-access-token>
     "current_cycle_unpaid_member_count": 1
   },
   "unavailable_signals": [
-    "due dates and lateness",
     "external payment-rail settlement",
     "member exit reason"
   ],
@@ -59,16 +61,18 @@ Authorization: Bearer <member-access-token>
 
 | Group health | Rule |
 |---|---|
-| `high_risk` | At least one cycle is recorded as missed. |
-| `medium_risk` | No missed cycle, but an invitation remains unjoined or a joined member has made a partial current-cycle contribution. |
-| `low_risk` | No recorded missed cycle, incomplete formation, or partial current-cycle contribution. |
+| `high_risk` | At least one cycle is recorded as missed, or the current cycle is past its due date and grace period. |
+| `medium_risk` | No missed-cycle signal, but the current cycle is overdue, an invitation remains unjoined, or a joined member has made a partial current-cycle contribution. |
+| `low_risk` | No missed/overdue deadline signal, incomplete formation, or partial current-cycle contribution. |
 
 Confidence is `limited` with no closed cycles, `moderate` with one or two, and
 `strong` with three or more. A low-risk result with limited confidence means
 there is not enough history to make a stronger statement.
 
-The API does not call an unpaid current-cycle member "late" because the Lock
-model does not yet store a due date. It reports that fact plainly instead.
+The API reads the Lock's persisted current-cycle due date and agreed grace
+period. It reports deadline state at the group level only; it does not name or
+rank an individual member as late. A deadline that has passed grace is an
+advisory signal until normal Lock lifecycle processing persists its outcome.
 
 ## Bank Portal counterpart
 

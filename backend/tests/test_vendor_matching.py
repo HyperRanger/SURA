@@ -4,6 +4,7 @@ from datetime import datetime
 
 from app.main import app
 from app.models import Redemption, User, Vendor
+from app.services.demo_data import seed_demo_data
 from core.security import create_token
 
 
@@ -88,3 +89,24 @@ def test_vendor_recommendations_are_member_only_and_validate_query_values(client
         "/v1/app/recommendations/vendors?limit=21",
         headers=_headers("matching_member_two"),
     ).status_code == 400
+
+
+def test_seeded_member_receives_only_explainable_verified_vendor_options(client):
+    db = app.state.testing_session()
+    try:
+        seed_demo_data(db, reset=True)
+        db.commit()
+    finally:
+        db.close()
+
+    response = client.get(
+        "/v1/app/recommendations/vendors?category=electronics&target_amount=10000",
+        headers=_headers("usr_demo_amara"),
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["advisory"] is True
+    assert body["recommendations"][0]["vendor_id"] == "vnd_demo_electronics"
+    assert all(item["verified"] is True for item in body["recommendations"])
+    assert body["group_recommendations_available"] is False
