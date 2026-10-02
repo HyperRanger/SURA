@@ -10,6 +10,10 @@
 # error. The stubs made those attributes type correctly and took the check from 280
 # errors to 109 without changing a line of application code.
 basedpyright==1.40.1
+# ruff is pinned so the editor's "Organize imports" and the lint run cannot
+# disagree. Newer releases changed isort's block splitting, which is why the
+# pin is exact rather than >=.
+ruff==0.16.9
 
 # Note: sqlalchemy2-stubs was tried here and removed. It makes attribute *reads*
 # type correctly but not *writes*, so `commitment.status = "active"` still failed

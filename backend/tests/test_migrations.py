@@ -15,6 +15,7 @@ from pathlib import Path
 
 from alembic.config import Config
 from alembic.script import ScriptDirectory
+
 from app.bank.models import AccountRestriction, BankApiKey, BankAuditEvent, BankPartner, BankStaff, RiskFlag, WebhookDelivery, WebhookSubscription
 from app.database import Base
 from app.models import PlatformAuditEvent, SessionRevocation
@@ -118,7 +119,6 @@ def test_certification_migration_actually_runs_against_the_previous_schema():
     this exercises the new revision in isolation.
     """
     import sqlalchemy as sa
-
     from alembic.migration import MigrationContext
     from alembic.operations import Operations
 

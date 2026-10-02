@@ -1,6 +1,7 @@
 import json
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Protocol, cast
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import APIKeyHeader
@@ -15,6 +16,19 @@ from app.database import get_db
 api_key_header = APIKeyHeader(name="X-Sura-API-Key", auto_error=False)
 
 
+class BankPortalPrincipal(Protocol):
+    """A principal that has passed the Bank Portal gate.
+
+    ``institution_id`` is guaranteed present, so portal handlers can treat it as
+    ``str`` instead of ``AuthPrincipal``'s nullable ``str | None``.
+    """
+
+    user_id: str
+    role: str | None
+    institution_id: str
+    permissions: frozenset[str]
+
+
 @dataclass(frozen=True)
 class BankApiPrincipal:
     bank_id: str
@@ -22,14 +36,14 @@ class BankApiPrincipal:
     scopes: frozenset[str]
 
 
-def get_bank_principal(current: AuthPrincipal = Depends(get_current_principal)) -> AuthPrincipal:
+def get_bank_principal(current: AuthPrincipal = Depends(get_current_principal)) -> BankPortalPrincipal:
     if current.role not in BANK_PORTAL_ROLES or not current.institution_id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Bank Portal access is required.")
-    return current
+    return cast(BankPortalPrincipal, current)
 
 
 def require_bank_permission(permission: str):
-    def dependency(current: AuthPrincipal = Depends(get_bank_principal)) -> AuthPrincipal:
+    def dependency(current: BankPortalPrincipal = Depends(get_bank_principal)) -> BankPortalPrincipal:
         if current.role != "bank_admin" and permission not in current.permissions:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Missing required bank permission.")
         return current

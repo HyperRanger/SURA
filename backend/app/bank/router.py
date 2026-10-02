@@ -8,9 +8,8 @@ from fastapi.responses import PlainTextResponse
 from pydantic import AnyHttpUrl, BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.auth import AuthPrincipal
 from app.bank import developer_service, operations_service, risk_rules, service
-from app.bank.dependencies import require_bank_permission
+from app.bank.dependencies import BankPortalPrincipal, require_bank_permission
 from app.bank.models import BankStaff
 from app.database import get_db
 from app.services import bank_auth_service
@@ -18,7 +17,7 @@ from app.services.commitments import open_commitment_case, resolve_commitment_ca
 from app.services.group_health import get_group_health
 
 
-def _staff_for_principal(db: Session, current: AuthPrincipal) -> BankStaff:
+def _staff_for_principal(db: Session, current: BankPortalPrincipal) -> BankStaff:
     """The staff row behind a Bank Portal session.
 
     Credential changes need one, so an external identity-provider session gets a
@@ -114,7 +113,7 @@ router = APIRouter(prefix="/v1/bank", tags=["bank portal"])
 def bank_overview(
     date_from: datetime | None = Query(default=None),
     date_to: datetime | None = Query(default=None),
-    current: AuthPrincipal = Depends(require_bank_permission("bank:overview:read")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:overview:read")),
     db: Session = Depends(get_db),
 ):
     return service.overview(db, current.institution_id, date_from=date_from, date_to=date_to)
@@ -129,7 +128,7 @@ def bank_users(
     verified: bool | None = Query(default=None),
     float_eligibility: str | None = Query(default=None, pattern="^(eligible|locked)$"),
     commitment_status: str | None = Query(default=None),
-    current: AuthPrincipal = Depends(require_bank_permission("bank:users:read")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:users:read")),
     db: Session = Depends(get_db),
 ):
     return service.list_users(
@@ -148,7 +147,7 @@ def bank_users(
 @router.get("/users/{user_id}")
 def bank_user_profile(
     user_id: str,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:users:read")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:users:read")),
     db: Session = Depends(get_db),
 ):
     response = service.get_user_profile(db, current.institution_id, current.user_id, user_id)
@@ -159,7 +158,7 @@ def bank_user_profile(
 @router.get("/users/{user_id}/score")
 def bank_user_score(
     user_id: str,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:users:read")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:users:read")),
     db: Session = Depends(get_db),
 ):
     response = service.get_user_score(db, current.institution_id, current.user_id, user_id)
@@ -170,7 +169,7 @@ def bank_user_score(
 @router.get("/users/{user_id}/commitments")
 def bank_user_commitments(
     user_id: str,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:users:read")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:users:read")),
     db: Session = Depends(get_db),
 ):
     return service.get_user_commitments(db, current.institution_id, user_id)
@@ -179,7 +178,7 @@ def bank_user_commitments(
 @router.get("/users/{user_id}/activity")
 def bank_user_activity(
     user_id: str,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:users:read")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:users:read")),
     db: Session = Depends(get_db),
 ):
     return service.get_user_activity(db, current.institution_id, user_id)
@@ -188,7 +187,7 @@ def bank_user_activity(
 @router.get("/users/{user_id}/flags")
 def bank_user_flags(
     user_id: str,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:flags:read")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:flags:read")),
     db: Session = Depends(get_db),
 ):
     service._user_or_404(db, current.institution_id, user_id)
@@ -201,7 +200,7 @@ def bank_commitments(
     status_filter: str | None = Query(default=None, alias="status"),
     vendor_id: str | None = Query(default=None),
     member_id: str | None = Query(default=None),
-    current: AuthPrincipal = Depends(require_bank_permission("bank:commitments:read")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:commitments:read")),
     db: Session = Depends(get_db),
 ):
     return service.list_commitments(db, current.institution_id, query=q, status_filter=status_filter, vendor_id=vendor_id, member_id=member_id)
@@ -210,7 +209,7 @@ def bank_commitments(
 @router.get("/commitments/{commitment_id}")
 def bank_commitment(
     commitment_id: str,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:commitments:read")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:commitments:read")),
     db: Session = Depends(get_db),
 ):
     return service.get_commitment(db, current.institution_id, commitment_id)
@@ -219,7 +218,7 @@ def bank_commitment(
 @router.get("/commitments/{commitment_id}/group-health")
 def bank_commitment_group_health(
     commitment_id: str,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:commitments:read")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:commitments:read")),
     db: Session = Depends(get_db),
 ):
     # Reuse the established tenant check before returning aggregate-only health.
@@ -233,7 +232,7 @@ def bank_commitment_group_health(
 def open_case(
     commitment_id: str,
     payload: CommitmentCaseRequest,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:commitments:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:commitments:write")),
     db: Session = Depends(get_db),
 ):
     response = open_commitment_case(db, commitment_id, current.institution_id, current.user_id, payload.reason)
@@ -247,7 +246,7 @@ def resolve_case(
     commitment_id: str,
     case_id: str,
     payload: CommitmentCaseResolutionRequest,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:commitments:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:commitments:write")),
     db: Session = Depends(get_db),
 ):
     response = resolve_commitment_case(db, commitment_id, current.institution_id, current.user_id, case_id, payload.note)
@@ -264,7 +263,7 @@ def bank_audit_log(
     actor_id: str | None = Query(default=None),
     date_from: datetime | None = Query(default=None),
     date_to: datetime | None = Query(default=None),
-    current: AuthPrincipal = Depends(require_bank_permission("bank:audit:read")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:audit:read")),
     db: Session = Depends(get_db),
 ):
     return service.audit_log(db, current.institution_id, user_id=user_id, commitment_id=commitment_id, event_type=event_type, actor_id=actor_id, date_from=date_from, date_to=date_to)
@@ -272,7 +271,7 @@ def bank_audit_log(
 
 @router.post("/audit-log/export", response_class=PlainTextResponse)
 def bank_audit_export(
-    current: AuthPrincipal = Depends(require_bank_permission("bank:audit:read")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:audit:read")),
     db: Session = Depends(get_db),
 ):
     return service.export_audit_log(db, current.institution_id, current.user_id)
@@ -284,7 +283,7 @@ def bank_flags(
     severity: str | None = Query(default=None),
     rule: str | None = Query(default=None),
     user_id: str | None = Query(default=None),
-    current: AuthPrincipal = Depends(require_bank_permission("bank:flags:read")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:flags:read")),
     db: Session = Depends(get_db),
 ):
     return service.list_flags(db, current.institution_id, user_id=user_id, status_filter=status_filter, severity=severity, rule=rule)
@@ -293,7 +292,7 @@ def bank_flags(
 @router.get("/flags/{flag_id}")
 def bank_flag_detail(
     flag_id: str,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:flags:read")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:flags:read")),
     db: Session = Depends(get_db),
 ):
     return service.get_flag(db, current.institution_id, flag_id)
@@ -303,7 +302,7 @@ def bank_flag_detail(
 def bank_resolve_flag(
     flag_id: str,
     payload: FlagResolutionRequest,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:flags:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:flags:write")),
     db: Session = Depends(get_db),
 ):
     return service.resolve_flag(db, current.institution_id, current.user_id, flag_id, payload.action, payload.note)
@@ -312,7 +311,7 @@ def bank_resolve_flag(
 @router.post("/risk-rules/run")
 def bank_run_risk_rules(
     payload: RuleRunRequest,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:flags:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:flags:write")),
     db: Session = Depends(get_db),
 ):
     """Evaluate the rule set and open a flag per new finding.
@@ -328,7 +327,7 @@ def bank_run_risk_rules(
 def bank_apply_restriction(
     user_id: str,
     payload: RestrictionRequest,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:flags:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:flags:write")),
     db: Session = Depends(get_db),
 ):
     return risk_rules.apply_restriction(
@@ -345,7 +344,7 @@ def bank_apply_restriction(
 @router.get("/users/{user_id}/restrictions")
 def bank_list_restrictions(
     user_id: str,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:flags:read")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:flags:read")),
     db: Session = Depends(get_db),
 ):
     return risk_rules.list_restrictions(db, current.institution_id, user_id)
@@ -354,7 +353,7 @@ def bank_list_restrictions(
 @router.post("/users/{user_id}/sessions/revoke")
 def bank_revoke_member_sessions(
     user_id: str,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:flags:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:flags:write")),
     db: Session = Depends(get_db),
 ):
     """End every live session for one of this bank's members.
@@ -373,7 +372,7 @@ def bank_settlements(
     vendor_id: str | None = Query(default=None),
     user_id: str | None = Query(default=None),
     commitment_id: str | None = Query(default=None),
-    current: AuthPrincipal = Depends(require_bank_permission("bank:settlements:read")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:settlements:read")),
     db: Session = Depends(get_db),
 ):
     return service.settlements(db, current.institution_id, query=q, status_filter=status_filter, vendor_id=vendor_id, user_id=user_id, commitment_id=commitment_id)
@@ -381,7 +380,7 @@ def bank_settlements(
 
 @router.get("/developers")
 def bank_developer_home(
-    current: AuthPrincipal = Depends(require_bank_permission("bank:developer:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:developer:write")),
     db: Session = Depends(get_db),
 ):
     return developer_service.developer_home(db, current.institution_id)
@@ -389,7 +388,7 @@ def bank_developer_home(
 
 @router.get("/api-keys")
 def bank_api_keys(
-    current: AuthPrincipal = Depends(require_bank_permission("bank:developer:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:developer:write")),
     db: Session = Depends(get_db),
 ):
     return developer_service.list_api_keys(db, current.institution_id)
@@ -398,7 +397,7 @@ def bank_api_keys(
 @router.post("/api-keys", status_code=status.HTTP_201_CREATED)
 def bank_create_api_key(
     payload: ApiKeyCreateRequest,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:developer:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:developer:write")),
     db: Session = Depends(get_db),
 ):
     return developer_service.create_api_key(
@@ -409,7 +408,7 @@ def bank_create_api_key(
 @router.post("/api-keys/{key_id}/rotate")
 def bank_rotate_api_key(
     key_id: str,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:developer:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:developer:write")),
     db: Session = Depends(get_db),
 ):
     return developer_service.rotate_api_key(db, current.institution_id, current.user_id, key_id)
@@ -418,7 +417,7 @@ def bank_rotate_api_key(
 @router.delete("/api-keys/{key_id}", status_code=status.HTTP_204_NO_CONTENT)
 def bank_revoke_api_key(
     key_id: str,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:developer:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:developer:write")),
     db: Session = Depends(get_db),
 ):
     developer_service.revoke_api_key(db, current.institution_id, current.user_id, key_id)
@@ -427,7 +426,7 @@ def bank_revoke_api_key(
 
 @router.get("/webhooks")
 def bank_webhooks(
-    current: AuthPrincipal = Depends(require_bank_permission("bank:developer:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:developer:write")),
     db: Session = Depends(get_db),
 ):
     return developer_service.list_webhooks(db, current.institution_id)
@@ -436,7 +435,7 @@ def bank_webhooks(
 @router.post("/webhooks", status_code=status.HTTP_201_CREATED)
 def bank_create_webhook(
     payload: WebhookCreateRequest,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:developer:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:developer:write")),
     db: Session = Depends(get_db),
 ):
     return developer_service.create_webhook(db, current.institution_id, current.user_id, str(payload.url), payload.events)
@@ -446,7 +445,7 @@ def bank_create_webhook(
 def bank_update_webhook(
     webhook_id: str,
     payload: WebhookUpdateRequest,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:developer:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:developer:write")),
     db: Session = Depends(get_db),
 ):
     return developer_service.update_webhook(db, current.institution_id, current.user_id, webhook_id, str(payload.url) if payload.url else None, payload.events, payload.status)
@@ -455,7 +454,7 @@ def bank_update_webhook(
 @router.delete("/webhooks/{webhook_id}", status_code=status.HTTP_204_NO_CONTENT)
 def bank_delete_webhook(
     webhook_id: str,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:developer:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:developer:write")),
     db: Session = Depends(get_db),
 ):
     developer_service.disable_webhook(db, current.institution_id, current.user_id, webhook_id)
@@ -465,7 +464,7 @@ def bank_delete_webhook(
 @router.post("/webhooks/{webhook_id}/test")
 def bank_test_webhook(
     webhook_id: str,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:developer:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:developer:write")),
     db: Session = Depends(get_db),
 ):
     return developer_service.test_webhook(db, current.institution_id, current.user_id, webhook_id)
@@ -474,7 +473,7 @@ def bank_test_webhook(
 @router.post("/webhooks/{webhook_id}/rotate-secret")
 def bank_rotate_webhook_secret(
     webhook_id: str,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:developer:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:developer:write")),
     db: Session = Depends(get_db),
 ):
     return developer_service.rotate_webhook_secret(db, current.institution_id, current.user_id, webhook_id)
@@ -483,7 +482,7 @@ def bank_rotate_webhook_secret(
 @router.get("/webhooks/{webhook_id}/deliveries")
 def bank_webhook_deliveries(
     webhook_id: str,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:developer:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:developer:write")),
     db: Session = Depends(get_db),
 ):
     return developer_service.list_deliveries(db, current.institution_id, webhook_id)
@@ -491,14 +490,14 @@ def bank_webhook_deliveries(
 
 @router.get("/events")
 def bank_events(
-    current: AuthPrincipal = Depends(require_bank_permission("bank:developer:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:developer:write")),
 ):
     return developer_service.event_catalogue()
 
 
 @router.get("/team")
 def bank_team(
-    current: AuthPrincipal = Depends(require_bank_permission("bank:team:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:team:write")),
     db: Session = Depends(get_db),
 ):
     return operations_service.list_staff(db, current.institution_id)
@@ -507,7 +506,7 @@ def bank_team(
 @router.post("/team", status_code=status.HTTP_201_CREATED)
 def bank_provision_staff(
     payload: BankStaffCreateRequest,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:team:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:team:write")),
     db: Session = Depends(get_db),
 ):
     return operations_service.create_staff(db, current.institution_id, current.user_id, **payload.model_dump())
@@ -517,7 +516,7 @@ def bank_provision_staff(
 def bank_update_staff(
     staff_id: str,
     payload: BankStaffUpdateRequest,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:team:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:team:write")),
     db: Session = Depends(get_db),
 ):
     return operations_service.update_staff(db, current.institution_id, current.user_id, staff_id, **payload.model_dump())
@@ -527,7 +526,7 @@ def bank_update_staff(
 def bank_reset_staff_password(
     staff_id: str,
     payload: BankResetPasswordRequest,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:team:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:team:write")),
     db: Session = Depends(get_db),
 ):
     """Set a colleague's password. Bank administrators only.
@@ -543,7 +542,7 @@ def bank_reset_staff_password(
 def bank_set_staff_permissions(
     staff_id: str,
     payload: BankPermissionsRequest,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:team:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:team:write")),
     db: Session = Depends(get_db),
 ):
     """Replace a colleague's permission set. Bank administrators only.
@@ -558,7 +557,7 @@ def bank_set_staff_permissions(
 
 @router.get("/settings")
 def bank_settings(
-    current: AuthPrincipal = Depends(require_bank_permission("bank:settings:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:settings:write")),
     db: Session = Depends(get_db),
 ):
     return operations_service.get_settings(db, current.institution_id)
@@ -567,7 +566,7 @@ def bank_settings(
 @router.patch("/settings")
 def bank_update_settings(
     payload: BankSettingsUpdateRequest,
-    current: AuthPrincipal = Depends(require_bank_permission("bank:settings:write")),
+    current: BankPortalPrincipal = Depends(require_bank_permission("bank:settings:write")),
     db: Session = Depends(get_db),
 ):
     return operations_service.update_settings(db, current.institution_id, current.user_id, **payload.model_dump())

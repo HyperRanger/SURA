@@ -5,6 +5,7 @@ This module is intentionally invoked by a script, never from application startup
 
 import json
 from datetime import datetime, timedelta
+from typing import TypedDict
 
 from sqlalchemy import delete, or_
 from sqlalchemy.orm import Session
@@ -28,8 +29,8 @@ from app.models import (
     CommitmentMember,
     Contribution,
     Institution,
-    Redemption,
     PlatformAuditEvent,
+    Redemption,
     ScoreHistory,
     SessionRevocation,
     User,
@@ -137,8 +138,20 @@ assert len(_ADDITIONAL_LOCK_TITLES) == 24
 DEMO_COMMITMENT_IDS = (DEMO_COMMITMENT_ID, *(f"cmt_demo_circle_{index:02d}" for index in range(2, 26)))
 
 
-def _demo_lock_specs() -> tuple[dict[str, object], ...]:
-    specs: list[dict[str, object]] = [{
+class LockSpec(TypedDict):
+    id: str
+    title: str
+    vendor_id: str
+    amount: int
+    cycles: int
+    status: str
+    current_cycle: int
+    completed_cycles: int
+    members: tuple[str, ...]
+
+
+def _demo_lock_specs() -> tuple[LockSpec, ...]:
+    specs: list[LockSpec] = [{
         "id": DEMO_COMMITMENT_ID, "title": "Laptop Fund - Demo Rotation", "vendor_id": "vnd_demo_electronics",
         "amount": 5_000, "cycles": 2, "status": "active", "current_cycle": 2, "completed_cycles": 1,
         "members": ("usr_demo_amara", "usr_demo_tunde"),
@@ -376,10 +389,15 @@ def seed_demo_data(db: Session, *, reset: bool = False) -> dict[str, object]:
         # without claiming to have verified a real bank transaction.
         cadence = (21, 14, 7, 0) if index % 4 else (30, 10, 0)
         for offset_days in cadence:
+            user = db.get(User, user_id)
+            if user is None:
+                # Every DEMO_CUSTOMER_IDS row is created earlier in this file;
+                # this is a guard for the reader, not a runtime branch.
+                continue
             db.add(AccountActivitySignal(
                 id=f"act_demo_{user_id}_{offset_days}",
                 user_id=user_id,
-                institution_id=db.get(User, user_id).institution_id,
+                institution_id=user.institution_id,
                 source="simulated_bank_rail",
                 occurred_at=now - timedelta(days=offset_days),
             ))

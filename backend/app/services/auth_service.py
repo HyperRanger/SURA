@@ -364,6 +364,12 @@ def revoke_session(
     if existing is not None:
         return {"status": "signed_out", "revoked": False}
 
+    # Render has no background worker, so the only safe time to sweep the table
+    # is on request. A purge here caps the revocation set at roughly one row per
+    # logout per token lifetime, and the deleted rows can never match a live
+    # token anyway.
+    purge_expired_revocations(db)
+
     now = datetime.utcnow()
     db.add(
         SessionRevocation(
