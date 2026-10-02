@@ -5,6 +5,7 @@ This module is intentionally invoked by a script, never from application startup
 
 import json
 from datetime import datetime, timedelta
+from typing import TypedDict
 
 from sqlalchemy import delete, or_
 from sqlalchemy.orm import Session
@@ -137,8 +138,20 @@ assert len(_ADDITIONAL_LOCK_TITLES) == 24
 DEMO_COMMITMENT_IDS = (DEMO_COMMITMENT_ID, *(f"cmt_demo_circle_{index:02d}" for index in range(2, 26)))
 
 
-def _demo_lock_specs() -> tuple[dict[str, object], ...]:
-    specs: list[dict[str, object]] = [{
+class LockSpec(TypedDict):
+    id: str
+    title: str
+    vendor_id: str
+    amount: int
+    cycles: int
+    status: str
+    current_cycle: int
+    completed_cycles: int
+    members: tuple[str, ...]
+
+
+def _demo_lock_specs() -> tuple[LockSpec, ...]:
+    specs: list[LockSpec] = [{
         "id": DEMO_COMMITMENT_ID, "title": "Laptop Fund - Demo Rotation", "vendor_id": "vnd_demo_electronics",
         "amount": 5_000, "cycles": 2, "status": "active", "current_cycle": 2, "completed_cycles": 1,
         "members": ("usr_demo_amara", "usr_demo_tunde"),
