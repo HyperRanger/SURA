@@ -28,8 +28,8 @@ from app.models import (
     CommitmentMember,
     Contribution,
     Institution,
-    Redemption,
     PlatformAuditEvent,
+    Redemption,
     ScoreHistory,
     SessionRevocation,
     User,
@@ -376,10 +376,15 @@ def seed_demo_data(db: Session, *, reset: bool = False) -> dict[str, object]:
         # without claiming to have verified a real bank transaction.
         cadence = (21, 14, 7, 0) if index % 4 else (30, 10, 0)
         for offset_days in cadence:
+            user = db.get(User, user_id)
+            if user is None:
+                # Every DEMO_CUSTOMER_IDS row is created earlier in this file;
+                # this is a guard for the reader, not a runtime branch.
+                continue
             db.add(AccountActivitySignal(
                 id=f"act_demo_{user_id}_{offset_days}",
                 user_id=user_id,
-                institution_id=db.get(User, user_id).institution_id,
+                institution_id=user.institution_id,
                 source="simulated_bank_rail",
                 occurred_at=now - timedelta(days=offset_days),
             ))
