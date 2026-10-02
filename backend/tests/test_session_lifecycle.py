@@ -11,17 +11,18 @@ shape, so a refactor that keeps the property passes.
 """
 
 import json
+import uuid
 
 import pytest
 from fastapi import HTTPException
 
-from app.bank.models import BankStaff
 from app.bank.contracts import BANK_STAFF_ROLE_PERMISSIONS
+from app.bank.models import BankStaff
 from app.models import PlatformAuditEvent, SessionRevocation, User
 from app.services import audit, bank_auth_service
 from app.services.demo_data import DEMO_BANK_ID, DEMO_BANK_PASSWORD, seed_demo_data
 from core.passwords import hash_password
-from core.security import create_token
+from core.security import create_token, verify_token
 
 DEMO_ADMIN_EMAIL = "demo.admin@sura.local"
 DEMO_RISK_EMAIL = "demo.risk@sura.local"
@@ -204,6 +205,54 @@ def test_revocation_row_carries_no_token_material(client):
         assert row.jti != headers["Authorization"]
         assert row.reason == "logout"
         assert row.expires_at is not None
+    finally:
+        db.close()
+
+
+def test_expired_revocations_are_swept_on_the_next_logout(client):
+    """Render runs no background worker, so a revocation set must not need one.
+
+    The purge happens on the request path: the moment someone logs out, the rows
+    that can no longer deny a real token are dropped. Without this, every logout
+    would append a row that only stops being useful after the token's expiry, and
+    the table would grow without bound on a deployment that has no cron.
+    """
+    from datetime import datetime, timedelta
+
+    _seed(client)
+    headers = _member_token("usr_demo_amara")
+    assert client.post("/v1/logout", headers=headers).status_code == 200
+    live_jti = verify_token(headers["Authorization"].split()[1])["jti"]
+
+    db = _db(client)
+    try:
+        assert db.query(SessionRevocation).count() == 1
+
+        expired_jti = "dead_" + uuid.uuid4().hex
+        db.add(
+            SessionRevocation(
+                jti=expired_jti,
+                user_id="usr_demo_amara",
+                reason="logout",
+                revoked_at=datetime.utcnow() - timedelta(days=31),
+                expires_at=datetime.utcnow() - timedelta(days=1),
+            )
+        )
+        db.commit()
+        assert db.query(SessionRevocation).count() == 2
+    finally:
+        db.close()
+
+    # The next logout sweeps rows whose token can no longer be presented.
+    assert client.post("/v1/logout", headers=_member_token("usr_demo_amara")).status_code == 200
+
+    db = _db(client)
+    try:
+        remaining = {row.jti for row in db.query(SessionRevocation).all()}
+        assert expired_jti not in remaining
+        assert live_jti in remaining
+        # The sweep removed exactly the dead row; this logout adds its own.
+        assert len(remaining) == 2
     finally:
         db.close()
 
