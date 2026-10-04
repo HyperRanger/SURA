@@ -24,7 +24,7 @@ export function PersonaCard({ persona, onSelect, loading, disabled }: PersonaCar
         "hover:border-hairline-strong active:translate-y-0.5 active:border-b-2",
         "focus-visible:ring-4 focus-visible:ring-ring/20 focus-visible:outline-none",
         "disabled:pointer-events-none disabled:opacity-60",
-        loading && "border-primary opacity-100!"
+        loading && "border-ring opacity-100!"
       )}
     >
       <IconTile icon={persona.icon} tone={persona.area === "bank" ? "gold" : "indigo"} />

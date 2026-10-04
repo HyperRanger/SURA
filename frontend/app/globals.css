@@ -2,6 +2,9 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* next-themes puts .dark on <html>, so dark: follows the toggle, not the os */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -87,6 +90,46 @@
   --gold-foreground: #171717;
 }
 
+
+.dark {
+  --background: #121020; /* sura midnight */
+  --foreground: #f7f5ef; /* soft ivory */
+  --card: #1b1838; /* deep indigo dark */
+  --card-foreground: #f7f5ef;
+  --popover: #1b1838;
+  --popover-foreground: #f7f5ef;
+
+  --primary: #29235c; /* deep indigo, unchanged */
+  --primary-deep: #0c0a17; /* below midnight, so raised edges and the footer still read */
+  --primary-bright: #393277; /* indigo light */
+  --primary-foreground: #f7f5ef;
+  /* deep indigo vanishes on midnight, so indigo text lifts to a lavender */
+  --link: #b4aee8;
+
+  --secondary: #29235c;
+  --secondary-foreground: #f7f5ef;
+  --muted: #1b1838;
+  --muted-foreground: #bdb9ae; /* ivory gray */
+  --accent: #29235c;
+  --accent-foreground: #f7f5ef;
+  --destructive: #d96b6b; /* muted red */
+
+  --cloud: #221e44;
+  --hairline: #353052; /* indigo border */
+  --hairline-strong: #4a4470;
+  --border: #353052;
+  --input: #353052;
+  --ring: #8a82d6;
+
+  --ivory: #f7f5ef;
+  --indigo-soft: #29235c;
+  --gold: #d9a441; /* sura gold */
+  /* on light, gold text had to darken for contrast; on midnight the real gold reads */
+  --gold-deep: #d9a441;
+  --gold-soft: #33293a;
+  --gold-foreground: #171717;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -96,9 +139,11 @@
     color-scheme: light;
     scroll-padding-top: 5rem;
   }
+  html.dark {
+    color-scheme: dark;
+  }
   body {
     @apply bg-background text-foreground antialiased;
-    /* sura's voice is lowercase everywhere */
     text-transform: lowercase;
   }
 }
@@ -166,27 +211,39 @@
   padding-inline: 1.25rem;
 }
 
-/*
- * glass surface: frosted body, light-catching top edge, a darker refracted bottom
- * edge, fine grain, and a specular glare that follows --glass-x / --glass-y
- */
 @utility glass {
   --glass-tint: rgb(255 254 250 / 0.6);
   --glass-edge: rgb(255 255 255 / 0.9);
   --glass-shade: rgb(41 35 92 / 0.08);
   --glass-glare: rgb(255 255 255 / 0.7);
+  --glass-sheen: rgb(255 255 255 / 0.35);
+  --glass-inner: rgb(255 255 255 / 0.12);
+  --glass-drop: rgb(41 35 92 / 0.2);
+  --glass-brightness: 1.05;
   position: relative;
   isolation: isolate;
   background-image:
-    linear-gradient(180deg, rgb(255 255 255 / 0.35) 0%, transparent 45%),
+    linear-gradient(180deg, var(--glass-sheen) 0%, transparent 45%),
     linear-gradient(var(--glass-tint), var(--glass-tint));
-  backdrop-filter: blur(18px) saturate(180%) brightness(1.05);
-  -webkit-backdrop-filter: blur(18px) saturate(180%) brightness(1.05);
+  backdrop-filter: blur(18px) saturate(180%) brightness(var(--glass-brightness));
+  -webkit-backdrop-filter: blur(18px) saturate(180%) brightness(var(--glass-brightness));
   box-shadow:
     inset 0 1px 0 0 var(--glass-edge),
     inset 0 -1px 0 0 var(--glass-shade),
-    inset 0 0 12px 0 rgb(255 255 255 / 0.12),
-    0 8px 32px -12px rgb(41 35 92 / 0.2);
+    inset 0 0 12px 0 var(--glass-inner),
+    0 8px 32px -12px var(--glass-drop);
+
+  /* smoked indigo pane: a faint ivory top edge instead of a bright white one */
+  @variant dark {
+    --glass-tint: rgb(27 24 56 / 0.62);
+    --glass-edge: rgb(247 245 239 / 0.12);
+    --glass-shade: rgb(0 0 0 / 0.35);
+    --glass-glare: rgb(247 245 239 / 0.25);
+    --glass-sheen: rgb(247 245 239 / 0.06);
+    --glass-inner: rgb(247 245 239 / 0.03);
+    --glass-drop: rgb(0 0 0 / 0.5);
+    --glass-brightness: 0.9;
+  }
 
   &::before {
     content: "";

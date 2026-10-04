@@ -11,6 +11,7 @@ import { useHydrated } from "@/hooks/use-hydrated"
 import { useStoredValue } from "@/hooks/use-stored-value"
 import { endSession, sessionStore } from "@/lib/session"
 import { Logo } from "@/components/layout/logo"
+import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
@@ -51,12 +52,16 @@ export function BankShell({ children }: { children: ReactNode }) {
     <div className="flex min-h-dvh flex-1 flex-col lg:flex-row">
       <header className="sticky top-0 z-40 flex items-center justify-between gap-3 border-b-2 border-hairline bg-card px-4 py-3 lg:hidden">
         <BankBrand />
-        <MobileMenu pathname={pathname} session={session} onSignOut={handleSignOut} />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <MobileMenu pathname={pathname} session={session} onSignOut={handleSignOut} />
+        </div>
       </header>
 
       <aside className="hidden border-r-2 border-hairline bg-card lg:sticky lg:top-0 lg:flex lg:h-dvh lg:w-64 lg:shrink-0 lg:flex-col">
-        <div className="px-5 pt-6 pb-6">
+        <div className="flex items-center justify-between gap-3 px-5 pt-6 pb-6">
           <BankBrand />
+          <ThemeToggle />
         </div>
         <nav aria-label="bank console" className="flex-1 overflow-y-auto px-3">
           <NavLinks pathname={pathname} />

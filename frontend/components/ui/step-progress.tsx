@@ -48,7 +48,7 @@ export function StepProgress({ current, total, onBack, label = "progress", class
             key={index}
             className={cn(
               "h-2 flex-1 rounded-full transition-colors duration-300",
-              index <= current ? "bg-primary" : "bg-hairline"
+              index <= current ? "bg-ring" : "bg-hairline"
             )}
           />
         ))}

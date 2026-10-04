@@ -215,7 +215,7 @@ function ScoreCard() {
             <div className="mt-1 h-2 overflow-hidden rounded-full bg-cloud">
               <div
                 data-anim="pillar"
-                className="h-full rounded-full bg-primary"
+                className="h-full rounded-full bg-ring"
                 style={{ width: `${(pillar.points / pillar.max) * 100}%` }}
               />
             </div>

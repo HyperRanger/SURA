@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 const alertVariants = cva("flex items-start gap-3 rounded-2xl border-2 px-4 py-3 text-sm font-semibold", {
   variants: {
     variant: {
-      info: "border-primary/15 bg-indigo-soft text-link",
+      info: "border-ring/15 bg-indigo-soft text-link",
       error: "border-destructive/25 bg-destructive/8 text-destructive",
       gold: "border-gold/45 bg-gold-soft text-gold-deep",
     },

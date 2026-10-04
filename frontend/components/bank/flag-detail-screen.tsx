@@ -160,7 +160,7 @@ function ResolveForm({ flagId, onResolved }: { flagId: string; onResolved: () =>
               className={cn(
                 "flex cursor-pointer flex-col gap-1 rounded-2xl border-2 border-b-4 border-hairline bg-card p-3 transition-colors hover:border-hairline-strong",
                 "has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-ring/20",
-                action === option.value && "border-primary bg-indigo-soft hover:border-primary"
+                action === option.value && "border-ring bg-indigo-soft hover:border-ring"
               )}
             >
               <input
@@ -191,7 +191,7 @@ function ResolveForm({ flagId, onResolved }: { flagId: string; onResolved: () =>
           aria-invalid={Boolean(noteError) || undefined}
           aria-describedby={noteError ? "flag-note-error" : "flag-note-hint"}
           placeholder="what you checked and why you decided this"
-          className="w-full rounded-2xl border-2 border-b-4 border-hairline bg-card px-4 py-3 text-sm font-semibold normal-case outline-none placeholder:font-normal placeholder:text-muted-foreground/70 placeholder:lowercase hover:border-hairline-strong focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-ring/15 aria-invalid:border-destructive"
+          className="w-full rounded-2xl border-2 border-b-4 border-hairline bg-card px-4 py-3 text-sm font-semibold normal-case outline-none placeholder:font-normal placeholder:text-muted-foreground/70 placeholder:lowercase hover:border-hairline-strong focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/15 aria-invalid:border-destructive"
         />
       </Field>
 

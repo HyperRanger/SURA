@@ -15,7 +15,7 @@ const buttonVariants = cva(
         outline:
           "border-2 border-b-4 border-hairline bg-card text-link hover:border-hairline-strong hover:bg-cloud active:translate-y-0.5 active:border-b-2",
         inverse:
-          "border-b-4 border-hairline-strong bg-ivory text-primary hover:bg-indigo-soft active:translate-y-0.5 active:border-b-2",
+          "border-b-4 border-hairline-strong bg-ivory text-primary hover:bg-indigo-soft dark:hover:bg-ivory/85 active:translate-y-0.5 active:border-b-2",
         ghost: "text-muted-foreground hover:bg-cloud hover:text-link",
         link: "text-link underline-offset-4 hover:underline",
       },
