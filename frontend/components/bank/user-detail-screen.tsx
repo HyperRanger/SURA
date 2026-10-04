@@ -1,8 +1,10 @@
 "use client"
 
+import Link from "next/link"
 import { Audit01Icon, Flag02Icon, RepeatIcon } from "@hugeicons/core-free-icons"
 import { getBankUser, getBankUserScore, listBankUserCommitments, listBankUserFlags } from "@/actions/bank"
 import { routes } from "@/config/routes"
+import { useBankAccess } from "@/hooks/use-bank-access"
 import { useQuery } from "@/hooks/use-query"
 import { DataTable, TableSkeleton, type Column } from "@/components/bank/data-table"
 import { DetailList, PageHeader, Section } from "@/components/bank/page-header"
@@ -10,8 +12,10 @@ import { QueryState } from "@/components/bank/query-state"
 import { ScoreDelta } from "@/components/bank/score-delta"
 import { ScoreFigure, ScorePillars } from "@/components/bank/score-pillars"
 import { StatusBadge } from "@/components/bank/status-badge"
+import { AccountSafety, UserActivity } from "@/components/bank/user-safety"
 import { EmptyState } from "@/components/shared/empty-state"
 import { Alert } from "@/components/ui/alert"
+import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { BankUserCommitment, BankUserProfile, RiskFlag, ScoreHistoryEntry } from "@/types"
 import { formatDateTime, formatNaira, formatPercent, humanize } from "@/utils/format"
@@ -46,14 +50,16 @@ export function UserDetailScreen({ id }: { id: string }) {
 
   return (
     <QueryState query={profile} noun="this customer" skeleton={<ProfileSkeleton />}>
-      {(user) => <UserDetail user={user} />}
+      {(user) => <UserDetail user={user} onChanged={profile.retry} />}
     </QueryState>
   )
 }
 
-function UserDetail({ user }: { user: BankUserProfile }) {
+function UserDetail({ user, onChanged }: { user: BankUserProfile; onChanged: () => void }) {
+  const { can } = useBankAccess()
+  const canReadFlags = can("bank:flags:read")
   const score = useQuery(getBankUserScore, [user.user_id])
-  const flags = useQuery(listBankUserFlags, [user.user_id])
+  const flags = useQuery(listBankUserFlags, canReadFlags ? [user.user_id] : null)
   const commitments = useQuery(listBankUserCommitments, [user.user_id])
   const report = user.score_report
 
@@ -63,9 +69,20 @@ function UserDetail({ user }: { user: BankUserProfile }) {
         title={user.name}
         backHref={routes.bank.users}
         backLabel="customers"
+        actions={
+          can("bank:settlements:read") && (
+            <Link
+              href={`${routes.bank.settlements}?user_id=${encodeURIComponent(user.user_id)}`}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              settlements
+            </Link>
+          )
+        }
         meta={
           <>
             <StatusBadge status={user.verified ? "verified" : "unverified"} />
+            {user.account_status !== "active" && <StatusBadge status={user.account_status} />}
             {user.context && <StatusBadge status={user.context} tone="neutral" />}
             <span className="font-mono text-xs font-semibold text-muted-foreground normal-case">{user.user_id}</span>
           </>
@@ -108,6 +125,7 @@ function UserDetail({ user }: { user: BankUserProfile }) {
           items={[
             { label: "bank reference", value: <span className="font-mono normal-case">{user.bank_customer_id ?? "—"}</span> },
             { label: "phone", value: <span className="font-mono normal-case">{user.phone ?? "—"}</span> },
+            { label: "banks with", value: user.source_institution?.name ?? "—" },
             { label: "commitments joined", value: user.commitments_joined },
             { label: "active commitments", value: user.active_commitments },
             { label: "contributions", value: user.contribution_count },
@@ -124,25 +142,29 @@ function UserDetail({ user }: { user: BankUserProfile }) {
           ]}
         />
 
-        <Section title="flags" description="fraud rules that fired for this customer.">
-          <QueryState
-            query={flags}
-            noun="flags"
-            skeleton={<TableSkeleton rows={2} />}
-            isEmpty={(rows) => rows.length === 0}
-            empty={<EmptyState icon={Flag02Icon} title="no flags" description="no fraud rule has fired for this customer." />}
-          >
-            {(rows) => (
-              <DataTable
-                caption="risk flags"
-                columns={flagColumns}
-                rows={rows}
-                rowKey={(row) => row.flag_id}
-                rowHref={(row) => routes.bank.flag(row.flag_id)}
-              />
-            )}
-          </QueryState>
-        </Section>
+        {canReadFlags && (
+          <Section title="flags" description="fraud rules that fired for this customer.">
+            <QueryState
+              query={flags}
+              noun="flags"
+              skeleton={<TableSkeleton rows={2} />}
+              isEmpty={(rows) => rows.length === 0}
+              empty={<EmptyState icon={Flag02Icon} title="no flags" description="no fraud rule has fired for this customer." />}
+            >
+              {(rows) => (
+                <DataTable
+                  caption="risk flags"
+                  columns={flagColumns}
+                  rows={rows}
+                  rowKey={(row) => row.flag_id}
+                  rowHref={(row) => routes.bank.flag(row.flag_id)}
+                />
+              )}
+            </QueryState>
+          </Section>
+        )}
+
+        <AccountSafety user={user} flags={flags.data} onChanged={onChanged} />
 
         <Section title="score audit log" description="every change to this score, newest first, with the event that caused it.">
           <QueryState
@@ -177,6 +199,8 @@ function UserDetail({ user }: { user: BankUserProfile }) {
             )}
           </QueryState>
         </Section>
+
+        <UserActivity userId={user.user_id} />
       </div>
     </>
   )

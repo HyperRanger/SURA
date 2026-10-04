@@ -1,10 +1,15 @@
 import type { Metadata } from "next"
-import { SettlementsScreen } from "@/components/bank/settlements-screen"
+import { SettlementsScreen, type SettlementScope } from "@/components/bank/settlements-screen"
 
 export const metadata: Metadata = { title: "settlements — sura bank console" }
 
 // B10
 export default async function BankSettlementsPage({ searchParams }: PageProps<"/bank/settlements">) {
-  const { commitment_id } = await searchParams
-  return <SettlementsScreen commitmentId={typeof commitment_id === "string" ? commitment_id : undefined} />
+  const params = await searchParams
+  const pick = (key: keyof SettlementScope) => (typeof params[key] === "string" ? params[key] : undefined)
+  return (
+    <SettlementsScreen
+      initialScope={{ commitment_id: pick("commitment_id"), user_id: pick("user_id"), vendor_id: pick("vendor_id") }}
+    />
+  )
 }

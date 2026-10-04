@@ -16,7 +16,7 @@ import { StatusBadge } from "@/components/bank/status-badge"
 import { EmptyState } from "@/components/shared/empty-state"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import type { Settlement } from "@/types"
+import type { Settlement, SettlementFilters } from "@/types"
 import { formatDateTime, formatNaira } from "@/utils/format"
 
 const columns: Column<Settlement>[] = [
@@ -40,14 +40,23 @@ const columns: Column<Settlement>[] = [
 
 const statusOptions = toOptions(settlementStatuses)
 
-// B10. opened from B4 with ?commitment_id= to show one commitment's settlements
-export function SettlementsScreen({ commitmentId }: { commitmentId?: string }) {
+export type SettlementScope = Pick<SettlementFilters, "commitment_id" | "user_id" | "vendor_id">
+
+const scopeLabels: Record<keyof SettlementScope, string> = {
+  commitment_id: "one commitment",
+  user_id: "one customer",
+  vendor_id: "one vendor",
+}
+
+// B10. opened from B4 with ?commitment_id=, B6 with ?user_id=, or ?vendor_id=
+export function SettlementsScreen({ initialScope = {} }: { initialScope?: SettlementScope }) {
   const [search, setSearch] = useState("")
   const [status, setStatus] = useState<(typeof settlementStatuses)[number] | "">("")
-  const [scope, setScope] = useState(commitmentId)
+  const [scope, setScope] = useState<SettlementScope>(initialScope)
   const q = useDebouncedValue(search.trim())
-  const query = useQuery(listSettlements, [{ q, status, commitment_id: scope }])
-  const filtered = Boolean(q || status || scope)
+  const query = useQuery(listSettlements, [{ q, status, ...scope }])
+  const scoped = (Object.keys(scopeLabels) as (keyof SettlementScope)[]).filter((key) => scope[key])
+  const filtered = Boolean(q || status || scoped.length)
 
   return (
     <>
@@ -57,18 +66,18 @@ export function SettlementsScreen({ commitmentId }: { commitmentId?: string }) {
         meta={<StatusBadge status="simulated" label="simulated settlement" tone="gold" />}
       />
 
-      {scope && (
+      {scoped.length > 0 && (
         <Alert
           variant="info"
-          title="one commitment"
+          title={scoped.map((key) => scopeLabels[key]).join(", ")}
           className="mb-5"
           action={
-            <Button type="button" variant="outline" size="sm" onClick={() => setScope(undefined)}>
+            <Button type="button" variant="outline" size="sm" onClick={() => setScope({})}>
               show all
             </Button>
           }
         >
-          <span className="font-mono text-xs normal-case">{scope}</span>
+          <span className="font-mono text-xs normal-case">{scoped.map((key) => scope[key]).join(" · ")}</span>
         </Alert>
       )}
 

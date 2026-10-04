@@ -5,6 +5,7 @@ import Link from "next/link"
 import { getFlag, resolveFlag } from "@/actions/bank"
 import { flagActions } from "@/config/bank"
 import { routes } from "@/config/routes"
+import { useBankAccess } from "@/hooks/use-bank-access"
 import { useMutation } from "@/hooks/use-mutation"
 import { useQuery } from "@/hooks/use-query"
 import { DetailList, PageHeader, Section } from "@/components/bank/page-header"
@@ -33,6 +34,7 @@ export function FlagDetailScreen({ id }: { id: string }) {
 }
 
 function FlagDetail({ flag, onResolved }: { flag: RiskFlagDetail; onResolved: () => void }) {
+  const { can } = useBankAccess()
   const evidence = Object.entries(flag.evidence)
   // an escalated flag is still undecided, so it can be confirmed or dismissed later
   const reviewable = flag.status === "open" || flag.status === "escalated"
@@ -116,7 +118,7 @@ function FlagDetail({ flag, onResolved }: { flag: RiskFlagDetail; onResolved: ()
           </Section>
         )}
 
-        {reviewable && (
+        {reviewable && can("bank:flags:write") && (
           <Section title="review" description="your decision and note are written to the audit log.">
             <ResolveForm flagId={flag.flag_id} onResolved={onResolved} />
           </Section>

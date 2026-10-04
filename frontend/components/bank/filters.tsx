@@ -93,6 +93,35 @@ export function SelectFilter<T extends string>({
   )
 }
 
+type TextFilterProps = {
+  id: string
+  label: string
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  className?: string
+}
+
+// a labelled exact-match field, e.g. one identifier, next to the selects
+export function TextFilter({ id, label, value, onChange, placeholder, className }: TextFilterProps) {
+  return (
+    <div className={cn("flex flex-col gap-1.5 sm:w-56", className)}>
+      <label htmlFor={id} className="text-xs font-extrabold text-muted-foreground">
+        {label}
+      </label>
+      <Input
+        id={id}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        autoComplete="off"
+        spellCheck={false}
+        className="h-12 font-mono text-sm normal-case"
+      />
+    </div>
+  )
+}
+
 type DateFilterProps = {
   id: string
   label: string
@@ -116,6 +145,10 @@ export function DateFilter({ id, label, value, onChange }: DateFilterProps) {
     </div>
   )
 }
+
+// the date inputs give a calendar day; the api compares full timestamps
+export const startOfDay = (date: string) => (date ? `${date}T00:00:00` : undefined)
+export const endOfDay = (date: string) => (date ? `${date}T23:59:59` : undefined)
 
 // turns a plain list of api values into select options with readable labels
 export function toOptions<T extends string>(values: readonly T[]) {

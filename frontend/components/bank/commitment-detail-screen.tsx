@@ -4,7 +4,9 @@ import Link from "next/link"
 import { LockIcon } from "@hugeicons/core-free-icons"
 import { getBankCommitment } from "@/actions/bank"
 import { routes } from "@/config/routes"
+import { useBankAccess } from "@/hooks/use-bank-access"
 import { useQuery } from "@/hooks/use-query"
+import { GroupHealthPanel, SupportCases } from "@/components/bank/commitment-review"
 import { DataTable, TableSkeleton, type Column } from "@/components/bank/data-table"
 import { DetailList, PageHeader, Section } from "@/components/bank/page-header"
 import { QueryState } from "@/components/bank/query-state"
@@ -26,12 +28,13 @@ export function CommitmentDetailScreen({ id }: { id: string }) {
 
   return (
     <QueryState query={query} noun="this commitment" skeleton={<DetailSkeleton />}>
-      {(commitment) => <CommitmentDetail commitment={commitment} />}
+      {(commitment) => <CommitmentDetail commitment={commitment} onChanged={query.retry} />}
     </QueryState>
   )
 }
 
-function CommitmentDetail({ commitment }: { commitment: BankCommitment }) {
+function CommitmentDetail({ commitment, onChanged }: { commitment: BankCommitment; onChanged: () => void }) {
+  const { can } = useBankAccess()
   const names = new Map(commitment.members.map((member) => [member.user_id, member.name]))
   const nameOf = (userId: string) => names.get(userId) ?? userId
   const totalContributed = commitment.contributions.reduce((sum, row) => sum + row.amount, 0)
@@ -77,12 +80,14 @@ function CommitmentDetail({ commitment }: { commitment: BankCommitment }) {
           </>
         }
         actions={
-          <Link
-            href={`${routes.bank.settlements}?commitment_id=${encodeURIComponent(commitment.commitment_id)}`}
-            className={buttonVariants({ variant: "outline", size: "sm" })}
-          >
-            settlements
-          </Link>
+          can("bank:settlements:read") && (
+            <Link
+              href={`${routes.bank.settlements}?commitment_id=${encodeURIComponent(commitment.commitment_id)}`}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              settlements
+            </Link>
+          )
         }
       />
 
@@ -106,6 +111,14 @@ function CommitmentDetail({ commitment }: { commitment: BankCommitment }) {
             { label: "created", value: formatDateTime(commitment.created_at) },
           ]}
         />
+
+        {commitment.status === "under_review" && (
+          <Alert variant="error" title="under review">
+            a support case is open. contributions and payouts wait until it&apos;s resolved below.
+          </Alert>
+        )}
+
+        <GroupHealthPanel commitmentId={commitment.commitment_id} status={commitment.status} />
 
         <PayoutDecision commitment={commitment} nameOf={nameOf} />
 
@@ -137,6 +150,8 @@ function CommitmentDetail({ commitment }: { commitment: BankCommitment }) {
             />
           )}
         </Section>
+
+        <SupportCases commitment={commitment} onChanged={onChanged} />
 
         <Section title="activity">
           <Timeline

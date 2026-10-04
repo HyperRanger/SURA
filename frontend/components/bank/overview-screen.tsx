@@ -1,12 +1,15 @@
 "use client"
 
-import type { ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 import Link from "next/link"
 import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react"
 import { ArrowRight01Icon, Audit01Icon, Flag02Icon, RepeatIcon, UserGroupIcon } from "@hugeicons/core-free-icons"
 import { getBankOverview } from "@/actions/bank"
+import type { BankPermission } from "@/config/bank"
 import { routes } from "@/config/routes"
+import { useBankAccess } from "@/hooks/use-bank-access"
 import { useQuery } from "@/hooks/use-query"
+import { DateFilter, endOfDay, FilterBar, startOfDay } from "@/components/bank/filters"
 import { PageHeader, Section } from "@/components/bank/page-header"
 import { QueryState } from "@/components/bank/query-state"
 import { StatusBadge } from "@/components/bank/status-badge"
@@ -16,13 +19,23 @@ import { cn } from "@/lib/utils"
 import type { BankOverview, Tone } from "@/types"
 import { formatDateTime, formatNaira, formatPercent, humanize } from "@/utils/format"
 
-const shortcuts: { title: string; description: string; href: string; icon: IconSvgElement; tone: Tone }[] = [
+type Shortcut = {
+  title: string
+  description: string
+  href: string
+  icon: IconSvgElement
+  tone: Tone
+  permission: BankPermission
+}
+
+const shortcuts: Shortcut[] = [
   {
     title: "audit log",
     description: "every score change and staff action, with the reason behind it.",
     href: routes.bank.auditLog,
     icon: Audit01Icon,
     tone: "gold",
+    permission: "bank:audit:read",
   },
   {
     title: "risk flags",
@@ -30,6 +43,7 @@ const shortcuts: { title: string; description: string; href: string; icon: IconS
     href: routes.bank.flags,
     icon: Flag02Icon,
     tone: "indigo",
+    permission: "bank:flags:read",
   },
   {
     title: "commitments",
@@ -37,6 +51,7 @@ const shortcuts: { title: string; description: string; href: string; icon: IconS
     href: routes.bank.commitments,
     icon: RepeatIcon,
     tone: "indigo",
+    permission: "bank:commitments:read",
   },
   {
     title: "customers",
@@ -44,23 +59,42 @@ const shortcuts: { title: string; description: string; href: string; icon: IconS
     href: routes.bank.users,
     icon: UserGroupIcon,
     tone: "gold",
+    permission: "bank:users:read",
   },
 ]
 
-const noArgs: [] = []
+type Range = { from: string; to: string }
 
 // B2
 export function OverviewScreen() {
-  const query = useQuery(getBankOverview, noArgs)
+  const [range, setRange] = useState<Range>({ from: "", to: "" })
+  const query = useQuery(getBankOverview, [{ date_from: startOfDay(range.from), date_to: endOfDay(range.to) }])
+  // keeps the last overview on screen while a new range loads, so the date inputs don't vanish
+  const [kept, setKept] = useState<BankOverview | null>(null)
+  if (query.data && query.data !== kept) setKept(query.data)
+
+  if (kept && !query.error) {
+    return <Overview overview={kept} range={range} onRangeChange={setRange} refreshing={query.isLoading} />
+  }
 
   return (
     <QueryState query={query} noun="the overview" skeleton={<OverviewSkeleton />}>
-      {(overview) => <Overview overview={overview} />}
+      {(overview) => <Overview overview={overview} range={range} onRangeChange={setRange} refreshing={false} />}
     </QueryState>
   )
 }
 
-function Overview({ overview }: { overview: BankOverview }) {
+type OverviewProps = {
+  overview: BankOverview
+  range: Range
+  onRangeChange: (range: Range) => void
+  refreshing: boolean
+}
+
+function Overview({ overview, range, onRangeChange, refreshing }: OverviewProps) {
+  const { can } = useBankAccess()
+  const visibleShortcuts = shortcuts.filter((shortcut) => can(shortcut.permission))
+
   return (
     <>
       <PageHeader
@@ -74,20 +108,25 @@ function Overview({ overview }: { overview: BankOverview }) {
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <FilterBar>
+        <DateFilter id="overview-from" label="activity from" value={range.from} onChange={(from) => onRangeChange({ ...range, from })} />
+        <DateFilter id="overview-to" label="activity to" value={range.to} onChange={(to) => onRangeChange({ ...range, to })} />
+      </FilterBar>
+
+      <div className={cn("grid grid-cols-2 gap-3 transition-opacity lg:grid-cols-4", refreshing && "opacity-60")} aria-busy={refreshing}>
         <StatCard label="active commitments" value={overview.active_commitments} />
         <StatCard label="total contributed" value={formatNaira(overview.total_contributed)} highlight />
         <StatCard label="completion rate" value={formatPercent(overview.completion_rate)} />
         <StatCard
           label="open fraud flags"
           value={overview.open_flags}
-          href={routes.bank.flags}
+          href={can("bank:flags:read") ? routes.bank.flags : undefined}
           alert={overview.open_flags > 0}
         />
       </div>
 
       <ul className="mt-8 grid gap-3 sm:grid-cols-2">
-        {shortcuts.map((shortcut) => (
+        {visibleShortcuts.map((shortcut) => (
           <li key={shortcut.href}>
             <Link
               href={shortcut.href}
@@ -114,7 +153,7 @@ function Overview({ overview }: { overview: BankOverview }) {
       <div className="mt-10 grid gap-8 lg:grid-cols-2">
         <Section
           title="recent activity"
-          action={<ViewAll href={routes.bank.auditLog} />}
+          action={can("bank:audit:read") && <ViewAll href={routes.bank.auditLog} />}
         >
           {overview.recent_activity.length === 0 ? (
             <EmptyLine>no staff activity yet.</EmptyLine>
@@ -138,7 +177,7 @@ function Overview({ overview }: { overview: BankOverview }) {
         <Section
           title="recent settlements"
           description="simulated. sura never holds or moves money."
-          action={<ViewAll href={routes.bank.settlements} />}
+          action={can("bank:settlements:read") && <ViewAll href={routes.bank.settlements} />}
         >
           {overview.recent_settlements.length === 0 ? (
             <EmptyLine>no vouchers have been redeemed yet.</EmptyLine>

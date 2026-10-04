@@ -3,17 +3,17 @@
 import { useState } from "react"
 import { UserGroupIcon } from "@hugeicons/core-free-icons"
 import { listBankUsers } from "@/actions/bank"
-import { flagStatuses, scoreTiers } from "@/config/bank"
+import { commitmentStatuses, flagStatuses, scoreTiers } from "@/config/bank"
 import { routes } from "@/config/routes"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { useQuery } from "@/hooks/use-query"
 import { DataTable, TableSkeleton, type Column } from "@/components/bank/data-table"
-import { FilterBar, SearchFilter, SelectFilter } from "@/components/bank/filters"
+import { FilterBar, SearchFilter, SelectFilter, TextFilter, toOptions } from "@/components/bank/filters"
 import { PageHeader } from "@/components/bank/page-header"
 import { QueryState } from "@/components/bank/query-state"
 import { StatusBadge } from "@/components/bank/status-badge"
 import { EmptyState } from "@/components/shared/empty-state"
-import type { BankUserRow, FlagStatus, ScoreTier } from "@/types"
+import type { BankUserFilters, BankUserRow, FlagStatus, ScoreTier } from "@/types"
 import { formatPercent } from "@/utils/format"
 
 const columns: Column<BankUserRow>[] = [
@@ -37,14 +37,45 @@ const columns: Column<BankUserRow>[] = [
   },
 ]
 
+type Verification = "verified" | "unverified"
+type FloatEligibility = NonNullable<BankUserFilters["float_eligibility"]>
+type CommitmentStatus = (typeof commitmentStatuses)[number]
+
+const verificationOptions: { value: Verification; label: string }[] = [
+  { value: "verified", label: "verified" },
+  { value: "unverified", label: "unverified" },
+]
+
+const floatOptions: { value: FloatEligibility; label: string }[] = [
+  { value: "eligible", label: "eligible" },
+  { value: "locked", label: "locked" },
+]
+
+const commitmentStatusOptions = toOptions(commitmentStatuses)
+
 // B5
 export function UsersScreen() {
   const [search, setSearch] = useState("")
+  const [reference, setReference] = useState("")
   const [tier, setTier] = useState<ScoreTier | "">("")
   const [flagStatus, setFlagStatus] = useState<FlagStatus | "">("")
+  const [verification, setVerification] = useState<Verification | "">("")
+  const [floatEligibility, setFloatEligibility] = useState<FloatEligibility | "">("")
+  const [commitmentStatus, setCommitmentStatus] = useState<CommitmentStatus | "">("")
   const q = useDebouncedValue(search.trim())
-  const query = useQuery(listBankUsers, [{ q, score_tier: tier || undefined, flag_status: flagStatus || undefined }])
-  const filtered = Boolean(q || tier || flagStatus)
+  const bankCustomerId = useDebouncedValue(reference.trim())
+  const query = useQuery(listBankUsers, [
+    {
+      q,
+      bank_customer_id: bankCustomerId,
+      score_tier: tier || undefined,
+      flag_status: flagStatus || undefined,
+      verified: verification ? verification === "verified" : undefined,
+      float_eligibility: floatEligibility || undefined,
+      commitment_status: commitmentStatus || undefined,
+    },
+  ])
+  const filtered = Boolean(q || bankCustomerId || tier || flagStatus || verification || floatEligibility || commitmentStatus)
 
   return (
     <>
@@ -61,6 +92,16 @@ export function UsersScreen() {
           value={search}
           onChange={setSearch}
         />
+        <TextFilter
+          id="customer-reference"
+          label="bank customer id (exact)"
+          placeholder="your full customer reference"
+          value={reference}
+          onChange={setReference}
+        />
+      </FilterBar>
+
+      <FilterBar>
         <SelectFilter id="customer-tier" label="score tier" value={tier} onChange={setTier} options={scoreTiers} />
         <SelectFilter
           id="customer-flags"
@@ -68,6 +109,30 @@ export function UsersScreen() {
           value={flagStatus}
           onChange={setFlagStatus}
           options={flagStatuses}
+          allLabel="any"
+        />
+        <SelectFilter
+          id="customer-verified"
+          label="verification"
+          value={verification}
+          onChange={setVerification}
+          options={verificationOptions}
+          allLabel="any"
+        />
+        <SelectFilter
+          id="customer-float"
+          label="float eligibility"
+          value={floatEligibility}
+          onChange={setFloatEligibility}
+          options={floatOptions}
+          allLabel="any"
+        />
+        <SelectFilter
+          id="customer-commitment-status"
+          label="has a lock that is"
+          value={commitmentStatus}
+          onChange={setCommitmentStatus}
+          options={commitmentStatusOptions}
           allLabel="any"
         />
       </FilterBar>
@@ -80,9 +145,11 @@ export function UsersScreen() {
         empty={
           <EmptyState
             icon={UserGroupIcon}
-            title={filtered ? "no customers match" : "no customers yet"}
+            title={bankCustomerId ? "no customer with that reference" : filtered ? "no customers match" : "no customers yet"}
             description={
-              filtered
+              bankCustomerId
+                ? "the reference must match exactly, and belong to a customer of your bank."
+                : filtered
                 ? "try a different search or clear the filters."
                 : "customers appear here once they sign up to sura through your bank."
             }

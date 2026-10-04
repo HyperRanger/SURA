@@ -8,7 +8,7 @@ export type DemoSignIn =
   | { type: "seeded-user"; userId: string }
   // POST /v1/demo/login-as, a generic account per role
   | { type: "role"; role: "individual" | "vendor" }
-  // POST /v1/bank/demo-login, a risk analyst session for the demo bank
+  // POST /v1/bank/demo-login, a bank admin session for the demo bank
   | { type: "bank" }
 
 export type DemoArea = "member" | "vendor" | "bank"
@@ -66,7 +66,7 @@ export const demoPersonas: DemoPersona[] = [
     id: "bank",
     name: "demo bank",
     tagline: "bank console",
-    description: "read-only risk analyst view: audit log, fraud flags and scores.",
+    description: "the full admin console: customers, locks, flags, api keys and webhooks.",
     area: "bank",
     icon: BankIcon,
     signIn: { type: "bank" },

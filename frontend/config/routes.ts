@@ -27,5 +27,8 @@ export const routes = {
     flag: (id: string) => `/bank/flags/${encodeURIComponent(id)}`,
     settlements: "/bank/settlements",
     developers: "/bank/developers",
+    team: "/bank/team",
+    settings: "/bank/settings",
+    account: "/bank/account",
   },
 } as const
