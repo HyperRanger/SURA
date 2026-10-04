@@ -12,17 +12,21 @@ type LogoProps = {
 const width = 96
 const height = 37
 
+const indigo = "/sura-logo-horizontal.svg"
+const ivory = "/sura-logo-horizontal-dark.svg"
+
 export function Logo({ className, tone = "default" }: LogoProps) {
   return (
     <Link href="/" aria-label="sura home" className={cn("flex shrink-0 items-center", className)}>
-      <Image
-        src={tone === "inverse" ? "/sura-logo-horizontal-dark.svg" : "/sura-logo-horizontal.svg"}
-        alt=""
-        width={width}
-        height={height}
-        priority
-        unoptimized
-      />
+      {tone === "inverse" ? (
+        <Image src={ivory} alt="" width={width} height={height} priority unoptimized />
+      ) : (
+        // the indigo wordmark disappears on midnight, so dark mode swaps in the ivory one
+        <>
+          <Image src={indigo} alt="" width={width} height={height} priority unoptimized className="dark:hidden" />
+          <Image src={ivory} alt="" width={width} height={height} priority unoptimized className="hidden dark:block" />
+        </>
+      )}
     </Link>
   )
 }

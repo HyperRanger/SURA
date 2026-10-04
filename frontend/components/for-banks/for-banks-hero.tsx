@@ -13,7 +13,7 @@ export function ForBanksHero() {
       <div className="container-page relative grid items-center gap-12 lg:grid-cols-[1.15fr_0.85fr]">
         <div>
           <h1 className="mt-6 text-4xl leading-[1.05] font-black tracking-tight text-balance sm:text-5xl md:text-6xl">
-            a savings product and a credit signal, <span className="text-primary">in one api.</span>
+            a savings product and a credit signal, <span className="text-link">in one api.</span>
           </h1>
           <p className="mt-6 max-w-xl text-base leading-relaxed text-pretty text-muted-foreground sm:text-lg">
             sura runs rotating savings circles on your rails and turns every on-time contribution

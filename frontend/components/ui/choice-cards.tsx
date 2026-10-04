@@ -45,7 +45,7 @@ export function ChoiceCards<T extends string>({
               "flex cursor-pointer items-center gap-4 rounded-2xl border-2 border-b-4 bg-card px-4 py-3.5 transition-colors",
               "has-focus-visible:ring-4 has-focus-visible:ring-ring/20",
               selected
-                ? "border-primary bg-indigo-soft"
+                ? "border-ring bg-indigo-soft"
                 : "border-hairline hover:border-hairline-strong",
               invalid && !selected && "border-destructive/50"
             )}
@@ -81,12 +81,12 @@ export function ChoiceCards<T extends string>({
               aria-hidden="true"
               className={cn(
                 "flex size-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-                selected ? "border-primary" : "border-hairline-strong"
+                selected ? "border-ring" : "border-hairline-strong"
               )}
             >
               <span
                 className={cn(
-                  "size-3 rounded-full bg-primary transition-transform",
+                  "size-3 rounded-full bg-ring transition-transform",
                   selected ? "scale-100" : "scale-0"
                 )}
               />

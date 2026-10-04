@@ -7,6 +7,7 @@ import { mainNav } from "@/config/site"
 import { buttonVariants } from "@/components/ui/button"
 import { Logo } from "@/components/layout/logo"
 import { MobileNav } from "@/components/layout/mobile-nav"
+import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { useScrolled } from "@/hooks/use-scrolled"
 import { cn } from "@/lib/utils"
 
@@ -54,6 +55,7 @@ export function Header() {
           </div>
 
           <div className="hidden items-center gap-3 lg:flex">
+            <ThemeToggle />
             <Link href={routes.login} className={buttonVariants({ variant: "outline", size: "sm" })}>
               log in
             </Link>
@@ -63,6 +65,7 @@ export function Header() {
           </div>
 
           <div className="flex items-center gap-2 lg:hidden">
+            <ThemeToggle />
             <MobileNav />
           </div>
         </nav>

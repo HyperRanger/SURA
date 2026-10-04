@@ -27,7 +27,7 @@ export function ScorePillars({ report }: { report: ScoreReport }) {
               aria-valuenow={points}
               className="mt-1.5 h-3 overflow-hidden rounded-full bg-cloud"
             >
-              <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${fill}%` }} />
+              <div className="h-full rounded-full bg-ring transition-[width]" style={{ width: `${fill}%` }} />
             </div>
           </li>
         )

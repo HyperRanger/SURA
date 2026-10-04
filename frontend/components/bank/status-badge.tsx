@@ -4,11 +4,12 @@ import { humanize } from "@/utils/format"
 type StatusTone = "indigo" | "gold" | "neutral" | "danger" | "warning"
 
 const toneClasses: Record<StatusTone, string> = {
-  indigo: "border-primary/15 bg-indigo-soft text-link",
+  indigo: "border-ring/15 bg-indigo-soft text-link",
   gold: "border-gold/45 bg-gold-soft text-gold-deep",
   neutral: "border-hairline bg-card text-muted-foreground",
   danger: "border-destructive/25 bg-destructive/8 text-destructive",
-  warning: "border-[#e0a458]/50 bg-[#fdf1e1] text-[#8a4f0b]",
+  warning:
+    "border-[#e0a458]/50 bg-[#fdf1e1] text-[#8a4f0b] dark:border-[#e0a458]/35 dark:bg-[#e0a458]/12 dark:text-[#e8b673]",
 }
 
 // gold is kept for what has been earned or locked in, as the brand rules ask

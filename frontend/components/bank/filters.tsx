@@ -73,7 +73,7 @@ export function SelectFilter<T extends string>({
           id={id}
           value={value}
           onChange={(event) => onChange(event.target.value as T | "")}
-          className="h-12 w-full cursor-pointer appearance-none rounded-2xl border-2 border-b-4 border-hairline bg-card pr-10 pl-4 text-sm font-bold outline-none hover:border-hairline-strong focus-visible:border-primary focus-visible:ring-4 focus-visible:ring-ring/15"
+          className="h-12 w-full cursor-pointer appearance-none rounded-2xl border-2 border-b-4 border-hairline bg-card pr-10 pl-4 text-sm font-bold outline-none hover:border-hairline-strong focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/15"
         >
           <option value="">{allLabel}</option>
           {options.map((option) => (

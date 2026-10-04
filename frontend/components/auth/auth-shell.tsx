@@ -4,6 +4,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowLeft01Icon } from "@hugeicons/core-free-icons"
 import { routes } from "@/config/routes"
 import { Logo } from "@/components/layout/logo"
+import { ThemeToggle } from "@/components/layout/theme-toggle"
 
 export function AuthShell({ children }: { children: ReactNode }) {
   return (
@@ -18,7 +19,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
           <span className="hidden sm:inline">home</span>
         </Link>
         <Logo />
-        <span aria-hidden="true" />
+        <ThemeToggle className="justify-self-end" />
       </header>
       <main className="flex flex-1 items-start justify-center px-4 pt-6 pb-12 sm:items-center sm:px-8 sm:pt-10">
         {children}
