@@ -25,6 +25,7 @@ export function MobileNav() {
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger
         aria-label="open menu"
+        title="open menu"
         className="flex size-10 items-center justify-center rounded-full border-2 border-hairline text-foreground transition-colors hover:border-link hover:text-link"
       >
         <HugeiconsIcon icon={Menu01Icon} size={20} strokeWidth={2} />

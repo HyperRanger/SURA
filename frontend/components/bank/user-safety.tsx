@@ -22,6 +22,7 @@ import { EmptyState } from "@/components/shared/empty-state"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Field } from "@/components/ui/field"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
@@ -206,19 +207,26 @@ function RestrictionForm({
 
       {flags && flags.length > 0 && (
         <Field id="restriction-flag" label="linked flag (optional)">
-          <select
-            id="restriction-flag"
-            value={flagId}
-            onChange={(event) => setFlagId(event.target.value)}
-            className="h-12 w-full cursor-pointer rounded-2xl border-2 border-b-4 border-hairline bg-card px-4 text-sm font-bold outline-none hover:border-hairline-strong focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/15"
+          <Select
+            items={[
+              { value: null, label: "no flag" },
+              ...flags.map((flag) => ({ value: flag.flag_id, label: `${humanize(flag.rule)} · ${flag.status}` })),
+            ]}
+            value={flagId || null}
+            onValueChange={(next) => setFlagId(next ?? "")}
           >
-            <option value="">no flag</option>
-            {flags.map((flag) => (
-              <option key={flag.flag_id} value={flag.flag_id}>
-                {humanize(flag.rule)} · {flag.status}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger id="restriction-flag" title="link this decision to a risk flag">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={null}>no flag</SelectItem>
+              {flags.map((flag) => (
+                <SelectItem key={flag.flag_id} value={flag.flag_id}>
+                  {humanize(flag.rule)} · {flag.status}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </Field>
       )}
 

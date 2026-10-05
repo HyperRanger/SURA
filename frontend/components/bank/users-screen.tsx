@@ -1,18 +1,21 @@
 "use client"
 
 import { useState } from "react"
-import { UserGroupIcon } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { FilterHorizontalIcon, UserGroupIcon } from "@hugeicons/core-free-icons"
 import { listBankUsers } from "@/actions/bank"
 import { commitmentStatuses, flagStatuses, scoreTiers } from "@/config/bank"
 import { routes } from "@/config/routes"
 import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { useQuery } from "@/hooks/use-query"
 import { DataTable, TableSkeleton, type Column } from "@/components/bank/data-table"
-import { FilterBar, SearchFilter, SelectFilter, TextFilter, toOptions } from "@/components/bank/filters"
+import { FilterGrid, SearchFilter, SelectFilter, TextFilter, toOptions } from "@/components/bank/filters"
 import { PageHeader } from "@/components/bank/page-header"
 import { QueryState } from "@/components/bank/query-state"
 import { StatusBadge } from "@/components/bank/status-badge"
 import { EmptyState } from "@/components/shared/empty-state"
+import { Button } from "@/components/ui/button"
+import { cn } from "@/lib/utils"
 import type { BankUserFilters, BankUserRow, FlagStatus, ScoreTier } from "@/types"
 import { formatPercent } from "@/utils/format"
 
@@ -76,6 +79,9 @@ export function UsersScreen() {
     },
   ])
   const filtered = Boolean(q || bankCustomerId || tier || flagStatus || verification || floatEligibility || commitmentStatus)
+  // on phones the filters fold behind a button, so the list isn't pushed a screen down
+  const [showFilters, setShowFilters] = useState(false)
+  const activeFilters = [reference, tier, flagStatus, verification, floatEligibility, commitmentStatus].filter(Boolean).length
 
   return (
     <>
@@ -84,25 +90,46 @@ export function UsersScreen() {
         description="your customers on sura, with their score and tier. identifiers are masked."
       />
 
-      <FilterBar>
-        <SearchFilter
-          id="customer-search"
-          label="search customers"
-          placeholder="name, phone, sura id, bank reference or commitment id"
-          value={search}
-          onChange={setSearch}
-        />
+      <div className="mb-3 flex flex-col gap-3 sm:mb-5 sm:flex-row sm:items-end">
+        <div className="flex min-w-0 items-end gap-2 sm:flex-1">
+          <SearchFilter
+            id="customer-search"
+            label="search customers"
+            placeholder="name, phone, sura id, bank reference or commitment id"
+            value={search}
+            onChange={setSearch}
+            className="flex-1"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            aria-expanded={showFilters}
+            aria-controls="customer-filters"
+            title={showFilters ? "hide filters" : "show filters"}
+            onClick={() => setShowFilters((open) => !open)}
+            className="relative h-12 px-4 sm:hidden"
+          >
+            <HugeiconsIcon icon={FilterHorizontalIcon} size={18} strokeWidth={2.2} />
+            <span className="sr-only">filters</span>
+            {activeFilters > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-gold text-[0.65rem] font-black text-gold-foreground">
+                {activeFilters}
+              </span>
+            )}
+          </Button>
+        </div>
         <TextFilter
           id="customer-reference"
           label="bank customer id (exact)"
           placeholder="your full customer reference"
           value={reference}
           onChange={setReference}
+          className={cn(!showFilters && "hidden", "sm:flex")}
         />
-      </FilterBar>
+      </div>
 
-      <FilterBar>
-        <SelectFilter id="customer-tier" label="score tier" value={tier} onChange={setTier} options={scoreTiers} />
+      <FilterGrid id="customer-filters" className={cn(!showFilters && "hidden", "sm:grid")}>
+        <SelectFilter id="customer-tier" label="score tier" value={tier} onChange={setTier} options={scoreTiers} className="sm:w-auto" />
         <SelectFilter
           id="customer-flags"
           label="flag status"
@@ -110,6 +137,7 @@ export function UsersScreen() {
           onChange={setFlagStatus}
           options={flagStatuses}
           allLabel="any"
+          className="sm:w-auto"
         />
         <SelectFilter
           id="customer-verified"
@@ -118,6 +146,7 @@ export function UsersScreen() {
           onChange={setVerification}
           options={verificationOptions}
           allLabel="any"
+          className="sm:w-auto"
         />
         <SelectFilter
           id="customer-float"
@@ -126,6 +155,7 @@ export function UsersScreen() {
           onChange={setFloatEligibility}
           options={floatOptions}
           allLabel="any"
+          className="sm:w-auto"
         />
         <SelectFilter
           id="customer-commitment-status"
@@ -134,8 +164,9 @@ export function UsersScreen() {
           onChange={setCommitmentStatus}
           options={commitmentStatusOptions}
           allLabel="any"
+          className="col-span-2 sm:col-span-1 sm:w-auto"
         />
-      </FilterBar>
+      </FilterGrid>
 
       <QueryState
         query={query}

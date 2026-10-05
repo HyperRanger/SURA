@@ -2,6 +2,8 @@
 
 import { useState, type FormEvent } from "react"
 import Link from "next/link"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { TaskDone01Icon } from "@hugeicons/core-free-icons"
 import { getFlag, resolveFlag } from "@/actions/bank"
 import { flagActions } from "@/config/bank"
 import { routes } from "@/config/routes"
@@ -12,8 +14,10 @@ import { DetailList, PageHeader, Section } from "@/components/bank/page-header"
 import { QueryState } from "@/components/bank/query-state"
 import { StatusBadge } from "@/components/bank/status-badge"
 import { Timeline, type TimelineItem } from "@/components/bank/timeline"
+import { IconTile } from "@/components/shared/icon-tile"
 import { Alert } from "@/components/ui/alert"
 import { Button, buttonVariants } from "@/components/ui/button"
+import { Dialog } from "@/components/ui/dialog"
 import { Field } from "@/components/ui/field"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
@@ -38,6 +42,8 @@ function FlagDetail({ flag, onResolved }: { flag: RiskFlagDetail; onResolved: ()
   const evidence = Object.entries(flag.evidence)
   // an escalated flag is still undecided, so it can be confirmed or dismissed later
   const reviewable = flag.status === "open" || flag.status === "escalated"
+  const canReview = reviewable && can("bank:flags:write")
+  const [reviewing, setReviewing] = useState(false)
 
   const timeline: TimelineItem[] = [
     ...flag.review_history.map((event, index) => ({
@@ -62,9 +68,21 @@ function FlagDetail({ flag, onResolved }: { flag: RiskFlagDetail; onResolved: ()
           </>
         }
         actions={
-          <Link href={routes.bank.user(flag.user_id)} className={buttonVariants({ variant: "outline", size: "sm" })}>
-            view customer
-          </Link>
+          <>
+            <Link
+              href={routes.bank.user(flag.user_id)}
+              title="open this customer's profile"
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              view customer
+            </Link>
+            {canReview && (
+              <Button type="button" size="sm" title="dismiss, confirm or escalate this flag" onClick={() => setReviewing(true)}>
+                <HugeiconsIcon icon={TaskDone01Icon} size={18} strokeWidth={2.2} />
+                review flag
+              </Button>
+            )}
+          </>
         }
       />
 
@@ -118,21 +136,55 @@ function FlagDetail({ flag, onResolved }: { flag: RiskFlagDetail; onResolved: ()
           </Section>
         )}
 
-        {reviewable && can("bank:flags:write") && (
-          <Section title="review" description="your decision and note are written to the audit log.">
-            <ResolveForm flagId={flag.flag_id} onResolved={onResolved} />
-          </Section>
+        {canReview && (
+          <div className="card-raised flex flex-col gap-4 rounded-2xl p-4 sm:flex-row sm:items-center sm:p-5">
+            <IconTile icon={TaskDone01Icon} tone="indigo" />
+            <div className="min-w-0 flex-1">
+              <p className="text-base font-black">ready to decide?</p>
+              <p className="mt-0.5 text-sm leading-snug font-semibold text-muted-foreground">
+                dismiss, confirm or escalate this flag. your decision and note are written to the audit log.
+              </p>
+            </div>
+            <Button type="button" title="dismiss, confirm or escalate this flag" onClick={() => setReviewing(true)}>
+              review flag
+            </Button>
+          </div>
         )}
 
         <Section title="timeline">
           <Timeline items={timeline} empty="no history yet." />
         </Section>
       </div>
+
+      {canReview && (
+        <Dialog
+          open={reviewing}
+          onOpenChange={setReviewing}
+          title="review this flag"
+          description="your decision and note are written to the audit log."
+          className="max-w-2xl"
+        >
+          <ResolveForm
+            flagId={flag.flag_id}
+            onCancel={() => setReviewing(false)}
+            onResolved={() => {
+              setReviewing(false)
+              onResolved()
+            }}
+          />
+        </Dialog>
+      )}
     </>
   )
 }
 
-function ResolveForm({ flagId, onResolved }: { flagId: string; onResolved: () => void }) {
+type ResolveFormProps = {
+  flagId: string
+  onResolved: () => void
+  onCancel: () => void
+}
+
+function ResolveForm({ flagId, onResolved, onCancel }: ResolveFormProps) {
   const [action, setAction] = useState<FlagAction | null>(null)
   const [note, setNote] = useState("")
   const [noteError, setNoteError] = useState<string>()
@@ -152,13 +204,14 @@ function ResolveForm({ flagId, onResolved }: { flagId: string; onResolved: () =>
   const chosen = flagActions.find((option) => option.value === action)
 
   return (
-    <form noValidate onSubmit={handleSubmit} className="card-raised flex flex-col gap-5 rounded-2xl p-4 sm:p-5">
+    <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-5">
       <fieldset>
         <legend className="mb-2 text-sm font-extrabold">decision</legend>
         <div className="grid gap-2 sm:grid-cols-3">
           {flagActions.map((option) => (
             <label
               key={option.value}
+              title={option.description}
               className={cn(
                 "flex cursor-pointer flex-col gap-1 rounded-2xl border-2 border-b-4 border-hairline bg-card p-3 transition-colors hover:border-hairline-strong",
                 "has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-ring/20",
@@ -203,15 +256,19 @@ function ResolveForm({ flagId, onResolved }: { flagId: string; onResolved: () =>
         </Alert>
       )}
 
-      <Button
-        type="submit"
-        loading={resolve.isPending}
-        disabled={!action}
-        variant={action === "dismissed" ? "outline" : "default"}
-        className="sm:self-start"
-      >
-        {chosen ? `${chosen.label} this flag` : "choose a decision"}
-      </Button>
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <Button type="button" variant="ghost" onClick={onCancel} disabled={resolve.isPending}>
+          cancel
+        </Button>
+        <Button
+          type="submit"
+          loading={resolve.isPending}
+          disabled={!action}
+          variant={action === "dismissed" ? "outline" : "default"}
+        >
+          {chosen ? `${chosen.label} this flag` : "choose a decision"}
+        </Button>
+      </div>
     </form>
   )
 }

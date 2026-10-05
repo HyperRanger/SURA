@@ -96,12 +96,7 @@ function CommitmentDetail({ commitment, onChanged }: { commitment: BankCommitmen
           items={[
             {
               label: "locked vendor",
-              value: (
-                <span className="flex flex-wrap items-center gap-1.5">
-                  {commitment.vendor.name ?? commitment.vendor.vendor_id}
-                  {commitment.vendor.verified && <StatusBadge status="verified" />}
-                </span>
-              ),
+              value: commitment.vendor.name ?? commitment.vendor.vendor_id,
             },
             { label: "contribution", value: `${formatNaira(commitment.contribution_amount)} ${humanize(commitment.frequency)}` },
             { label: "cycles done", value: `${commitment.completed_cycle_count} of ${commitment.cycles}` },

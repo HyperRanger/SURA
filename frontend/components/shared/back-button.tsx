@@ -23,6 +23,7 @@ export function BackButton({ fallbackHref, label = "back", className }: BackButt
   return (
     <button
       type="button"
+      title={label === "back" ? "go back" : `back to ${label}`}
       onClick={handleClick}
       className={cn(
         "inline-flex items-center gap-1 rounded-full py-2 pr-3 pl-2 text-sm font-bold text-muted-foreground transition-colors hover:bg-cloud hover:text-link",

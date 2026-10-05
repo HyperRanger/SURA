@@ -16,6 +16,7 @@ import { EmptyState } from "@/components/shared/empty-state"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ChoiceCards } from "@/components/ui/choice-cards"
+import { DatePicker } from "@/components/ui/date-picker"
 import { Dialog } from "@/components/ui/dialog"
 import { Field, FieldError } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
@@ -271,13 +272,14 @@ function CreateKeyForm({ onCreated, onCancel }: CreateKeyFormProps) {
       </fieldset>
 
       <Field id="key-expiry" label="expires (optional)" hint="leave empty for a key that never expires.">
-        <Input
+        <DatePicker
           id="key-expiry"
-          type="date"
           value={expiry}
-          onChange={(event) => setExpiry(event.target.value)}
+          onChange={setExpiry}
+          placeholder="never expires"
           aria-describedby="key-expiry-hint"
-          className="h-12 text-sm"
+          // a key can't expire before today
+          disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
         />
       </Field>
 

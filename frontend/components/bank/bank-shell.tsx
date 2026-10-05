@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Logout01Icon, Menu01Icon } from "@hugeicons/core-free-icons"
+import { Logout01Icon, Menu01Icon, UnfoldMoreIcon } from "@hugeicons/core-free-icons"
 import { bankLogout } from "@/actions/bank"
 import { bankNav, type BankNavItem } from "@/config/bank"
 import { routes } from "@/config/routes"
@@ -13,6 +13,17 @@ import { useHydrated } from "@/hooks/use-hydrated"
 import { useStoredValue } from "@/hooks/use-stored-value"
 import { endSession, sessionStore } from "@/lib/session"
 import { Alert } from "@/components/ui/alert"
+import { Avatar, AvatarFallback, AvatarImage, dicebearUrl } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuLinkItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Logo } from "@/components/layout/logo"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
@@ -86,7 +97,7 @@ export function BankShell({ children }: { children: ReactNode }) {
           <NavLinks nav={nav} pathname={pathname} />
         </nav>
         <div className="border-t-2 border-hairline p-4">
-          <AccountSummary session={session} onSignOut={handleSignOut} />
+          <AccountMenu nav={nav} session={session} onSignOut={handleSignOut} />
         </div>
       </aside>
 
@@ -147,25 +158,93 @@ function NavLinks({ nav, pathname, onNavigate }: NavLinksProps) {
   )
 }
 
-function AccountSummary({ session, onSignOut }: { session: Session; onSignOut: () => void }) {
+// the account sections that live behind the avatar rather than in the main list
+const accountSections = ["B14", "B12", "B13"]
+
+function UserAvatar({ session, className }: { session: Session; className?: string }) {
+  const initials = humanize(session.role)
+    .split(" ")
+    .map((word) => word[0])
+    .join("")
+    .slice(0, 2)
   return (
-    <>
-      <p className="text-xs font-extrabold text-muted-foreground">signed in as</p>
-      <p className="mt-0.5 truncate text-sm font-black">{humanize(session.role)}</p>
-      {session.institutionId && (
-        <p className="truncate font-mono text-xs font-semibold text-muted-foreground normal-case">
-          {session.institutionId}
-        </p>
-      )}
-      <button
-        type="button"
-        onClick={onSignOut}
-        className="mt-3 inline-flex items-center gap-1.5 rounded-full py-1.5 pr-3 pl-2 text-sm font-bold text-muted-foreground transition-colors hover:bg-cloud hover:text-link"
+    <Avatar className={className}>
+      <AvatarImage src={dicebearUrl(session.userId)} alt="" />
+      <AvatarFallback>{initials}</AvatarFallback>
+    </Avatar>
+  )
+}
+
+type AccountMenuProps = {
+  nav: BankNavItem[]
+  session: Session
+  onSignOut: () => void
+  onNavigate?: () => void
+}
+
+// everything about the signed-in person folds into one avatar; the menu opens upward
+// from the foot of the sidebar with who they are, their own pages and sign out
+function AccountMenu({ nav, session, onSignOut, onNavigate }: AccountMenuProps) {
+  const role = humanize(session.role)
+  const links = accountSections
+    .map((id) => nav.find((item) => item.id === id))
+    .filter((item): item is BankNavItem => Boolean(item))
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        title={`signed in as ${role}. open account menu`}
+        className="group flex w-full cursor-pointer items-center gap-3 rounded-2xl border-2 border-transparent p-1.5 pr-2.5 text-left transition-colors outline-none hover:border-hairline hover:bg-cloud focus-visible:ring-4 focus-visible:ring-ring/30 data-popup-open:border-hairline data-popup-open:bg-cloud"
       >
-        <HugeiconsIcon icon={Logout01Icon} size={18} strokeWidth={2.2} />
-        sign out
-      </button>
-    </>
+        <UserAvatar session={session} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-black">{role}</span>
+          <span className="block text-xs font-bold text-muted-foreground">your account</span>
+        </span>
+        <HugeiconsIcon
+          icon={UnfoldMoreIcon}
+          size={18}
+          strokeWidth={2.2}
+          className="shrink-0 text-muted-foreground transition-colors group-hover:text-link"
+        />
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent side="top" align="start" className="w-(--anchor-width) min-w-60">
+        <div className="mb-1 flex items-center gap-3 rounded-2xl bg-indigo-soft/60 p-3">
+          <UserAvatar session={session} className="size-12 border-card" />
+          <div className="min-w-0">
+            <p className="truncate text-sm font-black">{role}</p>
+            {session.institutionId && (
+              <p className="truncate font-mono text-xs font-semibold text-muted-foreground normal-case" title={session.institutionId}>
+                {session.institutionId}
+              </p>
+            )}
+          </div>
+        </div>
+
+        {links.length > 0 && (
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>manage</DropdownMenuLabel>
+            {links.map((item) => (
+              <DropdownMenuLinkItem
+                key={item.id}
+                title={`open ${item.label}`}
+                render={<Link href={item.href} onClick={onNavigate} />}
+              >
+                <HugeiconsIcon icon={item.icon} size={18} strokeWidth={2.2} />
+                {item.id === "B14" ? "your account" : item.label}
+              </DropdownMenuLinkItem>
+            ))}
+          </DropdownMenuGroup>
+        )}
+
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant="destructive" title="sign out of the bank console" onClick={onSignOut}>
+          <HugeiconsIcon icon={Logout01Icon} size={18} strokeWidth={2.2} />
+          sign out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -185,6 +264,7 @@ function MobileMenu({ nav, pathname, session, onSignOut }: MobileMenuProps) {
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger
         aria-label="open console menu"
+        title="open console menu"
         className="flex h-10 items-center gap-2 rounded-full border-2 border-hairline pr-2.5 pl-3.5 text-sm font-extrabold text-foreground transition-colors hover:border-link hover:text-link"
       >
         {current?.label ?? "menu"}
@@ -204,7 +284,7 @@ function MobileMenu({ nav, pathname, session, onSignOut }: MobileMenuProps) {
         </nav>
 
         <div className="border-t-2 border-hairline p-5">
-          <AccountSummary session={session} onSignOut={onSignOut} />
+          <AccountMenu nav={nav} session={session} onSignOut={onSignOut} onNavigate={close} />
         </div>
       </SheetContent>
     </Sheet>

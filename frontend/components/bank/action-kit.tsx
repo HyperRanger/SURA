@@ -66,6 +66,7 @@ export function ConfirmButton({
       variant={armed ? "default" : variant}
       loading={loading}
       disabled={disabled}
+      title={armed ? "click again to confirm" : undefined}
       className={armed ? "bg-destructive hover:bg-destructive/90 border-destructive" : undefined}
       onClick={() => {
         if (!armed) return setArmed(true)

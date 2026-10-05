@@ -43,7 +43,7 @@ export function Dialog({ open, onOpenChange, title, description, children, class
                 </DialogPrimitive.Description>
               )}
             </div>
-            <DialogPrimitive.Close render={<Button variant="ghost" size="icon" className="-mt-1 -mr-2 shrink-0" />}>
+            <DialogPrimitive.Close render={<Button variant="ghost" size="icon" title="close" className="-mt-1 -mr-2 shrink-0" />}>
               <HugeiconsIcon icon={Cancel01Icon} size={20} strokeWidth={2.2} />
               <span className="sr-only">close</span>
             </DialogPrimitive.Close>

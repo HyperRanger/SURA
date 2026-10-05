@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
+import { LockPasswordIcon } from "@hugeicons/core-free-icons"
 import { changeBankPassword } from "@/actions/bank"
 import { routes } from "@/config/routes"
 import { useBankAccess } from "@/hooks/use-bank-access"
@@ -9,7 +10,9 @@ import { useMutation } from "@/hooks/use-mutation"
 import { endSession } from "@/lib/session"
 import { ActionError } from "@/components/bank/action-kit"
 import { DetailList, PageHeader, Section } from "@/components/bank/page-header"
+import { IconTile } from "@/components/shared/icon-tile"
 import { Button } from "@/components/ui/button"
+import { Dialog } from "@/components/ui/dialog"
 import { Field } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { humanize } from "@/utils/format"
@@ -22,8 +25,61 @@ type Errors = { current?: string; next?: string; confirm?: string }
 // B14. every staff role can change its own password. doing so ends every session
 // this person holds, including this one, so they sign in again straight after
 export function AccountScreen() {
-  const router = useRouter()
   const { session } = useBankAccess()
+  const [changingPassword, setChangingPassword] = useState(false)
+
+  return (
+    <>
+      <PageHeader title="your account" description="how you're signed in to the bank console." />
+
+      <div className="flex flex-col gap-10">
+        {session && (
+          <DetailList
+            items={[
+              { label: "role", value: humanize(session.role) },
+              { label: "bank", value: <span className="font-mono text-xs normal-case">{session.institutionId ?? "—"}</span> },
+              { label: "user id", value: <span className="font-mono text-xs normal-case">{session.userId}</span> },
+              { label: "permissions", value: session.permissions?.length ?? "role defaults" },
+            ]}
+          />
+        )}
+
+        <Section title="security">
+          <div className="card-raised flex flex-col gap-4 rounded-2xl p-4 sm:flex-row sm:items-center sm:p-5">
+            <IconTile icon={LockPasswordIcon} tone="indigo" />
+            <div className="min-w-0 flex-1">
+              <p className="text-base font-black">password</p>
+              <p className="mt-0.5 text-sm leading-snug font-semibold text-muted-foreground">
+                changing it signs you out everywhere, including here. you then sign in with the new one.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              title="choose a new password for your account"
+              onClick={() => setChangingPassword(true)}
+              className="sm:self-center"
+            >
+              change password
+            </Button>
+          </div>
+        </Section>
+      </div>
+
+      <Dialog
+        open={changingPassword}
+        onOpenChange={setChangingPassword}
+        title="change password"
+        description="you'll be signed out everywhere, then sign in with the new one."
+      >
+        <ChangePasswordForm onCancel={() => setChangingPassword(false)} />
+      </Dialog>
+    </>
+  )
+}
+
+function ChangePasswordForm({ onCancel }: { onCancel: () => void }) {
+  const router = useRouter()
   const [current, setCurrent] = useState("")
   const [next, setNext] = useState("")
   const [confirm, setConfirm] = useState("")
@@ -61,49 +117,35 @@ export function AccountScreen() {
   ]
 
   return (
-    <>
-      <PageHeader title="your account" description="how you're signed in to the bank console." />
-
-      <div className="flex flex-col gap-10">
-        {session && (
-          <DetailList
-            items={[
-              { label: "role", value: humanize(session.role) },
-              { label: "bank", value: <span className="font-mono text-xs normal-case">{session.institutionId ?? "—"}</span> },
-              { label: "user id", value: <span className="font-mono text-xs normal-case">{session.userId}</span> },
-              { label: "permissions", value: session.permissions?.length ?? "role defaults" },
-            ]}
+    <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-4">
+      {fields.map((field) => (
+        <Field key={field.id} id={field.id} label={field.label} error={errors[field.key]}>
+          <Input
+            id={field.id}
+            type="password"
+            autoComplete={field.autoComplete}
+            value={field.value}
+            onChange={(event) => {
+              field.set(event.target.value)
+              if (errors[field.key]) setErrors((existing) => ({ ...existing, [field.key]: undefined }))
+            }}
+            invalid={Boolean(errors[field.key])}
+            aria-describedby={errors[field.key] ? `${field.id}-error` : undefined}
+            className="h-12 text-sm"
           />
-        )}
+        </Field>
+      ))}
 
-        <Section title="change password" description="you'll be signed out everywhere, then sign in with the new one.">
-          <form noValidate onSubmit={handleSubmit} className="card-raised flex flex-col gap-4 rounded-2xl p-4 sm:max-w-md sm:p-5">
-            {fields.map((field) => (
-              <Field key={field.id} id={field.id} label={field.label} error={errors[field.key]}>
-                <Input
-                  id={field.id}
-                  type="password"
-                  autoComplete={field.autoComplete}
-                  value={field.value}
-                  onChange={(event) => {
-                    field.set(event.target.value)
-                    if (errors[field.key]) setErrors((existing) => ({ ...existing, [field.key]: undefined }))
-                  }}
-                  invalid={Boolean(errors[field.key])}
-                  aria-describedby={errors[field.key] ? `${field.id}-error` : undefined}
-                  className="h-12 text-sm"
-                />
-              </Field>
-            ))}
+      <ActionError error={change.error} />
 
-            <ActionError error={change.error} />
-
-            <Button type="submit" loading={change.isPending} className="sm:self-start">
-              change password
-            </Button>
-          </form>
-        </Section>
+      <div className="mt-1 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <Button type="button" variant="ghost" onClick={onCancel} disabled={change.isPending}>
+          cancel
+        </Button>
+        <Button type="submit" loading={change.isPending}>
+          change password
+        </Button>
       </div>
-    </>
+    </form>
   )
 }

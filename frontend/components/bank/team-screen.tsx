@@ -1,7 +1,8 @@
 "use client"
 
 import { useState, type FormEvent } from "react"
-import { UserMultiple02Icon } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { UserAdd01Icon, UserMultiple02Icon } from "@hugeicons/core-free-icons"
 import {
   createBankStaff,
   listBankStaff,
@@ -23,6 +24,7 @@ import { EmptyState } from "@/components/shared/empty-state"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Dialog } from "@/components/ui/dialog"
 import { Field } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import type { BankStaff, BankStaffRole } from "@/types"
@@ -45,18 +47,35 @@ function passwordError(password: string) {
 export function TeamScreen() {
   const team = useQuery(listBankStaff, noArgs)
   const { session } = useBankAccess()
+  const [adding, setAdding] = useState(false)
+  const [created, setCreated] = useState<BankStaff | null>(null)
 
   return (
     <>
       <PageHeader
         title="team"
         description="who at your bank can use this console, and what each of them can do."
+        actions={
+          <Button
+            type="button"
+            title="give a colleague access to this console"
+            onClick={() => {
+              setCreated(null)
+              setAdding(true)
+            }}
+          >
+            <HugeiconsIcon icon={UserAdd01Icon} size={18} strokeWidth={2.2} />
+            add colleague
+          </Button>
+        }
       />
 
       <div className="flex flex-col gap-10">
-        <Section title="add a colleague" description="they sign in with this temporary password and your mfa phone, then change it.">
-          <CreateStaffForm onCreated={team.retry} />
-        </Section>
+        {created && (
+          <Alert variant="info" title={`${created.name ?? created.email} can now sign in`}>
+            share the temporary password with them directly. it isn&apos;t shown again.
+          </Alert>
+        )}
 
         <Section title="staff">
           <QueryState
@@ -82,17 +101,38 @@ export function TeamScreen() {
           </QueryState>
         </Section>
       </div>
+
+      <Dialog
+        open={adding}
+        onOpenChange={setAdding}
+        title="add a colleague"
+        description="they sign in with this temporary password and your mfa phone, then change it."
+        className="max-w-xl"
+      >
+        <CreateStaffForm
+          onCancel={() => setAdding(false)}
+          onCreated={(staff) => {
+            setCreated(staff)
+            setAdding(false)
+            team.retry()
+          }}
+        />
+      </Dialog>
     </>
   )
 }
 
 const emptyStaff = { name: "", email: "", mfa_phone: "", temporary_password: "" }
 
-function CreateStaffForm({ onCreated }: { onCreated: () => void }) {
+type CreateStaffFormProps = {
+  onCreated: (staff: BankStaff) => void
+  onCancel: () => void
+}
+
+function CreateStaffForm({ onCreated, onCancel }: CreateStaffFormProps) {
   const [values, setValues] = useState(emptyStaff)
   const [role, setRole] = useState<BankStaffRole | "">("bank_risk_analyst")
   const [errors, setErrors] = useState<Partial<Record<keyof typeof emptyStaff | "role", string>>>({})
-  const [created, setCreated] = useState<BankStaff | null>(null)
   const create = useMutation(createBankStaff)
 
   function set(key: keyof typeof emptyStaff, value: string) {
@@ -119,11 +159,7 @@ function CreateStaffForm({ onCreated }: { onCreated: () => void }) {
       temporary_password: values.temporary_password,
       role,
     })
-    if (result.ok) {
-      setValues(emptyStaff)
-      setCreated(result.data)
-      onCreated()
-    }
+    if (result.ok) onCreated(result.data)
   }
 
   const fields: { key: keyof typeof emptyStaff; label: string; type?: string; placeholder: string }[] = [
@@ -134,7 +170,7 @@ function CreateStaffForm({ onCreated }: { onCreated: () => void }) {
   ]
 
   return (
-    <form noValidate onSubmit={handleSubmit} className="card-raised flex flex-col gap-5 rounded-2xl p-4 sm:p-5">
+    <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-5">
       <div className="grid gap-4 sm:grid-cols-2">
         {fields.map((field) => {
           const id = `staff-${field.key}`
@@ -163,7 +199,7 @@ function CreateStaffForm({ onCreated }: { onCreated: () => void }) {
         onChange={setRole}
         options={staffRoles}
         allLabel="choose a role"
-        className="sm:w-72"
+        className="sm:w-full"
       />
       {role && (
         <p className="-mt-3 text-xs font-semibold text-muted-foreground">
@@ -172,15 +208,15 @@ function CreateStaffForm({ onCreated }: { onCreated: () => void }) {
       )}
 
       <ActionError error={create.error} />
-      {created && (
-        <Alert variant="info" title={`${created.name ?? created.email} can now sign in`}>
-          share the temporary password with them directly. it isn&apos;t shown again.
-        </Alert>
-      )}
 
-      <Button type="submit" loading={create.isPending} className="sm:self-start">
-        add colleague
-      </Button>
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <Button type="button" variant="ghost" onClick={onCancel} disabled={create.isPending}>
+          cancel
+        </Button>
+        <Button type="submit" loading={create.isPending}>
+          add colleague
+        </Button>
+      </div>
     </form>
   )
 }
@@ -220,7 +256,14 @@ function StaffCard({ staff, isSelf, onChanged }: StaffCardProps) {
         </div>
         {!isSelf && (
           <div className="flex shrink-0 flex-wrap gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => setOpen((value) => !value)}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              aria-expanded={open}
+              title={open ? "close" : `manage ${staff.name ?? staff.email}'s role, permissions and password`}
+              onClick={() => setOpen((value) => !value)}
+            >
               {open ? "close" : "manage"}
             </Button>
             {active ? (
