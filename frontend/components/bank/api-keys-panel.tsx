@@ -1,28 +1,30 @@
 "use client"
 
 import { useState, type FormEvent } from "react"
-import { Key01Icon } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { Add01Icon, Key01Icon } from "@hugeicons/core-free-icons"
 import { createApiKey, listApiKeys, revokeApiKey, rotateApiKey } from "@/actions/bank"
 import { apiKeyScopes } from "@/config/bank"
 import { useMutation } from "@/hooks/use-mutation"
 import { useQuery } from "@/hooks/use-query"
-import { ActionError, ConfirmButton, SecretReveal } from "@/components/bank/action-kit"
+import { ActionError, ConfirmButton, SecretView } from "@/components/bank/action-kit"
 import { DataTable, TableSkeleton, type Column } from "@/components/bank/data-table"
-import { SelectFilter } from "@/components/bank/filters"
 import { Section } from "@/components/bank/page-header"
 import { QueryState } from "@/components/bank/query-state"
 import { StatusBadge } from "@/components/bank/status-badge"
 import { EmptyState } from "@/components/shared/empty-state"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { ChoiceCards } from "@/components/ui/choice-cards"
+import { Dialog } from "@/components/ui/dialog"
 import { Field, FieldError } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import type { ApiEnvironment, ApiKey, ApiKeyScope, ApiKeyWithSecret } from "@/types"
 import { formatDateTime } from "@/utils/format"
 
-const environmentOptions: { value: ApiEnvironment; label: string }[] = [
-  { value: "sandbox", label: "sandbox" },
-  { value: "live", label: "live" },
+const environmentOptions: { value: ApiEnvironment; label: string; description: string }[] = [
+  { value: "sandbox", label: "sandbox", description: "for building and testing against demo data." },
+  { value: "live", label: "live", description: "for production systems reading real customers." },
 ]
 
 const noArgs: [] = []
@@ -38,13 +40,16 @@ function expiryFromDate(date: string) {
   return date ? new Date(`${date}T23:59:59`).toISOString() : undefined
 }
 
+// what the dialog is showing: the create form, or a secret straight after create or rotate
+type DialogState = { step: "create" } | { step: "secret"; key: ApiKeyWithSecret } | null
+
 // B11. machine credentials for the bank's own systems. a secret is shown once,
 // straight after create or rotate, and sura keeps only its hash
 export function ApiKeysPanel() {
   const keys = useQuery(listApiKeys, noArgs)
   const rotate = useMutation(rotateApiKey)
   const revoke = useMutation(revokeApiKey)
-  const [revealed, setRevealed] = useState<ApiKeyWithSecret | null>(null)
+  const [dialog, setDialog] = useState<DialogState>(null)
   const [busyKey, setBusyKey] = useState<string | null>(null)
   const [now] = useState(() => Date.now())
 
@@ -53,7 +58,7 @@ export function ApiKeysPanel() {
     const result = await rotate.mutate(key.key_id)
     setBusyKey(null)
     if (result.ok) {
-      setRevealed(result.data)
+      setDialog({ step: "secret", key: result.data })
       keys.retry()
     }
   }
@@ -66,24 +71,31 @@ export function ApiKeysPanel() {
     if (result.ok) keys.retry()
   }
 
+  const createButton = (
+    <Button type="button" size="sm" onClick={() => setDialog({ step: "create" })}>
+      <HugeiconsIcon icon={Add01Icon} size={18} strokeWidth={2.4} />
+      create api key
+    </Button>
+  )
+
   const columns: Column<ApiKey>[] = [
     { header: "name", cell: (row) => <span className="normal-case">{row.name}</span> },
-    { header: "key", cell: (row) => <span className="font-mono text-xs normal-case">{row.prefix}…</span> },
-    { header: "status", cell: (row) => <StatusBadge status={keyStatus(row, now)} /> },
-    { header: "environment", cell: (row) => <StatusBadge status={row.environment} /> },
+    { header: "key", cell: (row) => <span className="font-mono text-xs normal-case">{row.prefix}••••</span> },
     {
       header: "scopes",
       cell: (row) => <span className="font-mono text-xs normal-case">{row.scopes.join(", ")}</span>,
     },
-    { header: "last used", cell: (row) => formatDateTime(row.last_used_at) },
-    { header: "expires", cell: (row) => (row.expires_at ? formatDateTime(row.expires_at) : "never") },
+    { header: "environment", cell: (row) => <StatusBadge status={row.environment} /> },
+    { header: "status", cell: (row) => <StatusBadge status={keyStatus(row, now)} /> },
+    { header: "created", cell: (row) => formatDateTime(row.created_at) },
+    { header: "last used", cell: (row) => (row.last_used_at ? formatDateTime(row.last_used_at) : "never") },
     {
-      header: "actions",
+      header: "manage",
+      align: "right",
+      wide: true,
       cell: (row) =>
-        keyStatus(row, now) === "revoked" ? (
-          <span className="text-xs font-bold text-muted-foreground">revoked {formatDateTime(row.revoked_at)}</span>
-        ) : (
-          <div className="relative z-10 flex flex-wrap gap-2">
+        keyStatus(row, now) === "revoked" ? null : (
+          <div className="relative z-10 flex flex-wrap gap-2 md:justify-end">
             <ConfirmButton
               confirmLabel="yes, rotate"
               loading={rotate.isPending && busyKey === row.key_id}
@@ -109,28 +121,10 @@ export function ApiKeysPanel() {
   return (
     <Section
       title="api keys"
-      description="for your servers, sent as X-Sura-API-Key. scope each key to what that system needs."
+      description="authenticate your servers' requests with X-Sura-API-Key. never share or expose a key publicly."
+      action={keys.data && keys.data.length > 0 && createButton}
     >
       <div className="flex flex-col gap-4">
-        {revealed && (
-          <SecretReveal
-            title={revealed.rotated_key_id ? `new secret for ${revealed.name}` : `secret for ${revealed.name}`}
-            secret={revealed.secret}
-            onDismiss={() => setRevealed(null)}
-          >
-            {revealed.rotated_key_id && (
-              <p className="mt-2">the old key stopped working the moment this one was issued.</p>
-            )}
-          </SecretReveal>
-        )}
-
-        <CreateKeyForm
-          onCreated={(key) => {
-            setRevealed(key)
-            keys.retry()
-          }}
-        />
-
         <ActionError error={rotate.error ?? revoke.error} />
 
         <QueryState
@@ -142,21 +136,58 @@ export function ApiKeysPanel() {
             <EmptyState
               icon={Key01Icon}
               title="no api keys yet"
-              description="create a sandbox key above to make your first machine request."
+              description="create a sandbox key to make your first machine request."
+              action={createButton}
             />
           }
         >
           {(rows) => <DataTable caption="api keys" columns={columns} rows={rows} rowKey={(row) => row.key_id} />}
         </QueryState>
       </div>
+
+      <Dialog
+        open={dialog !== null}
+        onOpenChange={(open) => !open && setDialog(null)}
+        title={
+          dialog?.step === "secret"
+            ? dialog.key.rotated_key_id
+              ? `new secret for ${dialog.key.name}`
+              : `${dialog.key.name} is ready`
+            : "create api key"
+        }
+        description={dialog?.step === "create" ? "scope each key to what that one system needs." : undefined}
+      >
+        {dialog?.step === "secret" ? (
+          <SecretView secret={dialog.key.secret} onDone={() => setDialog(null)}>
+            {dialog.key.rotated_key_id && (
+              <p className="text-sm font-semibold text-muted-foreground">
+                the old key stopped working the moment this one was issued.
+              </p>
+            )}
+          </SecretView>
+        ) : (
+          <CreateKeyForm
+            onCancel={() => setDialog(null)}
+            onCreated={(key) => {
+              setDialog({ step: "secret", key })
+              keys.retry()
+            }}
+          />
+        )}
+      </Dialog>
     </Section>
   )
 }
 
-function CreateKeyForm({ onCreated }: { onCreated: (key: ApiKeyWithSecret) => void }) {
+type CreateKeyFormProps = {
+  onCreated: (key: ApiKeyWithSecret) => void
+  onCancel: () => void
+}
+
+function CreateKeyForm({ onCreated, onCancel }: CreateKeyFormProps) {
   const [name, setName] = useState("")
   const [scopes, setScopes] = useState<ApiKeyScope[]>(["score:read"])
-  const [environment, setEnvironment] = useState<ApiEnvironment | "">("sandbox")
+  const [environment, setEnvironment] = useState<ApiEnvironment>("sandbox")
   const [expiry, setExpiry] = useState("")
   const [errors, setErrors] = useState<{ name?: string; scopes?: string }>({})
   const create = useMutation(createApiKey)
@@ -178,51 +209,48 @@ function CreateKeyForm({ onCreated }: { onCreated: (key: ApiKeyWithSecret) => vo
     const result = await create.mutate({
       name: name.trim(),
       scopes,
-      environment: environment || "sandbox",
+      environment,
       expires_at: expiryFromDate(expiry),
     })
-    if (result.ok) {
-      setName("")
-      setExpiry("")
-      onCreated(result.data)
-    }
+    if (result.ok) onCreated(result.data)
   }
 
   return (
-    <form noValidate onSubmit={handleSubmit} className="card-raised flex flex-col gap-5 rounded-2xl p-4 sm:p-5">
-      <div className="grid gap-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)] sm:items-end">
-        <Field id="key-name" label="key name" error={errors.name}>
-          <Input
-            id="key-name"
-            value={name}
-            maxLength={120}
-            onChange={(event) => {
-              setName(event.target.value)
-              if (errors.name) setErrors((current) => ({ ...current, name: undefined }))
-            }}
-            invalid={Boolean(errors.name)}
-            aria-describedby={errors.name ? "key-name-error" : undefined}
-            placeholder="e.g. loan origination sandbox"
-            className="h-12 text-sm"
-          />
-        </Field>
-        <SelectFilter
-          id="key-environment"
-          label="environment"
+    <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <Field id="key-name" label="name" error={errors.name}>
+        <Input
+          id="key-name"
+          value={name}
+          maxLength={120}
+          autoFocus
+          onChange={(event) => {
+            setName(event.target.value)
+            if (errors.name) setErrors((current) => ({ ...current, name: undefined }))
+          }}
+          invalid={Boolean(errors.name)}
+          aria-describedby={errors.name ? "key-name-error" : undefined}
+          placeholder="e.g. loan origination sandbox"
+          className="h-12 text-sm"
+        />
+      </Field>
+
+      <div className="flex flex-col gap-2">
+        <span id="key-environment-label" className="text-sm font-extrabold">
+          environment
+        </span>
+        <ChoiceCards
+          name="key-environment"
+          labelledBy="key-environment-label"
+          options={environmentOptions}
           value={environment}
           onChange={setEnvironment}
-          options={environmentOptions}
-          allLabel="choose"
-          className="sm:w-auto"
+          className="grid sm:grid-cols-2"
         />
-        <Field id="key-expiry" label="expires (optional)">
-          <Input id="key-expiry" type="date" value={expiry} onChange={(event) => setExpiry(event.target.value)} className="h-12 text-sm" />
-        </Field>
       </div>
 
       <fieldset>
         <legend className="mb-2 text-sm font-extrabold">scopes</legend>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="flex flex-col gap-3">
           {apiKeyScopes.map((scope) => (
             <Checkbox
               key={scope.value}
@@ -242,11 +270,27 @@ function CreateKeyForm({ onCreated }: { onCreated: (key: ApiKeyWithSecret) => vo
         <FieldError message={errors.scopes} />
       </fieldset>
 
+      <Field id="key-expiry" label="expires (optional)" hint="leave empty for a key that never expires.">
+        <Input
+          id="key-expiry"
+          type="date"
+          value={expiry}
+          onChange={(event) => setExpiry(event.target.value)}
+          aria-describedby="key-expiry-hint"
+          className="h-12 text-sm"
+        />
+      </Field>
+
       <ActionError error={create.error} />
 
-      <Button type="submit" loading={create.isPending} className="sm:self-start">
-        create key
-      </Button>
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <Button type="button" variant="ghost" onClick={onCancel} disabled={create.isPending}>
+          cancel
+        </Button>
+        <Button type="submit" loading={create.isPending}>
+          create key
+        </Button>
+      </div>
     </form>
   )
 }

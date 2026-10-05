@@ -9,6 +9,8 @@ export type Column<T> = {
   header: string
   cell: (row: T) => ReactNode
   align?: "left" | "right"
+  // on phones, spans the whole card and never truncates, e.g. a row of buttons
+  wide?: boolean
 }
 
 type DataTableProps<T> = {
@@ -48,9 +50,9 @@ export function DataTable<T>({ columns, rows, rowKey, rowHref, caption }: DataTa
               </div>
               <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5">
                 {rest.map((column) => (
-                  <div key={column.header} className="min-w-0">
+                  <div key={column.header} className={cn("min-w-0", column.wide && "col-span-2")}>
                     <dt className="text-[11px] font-extrabold tracking-wide text-muted-foreground">{column.header}</dt>
-                    <dd className="mt-0.5 truncate text-sm font-semibold">{column.cell(row)}</dd>
+                    <dd className={cn("mt-0.5 text-sm font-semibold", !column.wide && "truncate")}>{column.cell(row)}</dd>
                   </div>
                 ))}
               </dl>

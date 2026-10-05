@@ -78,34 +78,29 @@ export function ConfirmButton({
   )
 }
 
-type SecretRevealProps = {
-  title: string
+type SecretViewProps = {
   secret: string
-  onDismiss: () => void
+  onDone: () => void
   children?: ReactNode
 }
 
-// a secret the api returns once. it lives only in component state, so leaving
-// the page or dismissing it is the last time anyone can read it
-export function SecretReveal({ title, secret, onDismiss, children }: SecretRevealProps) {
+// a secret the api returns once, shown inside the dialog that produced it. it
+// lives only in component state, so closing the dialog is the last time anyone
+// can read it
+export function SecretView({ secret, onDone, children }: SecretViewProps) {
   return (
-    <Alert
-      variant="gold"
-      title={title}
-      action={
-        <Button type="button" variant="outline" size="sm" onClick={onDismiss}>
-          i&apos;ve stored it
-        </Button>
-      }
-    >
-      <p>copy it now. sura keeps only a hash and will never show it again.</p>
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <code className="min-w-0 flex-1 rounded-xl bg-card px-3 py-2 font-mono text-xs break-all text-foreground normal-case">
-          {secret}
-        </code>
+    <div className="flex flex-col gap-4">
+      <Alert variant="gold" title="copy it now">
+        sura keeps only a hash and will never show this secret again.
+      </Alert>
+      <div className="flex flex-col gap-2 rounded-2xl border-2 border-hairline bg-cloud p-3 sm:flex-row sm:items-center">
+        <code className="min-w-0 flex-1 font-mono text-xs break-all text-foreground normal-case select-all">{secret}</code>
         <CopyButton value={secret} />
       </div>
       {children}
-    </Alert>
+      <Button type="button" onClick={onDone} className="sm:self-end">
+        i&apos;ve stored it
+      </Button>
+    </div>
   )
 }

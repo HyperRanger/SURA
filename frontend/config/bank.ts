@@ -85,6 +85,21 @@ export const bankNav: BankNavItem[] = [
   { id: "B14", label: "account", href: routes.bank.account, icon: UserLock01Icon },
 ]
 
+// the developer hub tabs, in order. the open one is kept in ?tab=
+export const developerTabs = [
+  { value: "api-keys", label: "api keys" },
+  { value: "webhooks", label: "webhooks" },
+  { value: "events", label: "events" },
+  { value: "logs", label: "logs" },
+  { value: "docs", label: "docs" },
+] as const
+
+export type DeveloperTab = (typeof developerTabs)[number]["value"]
+
+export function isDeveloperTab(value: unknown): value is DeveloperTab {
+  return developerTabs.some((tab) => tab.value === value)
+}
+
 // the api scopes a machine key can hold. matches BANK_API_SCOPES in contracts.py
 export const apiKeyScopes: { value: ApiKeyScope; label: string; description: string }[] = [
   { value: "score:read", label: "score:read", description: "a customer's score, tier and pillar evidence." },

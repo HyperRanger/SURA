@@ -1,11 +1,11 @@
 "use client"
 
 import { useState, type FormEvent } from "react"
-import { WebhookIcon } from "@hugeicons/core-free-icons"
+import { HugeiconsIcon } from "@hugeicons/react"
+import { Add01Icon, WebhookIcon } from "@hugeicons/core-free-icons"
 import {
   createWebhook,
   disableWebhook,
-  listWebhookDeliveries,
   listWebhooks,
   rotateWebhookSecret,
   testWebhook,
@@ -14,25 +14,22 @@ import {
 import { webhookEvents } from "@/config/bank"
 import { useMutation } from "@/hooks/use-mutation"
 import { useQuery } from "@/hooks/use-query"
-import { ActionError, ConfirmButton, SecretReveal } from "@/components/bank/action-kit"
-import { DataTable, TableSkeleton, type Column } from "@/components/bank/data-table"
+import { ActionError, ConfirmButton, SecretView } from "@/components/bank/action-kit"
+import { TableSkeleton } from "@/components/bank/data-table"
 import { Section } from "@/components/bank/page-header"
 import { QueryState } from "@/components/bank/query-state"
 import { StatusBadge } from "@/components/bank/status-badge"
-import { CodeBlock } from "@/components/shared/code-block"
 import { EmptyState } from "@/components/shared/empty-state"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Dialog } from "@/components/ui/dialog"
 import { Field, FieldError } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { Skeleton } from "@/components/ui/skeleton"
 import type { Webhook, WebhookDelivery, WebhookEvent } from "@/types"
 import { formatDateTime } from "@/utils/format"
 
 const noArgs: [] = []
-
-type Revealed = { label: string; secret: string }
 
 // the api only accepts absolute https urls
 function urlError(url: string) {
@@ -45,74 +42,127 @@ function urlError(url: string) {
   }
 }
 
+type DialogState =
+  | { step: "create" }
+  | { step: "edit"; webhook: Webhook }
+  | { step: "secret"; url: string; secret: string; rotated: boolean }
+  | null
+
+function dialogTitle(dialog: DialogState) {
+  if (!dialog) return ""
+  if (dialog.step === "create") return "add an endpoint"
+  if (dialog.step === "edit") return "edit endpoint"
+  return dialog.rotated ? "new signing secret" : "endpoint added"
+}
+
 // B11. subscriptions are configured and tested here. this release sends signed,
 // simulated test deliveries only; live business events are not dispatched yet
-export function WebhooksPanel() {
+export function WebhooksPanel({ onViewLogs }: { onViewLogs: (webhookId: string) => void }) {
   const webhooks = useQuery(listWebhooks, noArgs)
-  const [revealed, setRevealed] = useState<Revealed | null>(null)
+  const [dialog, setDialog] = useState<DialogState>(null)
+
+  const addButton = (
+    <Button type="button" size="sm" onClick={() => setDialog({ step: "create" })}>
+      <HugeiconsIcon icon={Add01Icon} size={18} strokeWidth={2.4} />
+      add endpoint
+    </Button>
+  )
 
   return (
     <Section
       title="webhooks"
-      description="signed json payloads. each delivery carries an hmac-sha256 of its body, keyed with your signing secret."
+      description="sura signs each payload with an hmac-sha256 of its body, keyed with the endpoint's signing secret."
+      action={webhooks.data && webhooks.data.length > 0 && addButton}
     >
-      <div className="flex flex-col gap-4">
-        {revealed && (
-          <SecretReveal title={revealed.label} secret={revealed.secret} onDismiss={() => setRevealed(null)} />
+      <QueryState
+        query={webhooks}
+        noun="webhooks"
+        skeleton={<TableSkeleton rows={2} />}
+        isEmpty={(rows) => rows.length === 0}
+        empty={
+          <EmptyState
+            icon={WebhookIcon}
+            title="no endpoints yet"
+            description="add an https endpoint, then send it a signed test delivery."
+            action={addButton}
+          />
+        }
+      >
+        {(rows) => (
+          <ul className="flex flex-col gap-3">
+            {rows.map((webhook) => (
+              <li key={webhook.webhook_id}>
+                <WebhookRow
+                  webhook={webhook}
+                  onChanged={webhooks.retry}
+                  onEdit={() => setDialog({ step: "edit", webhook })}
+                  onSecret={(secret) => setDialog({ step: "secret", url: webhook.url, secret, rotated: true })}
+                  onViewLogs={() => onViewLogs(webhook.webhook_id)}
+                />
+              </li>
+            ))}
+          </ul>
         )}
+      </QueryState>
 
-        <WebhookForm
-          mode="create"
-          onSaved={(secret, url) => {
-            if (secret) setRevealed({ label: `signing secret for ${url}`, secret })
-            webhooks.retry()
-          }}
-        />
-
-        <QueryState
-          query={webhooks}
-          noun="webhooks"
-          skeleton={<TableSkeleton rows={2} />}
-          isEmpty={(rows) => rows.length === 0}
-          empty={
-            <EmptyState
-              icon={WebhookIcon}
-              title="no webhooks yet"
-              description="add an https endpoint above, then send it a signed test delivery."
-            />
-          }
-        >
-          {(rows) => (
-            <ul className="flex flex-col gap-4">
-              {rows.map((webhook) => (
-                <li key={webhook.webhook_id}>
-                  <WebhookCard
-                    webhook={webhook}
-                    onChanged={webhooks.retry}
-                    onSecret={(secret) => setRevealed({ label: `new signing secret for ${webhook.url}`, secret })}
-                  />
-                </li>
-              ))}
-            </ul>
-          )}
-        </QueryState>
-      </div>
+      <Dialog
+        open={dialog !== null}
+        onOpenChange={(open) => !open && setDialog(null)}
+        title={dialogTitle(dialog)}
+        description={
+          dialog?.step === "secret" ? (
+            <span className="font-mono break-all normal-case">{dialog.url}</span>
+          ) : dialog?.step === "create" ? (
+            "choose where sura should send events, and which ones."
+          ) : undefined
+        }
+      >
+        {dialog?.step === "secret" ? (
+          <SecretView secret={dialog.secret} onDone={() => setDialog(null)}>
+            <p className="text-sm font-semibold text-muted-foreground">
+              {dialog.rotated
+                ? "deliveries are signed with this secret from now on. update your verifier before the next one."
+                : "use this to verify that each delivery really came from sura."}
+            </p>
+          </SecretView>
+        ) : dialog ? (
+          <WebhookForm
+            key={dialog.step === "edit" ? dialog.webhook.webhook_id : "new"}
+            webhook={dialog.step === "edit" ? dialog.webhook : undefined}
+            onCancel={() => setDialog(null)}
+            onCreated={(created) => {
+              // the list refreshes behind the dialog while the secret is on screen
+              setDialog({ step: "secret", url: created.url, secret: created.secret, rotated: false })
+              webhooks.retry()
+            }}
+            onSaved={() => {
+              setDialog(null)
+              webhooks.retry()
+            }}
+          />
+        ) : null}
+      </Dialog>
     </Section>
   )
 }
 
-type WebhookFormProps =
-  | { mode: "create"; webhook?: undefined; onSaved: (secret: string | null, url: string) => void; onCancel?: undefined }
-  | { mode: "edit"; webhook: Webhook; onSaved: (secret: string | null, url: string) => void; onCancel: () => void }
+type WebhookFormProps = {
+  // set when editing; absent when creating
+  webhook?: Webhook
+  onCancel: () => void
+  onCreated: (created: { url: string; secret: string }) => void
+  onSaved: () => void
+}
 
-function WebhookForm({ mode, webhook, onSaved, onCancel }: WebhookFormProps) {
-  const prefix = mode === "edit" ? `webhook-${webhook.webhook_id}` : "webhook-new"
+function WebhookForm({ webhook, onCancel, onCreated, onSaved }: WebhookFormProps) {
+  const prefix = webhook ? `webhook-${webhook.webhook_id}` : "webhook-new"
   const [url, setUrl] = useState(webhook?.url ?? "")
   const [events, setEvents] = useState<WebhookEvent[]>(webhook?.events ?? ["score.updated"])
   const [errors, setErrors] = useState<{ url?: string; events?: string }>({})
   const create = useMutation(createWebhook)
   const update = useMutation(updateWebhook)
   const pending = create.isPending || update.isPending
+  const allChosen = events.length === webhookEvents.length
 
   function toggleEvent(event: WebhookEvent, checked: boolean) {
     setEvents((current) => (checked ? [...current, event] : current.filter((value) => value !== event)))
@@ -126,26 +176,23 @@ function WebhookForm({ mode, webhook, onSaved, onCancel }: WebhookFormProps) {
     if (nextErrors.url || nextErrors.events) return
 
     const payload = { url: url.trim(), events }
-    if (mode === "create") {
-      const result = await create.mutate(payload)
-      if (result.ok) {
-        setUrl("")
-        setEvents(["score.updated"])
-        onSaved(result.data.signing_secret, result.data.url)
-      }
-    } else {
+    if (webhook) {
       const result = await update.mutate(webhook.webhook_id, payload)
-      if (result.ok) onSaved(null, result.data.url)
+      if (result.ok) onSaved()
+    } else {
+      const result = await create.mutate(payload)
+      if (result.ok) onCreated({ url: result.data.url, secret: result.data.signing_secret })
     }
   }
 
   return (
-    <form noValidate onSubmit={handleSubmit} className="card-raised flex flex-col gap-5 rounded-2xl p-4 sm:p-5">
-      <Field id={`${prefix}-url`} label={mode === "create" ? "add an endpoint" : "endpoint url"} error={errors.url}>
+    <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-5">
+      <Field id={`${prefix}-url`} label="endpoint url" error={errors.url}>
         <Input
           id={`${prefix}-url`}
           type="url"
           inputMode="url"
+          autoFocus
           value={url}
           onChange={(event) => {
             setUrl(event.target.value)
@@ -159,8 +206,19 @@ function WebhookForm({ mode, webhook, onSaved, onCancel }: WebhookFormProps) {
       </Field>
 
       <fieldset>
-        <legend className="mb-2 text-sm font-extrabold">events</legend>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <legend className="text-sm font-extrabold">events</legend>
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            className="h-auto px-0"
+            onClick={() => setEvents(allChosen ? [] : [...webhookEvents])}
+          >
+            {allChosen ? "clear all" : "select all"}
+          </Button>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
           {webhookEvents.map((name) => (
             <Checkbox
               key={name}
@@ -177,31 +235,27 @@ function WebhookForm({ mode, webhook, onSaved, onCancel }: WebhookFormProps) {
 
       <ActionError error={create.error ?? update.error} />
 
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" loading={pending}>
-          {mode === "create" ? "add webhook" : "save changes"}
+      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+        <Button type="button" variant="ghost" onClick={onCancel} disabled={pending}>
+          cancel
         </Button>
-        {onCancel && (
-          <Button type="button" variant="ghost" onClick={onCancel} disabled={pending}>
-            cancel
-          </Button>
-        )}
+        <Button type="submit" loading={pending}>
+          {webhook ? "save changes" : "add endpoint"}
+        </Button>
       </div>
     </form>
   )
 }
 
-type WebhookCardProps = {
+type WebhookRowProps = {
   webhook: Webhook
   onChanged: () => void
+  onEdit: () => void
   onSecret: (secret: string) => void
+  onViewLogs: () => void
 }
 
-function WebhookCard({ webhook, onChanged, onSecret }: WebhookCardProps) {
-  const [editing, setEditing] = useState(false)
-  const [showDeliveries, setShowDeliveries] = useState(false)
-  // bumps after a test so the delivery log remounts and refetches
-  const [deliveryVersion, setDeliveryVersion] = useState(0)
+function WebhookRow({ webhook, onChanged, onEdit, onSecret, onViewLogs }: WebhookRowProps) {
   const [lastTest, setLastTest] = useState<WebhookDelivery | null>(null)
   const test = useMutation(testWebhook)
   const rotate = useMutation(rotateWebhookSecret)
@@ -211,11 +265,7 @@ function WebhookCard({ webhook, onChanged, onSecret }: WebhookCardProps) {
 
   async function handleTest() {
     const result = await test.mutate(webhook.webhook_id)
-    if (result.ok) {
-      setLastTest(result.data)
-      setShowDeliveries(true)
-      setDeliveryVersion((n) => n + 1)
-    }
+    if (result.ok) setLastTest(result.data)
   }
 
   async function handleRotate() {
@@ -234,38 +284,26 @@ function WebhookCard({ webhook, onChanged, onSecret }: WebhookCardProps) {
     if (result.ok) onChanged()
   }
 
-  if (editing) {
-    return (
-      <WebhookForm
-        mode="edit"
-        webhook={webhook}
-        onCancel={() => setEditing(false)}
-        onSaved={() => {
-          setEditing(false)
-          onChanged()
-        }}
-      />
-    )
-  }
-
   return (
     <div className="card-raised flex flex-col gap-4 rounded-2xl p-4 sm:p-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
-          <p className="font-mono text-sm font-bold break-all normal-case">{webhook.url}</p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={webhook.status} tone={active ? "indigo" : "neutral"} />
+            <p className="min-w-0 font-mono text-sm font-bold break-all normal-case">{webhook.url}</p>
+          </div>
+          <ul className="mt-3 flex flex-wrap gap-1.5">
             {webhook.events.map((event) => (
-              <span
+              <li
                 key={event}
                 className="rounded-full border-2 border-hairline bg-card px-2.5 py-0.5 font-mono text-xs font-bold normal-case"
               >
                 {event}
-              </span>
+              </li>
             ))}
-          </div>
-          <p className="mt-2 text-xs font-bold text-muted-foreground">
-            created {formatDateTime(webhook.created_at)}
+          </ul>
+          <p className="mt-3 text-xs font-bold text-muted-foreground">
+            added {formatDateTime(webhook.created_at)}
             {webhook.updated_at && ` · updated ${formatDateTime(webhook.updated_at)}`}
           </p>
         </div>
@@ -273,7 +311,10 @@ function WebhookCard({ webhook, onChanged, onSecret }: WebhookCardProps) {
           <Button type="button" size="sm" onClick={handleTest} loading={test.isPending} disabled={!active}>
             send test
           </Button>
-          <Button type="button" size="sm" variant="outline" onClick={() => setEditing(true)}>
+          <Button type="button" size="sm" variant="outline" onClick={onViewLogs}>
+            logs
+          </Button>
+          <Button type="button" size="sm" variant="outline" onClick={onEdit}>
             edit
           </Button>
           <ConfirmButton confirmLabel="yes, rotate" loading={rotate.isPending} onConfirm={handleRotate}>
@@ -294,55 +335,17 @@ function WebhookCard({ webhook, onChanged, onSecret }: WebhookCardProps) {
       <ActionError error={test.error ?? rotate.error ?? enable.error ?? disable.error} />
 
       {lastTest && (
-        <Alert variant="info" title={`test delivered · ${lastTest.response_status ?? "no"} response`}>
+        <Alert
+          variant="info"
+          title={`test delivered · ${lastTest.response_status ?? "no"} response`}
+          action={
+            <Button type="button" variant="outline" size="sm" onClick={onViewLogs}>
+              view in logs
+            </Button>
+          }
+        >
           {lastTest.response_summary}
         </Alert>
-      )}
-
-      <div>
-        <Button type="button" variant="link" size="sm" className="h-auto px-0" onClick={() => setShowDeliveries((open) => !open)}>
-          {showDeliveries ? "hide delivery log" : "show delivery log"}
-        </Button>
-        {showDeliveries && <DeliveryLog key={deliveryVersion} webhookId={webhook.webhook_id} />}
-      </div>
-    </div>
-  )
-}
-
-const deliveryColumns: Column<WebhookDelivery>[] = [
-  { header: "event", cell: (row) => <span className="font-mono text-xs normal-case">{row.event_type}</span> },
-  { header: "status", cell: (row) => <StatusBadge status={row.status} /> },
-  { header: "response", cell: (row) => row.response_status ?? "—", align: "right" },
-  { header: "attempt", cell: (row) => row.attempt_number, align: "right" },
-  { header: "sent", cell: (row) => formatDateTime(row.delivered_at ?? row.created_at) },
-]
-
-function DeliveryLog({ webhookId }: { webhookId: string }) {
-  const deliveries = useQuery(listWebhookDeliveries, [webhookId])
-  const latest = deliveries.data?.[0]
-
-  return (
-    <div className="mt-3 flex flex-col gap-3">
-      <QueryState
-        query={deliveries}
-        noun="deliveries"
-        skeleton={<Skeleton className="h-24 rounded-2xl" />}
-        isEmpty={(rows) => rows.length === 0}
-        empty={
-          <p className="rounded-2xl border-2 border-dashed border-hairline px-4 py-6 text-center text-sm font-semibold text-muted-foreground">
-            no deliveries yet. send a test to see one here.
-          </p>
-        }
-      >
-        {(rows) => (
-          <DataTable caption="webhook deliveries" columns={deliveryColumns} rows={rows} rowKey={(row) => row.delivery_id} />
-        )}
-      </QueryState>
-      {latest && (
-        <div className="grid gap-3 lg:grid-cols-2">
-          <CodeBlock label="latest payload" code={JSON.stringify(latest.payload, null, 2)} />
-          <CodeBlock label="signature (hmac-sha256 of the payload)" code={latest.signature} />
-        </div>
       )}
     </div>
   )
