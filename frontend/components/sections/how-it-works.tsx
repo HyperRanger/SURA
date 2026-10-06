@@ -9,7 +9,6 @@ export function HowItWorks() {
     <section id="how-it-works" className="bg-cloud py-20 md:py-28">
       <div className="container-page">
         <SectionHeading
-          eyebrow="How it works"
           title="From first contribution to first payout"
           description="Four steps for members. The bank's app handles the screens, Sura handles the rules."
         />
