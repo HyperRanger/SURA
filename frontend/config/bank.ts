@@ -88,6 +88,7 @@ export const bankNav: BankNavItem[] = [
 // the developer hub tabs, in order. the open one is kept in ?tab=
 export const developerTabs = [
   { value: "api-keys", label: "api keys" },
+  { value: "playground", label: "try the api" },
   { value: "webhooks", label: "webhooks" },
   { value: "events", label: "events" },
   { value: "logs", label: "logs" },

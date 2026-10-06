@@ -12,6 +12,7 @@ import { sampleRequest } from "@/config/for-banks"
 import { siteConfig } from "@/config/site"
 import { useQuery } from "@/hooks/use-query"
 import { ApiKeysPanel } from "@/components/bank/api-keys-panel"
+import { ApiPlaygroundPanel } from "@/components/bank/api-playground-panel"
 import { DataTable, TableSkeleton, type Column } from "@/components/bank/data-table"
 import { PageHeader, Section } from "@/components/bank/page-header"
 import { QueryState } from "@/components/bank/query-state"
@@ -21,7 +22,7 @@ import { WebhooksPanel } from "@/components/bank/webhooks-panel"
 import { CodeBlock } from "@/components/shared/code-block"
 import { CopyButton } from "@/components/shared/copy-button"
 import { Alert } from "@/components/ui/alert"
-import { buttonVariants } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs"
 import type { WebhookEvent, WebhookEventInfo } from "@/types"
 
@@ -52,6 +53,8 @@ export function DevelopersScreen({ initialTab = "api-keys", initialWebhookId }: 
   const home = useQuery(getDeveloperHome, noArgs)
   const [tab, setTab] = useState<DeveloperTab>(initialTab)
   const [logWebhookId, setLogWebhookId] = useState<string | null>(initialWebhookId ?? null)
+  // a key typed into, or handed to, the playground. memory only, gone on refresh
+  const [playgroundKey, setPlaygroundKey] = useState("")
 
   function go(next: DeveloperTab, webhookId: string | null = logWebhookId) {
     setTab(next)
@@ -85,14 +88,23 @@ export function DevelopersScreen({ initialTab = "api-keys", initialWebhookId }: 
       <Tabs value={tab} onValueChange={(value) => isDeveloperTab(value) && go(value)}>
         <TabsList aria-label="developer tools">
           {developerTabs.map((item) => (
-            <TabsTab key={item.value} value={item.value}>
+            <TabsTab key={item.value} value={item.value} title={`show ${item.label}`}>
               {item.label}
             </TabsTab>
           ))}
         </TabsList>
 
         <TabsPanel value="api-keys">
-          <ApiKeysPanel />
+          <ApiKeysPanel
+            onTryKey={(secret) => {
+              setPlaygroundKey(secret)
+              go("playground")
+            }}
+          />
+        </TabsPanel>
+
+        <TabsPanel value="playground">
+          <ApiPlaygroundPanel apiKey={playgroundKey} onApiKeyChange={setPlaygroundKey} onCreateKey={() => go("api-keys")} />
         </TabsPanel>
 
         <TabsPanel value="webhooks">
@@ -112,7 +124,7 @@ export function DevelopersScreen({ initialTab = "api-keys", initialWebhookId }: 
         </TabsPanel>
 
         <TabsPanel value="docs">
-          <DocsPanel webhookDelivery={home.data?.webhook_delivery} />
+          <DocsPanel webhookDelivery={home.data?.webhook_delivery} onTry={() => go("playground")} />
         </TabsPanel>
       </Tabs>
     </>
@@ -155,7 +167,7 @@ function EventsPanel() {
   )
 }
 
-function DocsPanel({ webhookDelivery }: { webhookDelivery?: string }) {
+function DocsPanel({ webhookDelivery, onTry }: { webhookDelivery?: string; onTry: () => void }) {
   return (
     <div className="flex flex-col gap-10">
       <Section title="connect" description="every machine request needs a key from the api keys tab.">
@@ -180,7 +192,15 @@ function DocsPanel({ webhookDelivery }: { webhookDelivery?: string }) {
         </dl>
       </Section>
 
-      <Section title="endpoints" description="read only. a key can never reach another bank's customers.">
+      <Section
+        title="endpoints"
+        description="read only. a key can never reach another bank's customers."
+        action={
+          <Button type="button" variant="outline" size="sm" title="call these endpoints live" onClick={onTry}>
+            try it live
+          </Button>
+        }
+      >
         <ul className="flex flex-col gap-3">
           {machineEndpoints.map((endpoint) => (
             <li key={endpoint.path} className="card-raised rounded-2xl p-4">

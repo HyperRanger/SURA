@@ -54,18 +54,12 @@ export function MobileNav() {
 
         <div className="mt-auto flex flex-col gap-3 p-5">
           <Link
-            href={routes.login}
+            href={routes.bank.login}
             onClick={close}
-            className={buttonVariants({ variant: "outline", className: "w-full" })}
-          >
-            log in
-          </Link>
-          <Link
-            href={routes.signup}
-            onClick={close}
+            title="sign in to the bank console"
             className={buttonVariants({ className: "w-full" })}
           >
-            get started
+            bank login
           </Link>
         </div>
       </SheetContent>

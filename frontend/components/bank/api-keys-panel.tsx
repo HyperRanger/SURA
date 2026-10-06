@@ -2,7 +2,7 @@
 
 import { useState, type FormEvent } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
-import { Add01Icon, Key01Icon } from "@hugeicons/core-free-icons"
+import { Add01Icon, Key01Icon, SentIcon } from "@hugeicons/core-free-icons"
 import { createApiKey, listApiKeys, revokeApiKey, rotateApiKey } from "@/actions/bank"
 import { apiKeyScopes } from "@/config/bank"
 import { useMutation } from "@/hooks/use-mutation"
@@ -46,7 +46,8 @@ type DialogState = { step: "create" } | { step: "secret"; key: ApiKeyWithSecret 
 
 // B11. machine credentials for the bank's own systems. a secret is shown once,
 // straight after create or rotate, and sura keeps only its hash
-export function ApiKeysPanel() {
+// onTryKey hands a fresh secret to the playground, so the first request is one click away
+export function ApiKeysPanel({ onTryKey }: { onTryKey?: (secret: string) => void }) {
   const keys = useQuery(listApiKeys, noArgs)
   const rotate = useMutation(rotateApiKey)
   const revoke = useMutation(revokeApiKey)
@@ -164,6 +165,21 @@ export function ApiKeysPanel() {
               <p className="text-sm font-semibold text-muted-foreground">
                 the old key stopped working the moment this one was issued.
               </p>
+            )}
+            {onTryKey && (
+              <Button
+                type="button"
+                variant="outline"
+                title="make a live request with this key"
+                onClick={() => {
+                  onTryKey(dialog.key.secret)
+                  setDialog(null)
+                }}
+                className="sm:self-start"
+              >
+                <HugeiconsIcon icon={SentIcon} size={18} strokeWidth={2.2} />
+                try it in the playground
+              </Button>
             )}
           </SecretView>
         ) : (

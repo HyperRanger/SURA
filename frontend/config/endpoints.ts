@@ -56,4 +56,9 @@ export const endpoints = {
     staffPermissions: (id: string) => `/v1/bank/team/${encodeURIComponent(id)}/permissions`,
     settings: "/v1/bank/settings",
   },
+  // the machine api a bank's own servers call with an X-Sura-API-Key
+  integrations: {
+    customerScore: (userId: string) => `/v1/integrations/customers/${encodeURIComponent(userId)}/score`,
+    customerCommitments: (userId: string) => `/v1/integrations/customers/${encodeURIComponent(userId)}/commitments`,
+  },
 } as const

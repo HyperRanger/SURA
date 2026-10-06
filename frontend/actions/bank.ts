@@ -1,4 +1,6 @@
+import axios from "axios"
 import { api } from "@/lib/api"
+import { env } from "@/config/env"
 import { endpoints } from "@/config/endpoints"
 import type {
   ApiKey,
@@ -213,6 +215,23 @@ export async function listSettlements(filters: SettlementFilters = {}) {
 }
 
 // B11. developer hub
+
+export type IntegrationResponse = { status: number; durationMs: number; body: unknown }
+
+// a real machine request, as the bank's own server would make it. it skips the shared
+// client on purpose: no staff bearer token rides along, only the api key, and any
+// status comes back as a result, since a 401 or 403 is worth seeing in a playground
+export async function callIntegration(path: string, apiKey: string): Promise<IntegrationResponse> {
+  const started = performance.now()
+  const response = await axios.get(path, {
+    baseURL: env.apiUrl,
+    timeout: 30_000,
+    headers: { "X-Sura-API-Key": apiKey },
+    validateStatus: () => true,
+  })
+  return { status: response.status, durationMs: Math.round(performance.now() - started), body: response.data }
+}
+
 export async function getDeveloperHome() {
   const { data } = await api.get<DeveloperHome>(endpoints.bank.developers)
   return data
