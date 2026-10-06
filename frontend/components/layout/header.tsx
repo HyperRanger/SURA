@@ -56,11 +56,12 @@ export function Header() {
 
           <div className="hidden items-center gap-3 lg:flex">
             <ThemeToggle />
-            <Link href={routes.login} className={buttonVariants({ variant: "outline", size: "sm" })}>
-              log in
-            </Link>
-            <Link href={routes.signup} className={buttonVariants({ size: "sm" })}>
-              get started
+            <Link
+              href={routes.bank.login}
+              title="sign in to the bank console"
+              className={buttonVariants({ size: "sm" })}
+            >
+              bank login
             </Link>
           </div>
 

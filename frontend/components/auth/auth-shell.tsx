@@ -13,6 +13,7 @@ export function AuthShell({ children }: { children: ReactNode }) {
         <Link
           href={routes.home}
           aria-label="back to home"
+          title="back to home"
           className="inline-flex items-center gap-1 justify-self-start rounded-full p-2 text-sm font-bold text-muted-foreground transition-colors hover:bg-cloud hover:text-link sm:px-3"
         >
           <HugeiconsIcon icon={ArrowLeft01Icon} size={18} strokeWidth={2.5} />

@@ -44,6 +44,19 @@ const statusTones: Record<string, StatusTone> = {
   cancelled: "neutral",
   expired: "neutral",
   low: "neutral",
+  under_review: "warning",
+  restricted: "warning",
+  suspended: "danger",
+  reinstated: "indigo",
+  resolved: "neutral",
+  revoked: "neutral",
+  disabled: "neutral",
+  simulated_success: "indigo",
+  sandbox: "indigo",
+  live: "gold",
+  low_risk: "indigo",
+  medium_risk: "warning",
+  high_risk: "danger",
 }
 
 type StatusBadgeProps = {

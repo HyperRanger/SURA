@@ -1,5 +1,5 @@
 import type { NavLink } from "@/types"
-import { env, isDemoEnabled } from "@/config/env"
+import { env } from "@/config/env"
 import { routes } from "@/config/routes"
 
 export const siteConfig = {
@@ -32,11 +32,10 @@ export const footerNav: { title: string; links: NavLink[] }[] = [
     ],
   },
   {
-    title: "get started",
+    title: "for partners",
     links: [
-      { label: "create an account", href: routes.signup },
-      { label: "log in", href: routes.login },
-      ...(isDemoEnabled ? [{ label: "try the demo", href: routes.demo }] : []),
+      { label: "bank console", href: routes.bank.login },
+      { label: "the api for banks", href: routes.forBanks },
     ],
   },
   {

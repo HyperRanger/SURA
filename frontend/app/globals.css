@@ -99,11 +99,10 @@
   --popover: #1b1838;
   --popover-foreground: #f7f5ef;
 
-  --primary: #29235c; /* deep indigo, unchanged */
-  --primary-deep: #0c0a17; /* below midnight, so raised edges and the footer still read */
-  --primary-bright: #393277; /* indigo light */
+  --primary: #29235c; 
+  --primary-deep: #0c0a17;
+  --primary-bright: #393277; 
   --primary-foreground: #f7f5ef;
-  /* deep indigo vanishes on midnight, so indigo text lifts to a lavender */
   --link: #b4aee8;
 
   --secondary: #29235c;
@@ -145,6 +144,21 @@
   body {
     @apply bg-background text-foreground antialiased;
     text-transform: lowercase;
+  }
+  /* tailwind 4 leaves buttons on the default arrow; anything clickable shows a hand */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]),
+  [role="menuitem"]:not([aria-disabled="true"]),
+  [role="option"]:not([aria-disabled="true"]),
+  [role="combobox"]:not([aria-disabled="true"]),
+  a[href],
+  summary,
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  label:has(> input[type="checkbox"], > input[type="radio"]) {
+    cursor: pointer;
   }
 }
 

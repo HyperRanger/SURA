@@ -10,7 +10,15 @@ import { useDebouncedValue } from "@/hooks/use-debounced-value"
 import { useMutation } from "@/hooks/use-mutation"
 import { useQuery } from "@/hooks/use-query"
 import { DataTable, TableSkeleton, type Column } from "@/components/bank/data-table"
-import { DateFilter, FilterBar, SearchFilter, SelectFilter } from "@/components/bank/filters"
+import {
+  DateFilter,
+  endOfDay,
+  FilterBar,
+  SearchFilter,
+  SelectFilter,
+  startOfDay,
+  TextFilter,
+} from "@/components/bank/filters"
 import { PageHeader } from "@/components/bank/page-header"
 import { QueryState } from "@/components/bank/query-state"
 import { StatusBadge } from "@/components/bank/status-badge"
@@ -56,10 +64,6 @@ const columns: Column<AuditLogEntry>[] = [
   { header: "when", cell: (row) => formatDateTime(row.occurred_at) },
 ]
 
-// the date inputs give a calendar day; the api compares full timestamps
-const startOfDay = (date: string) => (date ? `${date}T00:00:00` : undefined)
-const endOfDay = (date: string) => (date ? `${date}T23:59:59` : undefined)
-
 function downloadCsv(csv: string) {
   const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }))
   const link = document.createElement("a")
@@ -73,15 +77,17 @@ function downloadCsv(csv: string) {
 // pillar moved per row; each row's breakdown is on the customer's profile (B6)
 export function AuditLogScreen() {
   const [userSearch, setUserSearch] = useState("")
+  const [actorSearch, setActorSearch] = useState("")
   const [kind, setKind] = useState<Kind | "">("")
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
   const userId = useDebouncedValue(userSearch.trim())
+  const actorId = useDebouncedValue(actorSearch.trim())
   const query = useQuery(getAuditLog, [
-    { user_id: userId, date_from: startOfDay(dateFrom), date_to: endOfDay(dateTo) },
+    { user_id: userId, actor_id: actorId, date_from: startOfDay(dateFrom), date_to: endOfDay(dateTo) },
   ])
   const exporter = useMutation(exportAuditLog)
-  const filtered = Boolean(userId || kind || dateFrom || dateTo)
+  const filtered = Boolean(userId || actorId || kind || dateFrom || dateTo)
 
   async function handleExport() {
     const result = await exporter.mutate()
@@ -115,6 +121,7 @@ export function AuditLogScreen() {
           value={userSearch}
           onChange={setUserSearch}
         />
+        <TextFilter id="audit-actor" label="actor" placeholder="staff user id" value={actorSearch} onChange={setActorSearch} />
         <SelectFilter id="audit-kind" label="show" value={kind} onChange={setKind} options={kindOptions} allLabel="everything" />
         <DateFilter id="audit-from" label="from" value={dateFrom} onChange={setDateFrom} />
         <DateFilter id="audit-to" label="to" value={dateTo} onChange={setDateTo} />

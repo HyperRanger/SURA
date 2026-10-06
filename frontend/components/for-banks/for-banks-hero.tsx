@@ -1,7 +1,6 @@
 import Link from "next/link"
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowUpRight01Icon, CheckmarkCircle02Icon } from "@hugeicons/core-free-icons"
-import { isDemoEnabled } from "@/config/env"
 import { bankGuarantees } from "@/config/for-banks"
 import { routes } from "@/config/routes"
 import { siteConfig } from "@/config/site"
@@ -33,15 +32,13 @@ export function ForBanksHero() {
                 <HugeiconsIcon icon={ArrowUpRight01Icon} size={20} strokeWidth={2.5} />
               </a>
             )}
-            {isDemoEnabled ? (
-              <Link href={routes.demo} className={buttonVariants({ variant: "outline", size: "lg" })}>
-                open the bank console demo
-              </Link>
-            ) : (
-              <a href="#contact" className={buttonVariants({ variant: "outline", size: "lg" })}>
-                talk to us
-              </a>
-            )}
+            <Link
+              href={routes.bank.login}
+              title="sign in to the bank console"
+              className={buttonVariants({ variant: "outline", size: "lg" })}
+            >
+              open the bank console
+            </Link>
           </div>
         </div>
 

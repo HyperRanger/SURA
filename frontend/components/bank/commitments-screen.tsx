@@ -40,7 +40,7 @@ export function CommitmentsScreen() {
     <>
       <PageHeader
         title="commitments"
-        description="every sura lock with at least one of your customers in it. read only."
+        description="every sura lock with at least one of your customers in it. open one to review its health or raise a support case."
       />
 
       <FilterBar>

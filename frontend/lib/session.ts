@@ -38,6 +38,7 @@ export function startSession(token: AuthTokenResponse | BankSessionResponse) {
     userId: token.user_id,
     role: token.role,
     institutionId: "institution_id" in token ? token.institution_id : undefined,
+    permissions: "permissions" in token ? token.permissions : undefined,
   })
 }
 

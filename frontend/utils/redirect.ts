@@ -1,4 +1,3 @@
-import { routes } from "@/config/routes"
 import type { UserRole } from "@/types"
 
 // only same-origin paths, so ?next= can never bounce someone to another site
@@ -15,12 +14,4 @@ export function withNext(path: string, next: string | undefined) {
 
 export function isBankRole(role: UserRole) {
   return role === "bank" || role.startsWith("bank_")
-}
-
-// where a freshly signed-in person lands. new members see the welcome cards (M2),
-// returning members go straight home (M1)
-export function homeForRole(role: UserRole, { isNewAccount = false } = {}) {
-  if (role === "vendor") return routes.vendor.home
-  if (isBankRole(role)) return routes.bank.home
-  return isNewAccount ? routes.member.welcome : routes.member.home
 }

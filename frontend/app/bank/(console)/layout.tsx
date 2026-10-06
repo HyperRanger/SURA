@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   robots: { index: false },
 }
 
-// B2 to B11. read only for the partner bank, apart from resolving risk flags
+// B2 to B14. each section shows only when the session holds its permission
 export default function BankConsoleLayout({ children }: { children: ReactNode }) {
   return <BankShell>{children}</BankShell>
 }

@@ -119,7 +119,53 @@ export type BankCommitment = {
     details: Record<string, unknown>
     occurred_at: string | null
   }[]
+  support_cases: CommitmentCase[]
   created_at: string | null
+}
+
+export type CommitmentCase = {
+  case_id: string
+  status: "open" | "resolved"
+  reason: string
+  resolution_note: string | null
+  opened_at: string | null
+  resolved_at: string | null
+}
+
+export type CommitmentCaseResult = {
+  case_id: string
+  commitment_id: string
+  status: "open" | "resolved"
+  commitment_status: string
+}
+
+// advisory and aggregate only. it never names a member or makes a decision
+export type GroupHealth = {
+  commitment_id: string
+  advisory: true
+  group_health: "low_risk" | "medium_risk" | "high_risk"
+  confidence: "limited" | "moderate" | "strong"
+  reasons: string[]
+  metrics: {
+    commitment_status: string
+    member_count: number
+    joined_member_count: number
+    pending_invitation_count: number
+    completed_cycles: number
+    missed_cycles: number
+    historical_cycle_completion_rate: number | null
+    current_cycle_number: number
+    current_cycle_due_at: string | null
+    current_cycle_grace_period_hours: number
+    current_cycle_deadline_state: string
+    current_cycle_required_total: number
+    current_cycle_contributed_total: number
+    current_cycle_paid_member_count: number
+    current_cycle_partial_member_count: number
+    current_cycle_unpaid_member_count: number
+  }
+  unavailable_signals: string[]
+  policy_note: string
 }
 
 export type BankUserRow = {
@@ -140,11 +186,21 @@ export type BankUserRow = {
 
 export type BankUserFilters = {
   q?: string
+  // exact match on the bank's own customer reference, not a partial search
+  bank_customer_id?: string
   score_tier?: ScoreTier
   flag_status?: FlagStatus
+  verified?: boolean
+  float_eligibility?: "eligible" | "locked"
+  commitment_status?: string
 }
 
+export type AccountStatus = "active" | "restricted" | "suspended"
+
 export type BankUserProfile = BankUserRow & {
+  account_status: AccountStatus
+  restriction_reason: string | null
+  source_institution: { institution_id: string; name: string } | null
   score_report: ScoreReport
   context: string | null
   score_computed_at: string | null
@@ -204,8 +260,58 @@ export type AuditLogFilters = {
   user_id?: string
   commitment_id?: string
   event_type?: string
+  actor_id?: string
   date_from?: string
   date_to?: string
+}
+
+export type OverviewFilters = {
+  date_from?: string
+  date_to?: string
+}
+
+export type BankUserActivity = {
+  type: string
+  id: string
+  reason?: string | null
+  details?: Record<string, unknown>
+  occurred_at: string | null
+}
+
+export type RestrictionAction = "restricted" | "suspended" | "reinstated"
+
+export type RestrictionPayload = {
+  action: RestrictionAction
+  reason: string
+  flag_id?: string
+}
+
+export type RestrictionResult = {
+  user_id: string
+  account_status: AccountStatus
+  action: RestrictionAction
+  reason: string
+  restricted_by: string
+  restricted_at: string | null
+  restriction_id: string
+}
+
+export type Restriction = {
+  restriction_id: string
+  user_id: string
+  action: RestrictionAction
+  reason: string
+  evidence: Record<string, unknown>
+  flag_id: string | null
+  actor_id: string
+  created_at: string | null
+}
+
+export type RiskRuleRun = {
+  members_evaluated: number
+  rules_run: string[]
+  flags_created: { flag_id: string; user_id: string; rule: string; severity: string }[]
+  flags_created_count: number
 }
 
 export type RiskFlag = {
@@ -223,6 +329,7 @@ export type RiskFlag = {
 export type RiskFlagFilters = {
   status?: FlagStatus
   severity?: string
+  rule?: string
   user_id?: string
 }
 
@@ -254,7 +361,155 @@ export type Settlement = {
 export type SettlementFilters = {
   q?: string
   status?: string
+  vendor_id?: string
+  user_id?: string
   commitment_id?: string
+}
+
+// developer hub. secrets come back once, on create or rotate, and never again
+export type ApiKeyScope = "score:read" | "commitments:read"
+
+export type ApiEnvironment = "sandbox" | "live"
+
+export type ApiKey = {
+  key_id: string
+  name: string
+  prefix: string
+  scopes: ApiKeyScope[]
+  environment: ApiEnvironment
+  expires_at: string | null
+  revoked_at: string | null
+  last_used_at: string | null
+  created_at: string | null
+}
+
+export type ApiKeyWithSecret = ApiKey & {
+  secret: string
+  secret_revealed_once: true
+  // set when the key replaced an older one
+  rotated_key_id?: string
+}
+
+export type ApiKeyPayload = {
+  name: string
+  scopes: ApiKeyScope[]
+  environment: ApiEnvironment
+  expires_at?: string
+}
+
+export type WebhookEvent =
+  | "contribution.recorded"
+  | "cycle.paid"
+  | "voucher.issued"
+  | "voucher.redeemed"
+  | "score.updated"
+  | "flag.created"
+
+export type Webhook = {
+  webhook_id: string
+  url: string
+  events: WebhookEvent[]
+  status: "active" | "disabled"
+  created_at: string | null
+  updated_at: string | null
+}
+
+export type WebhookWithSecret = Webhook & {
+  signing_secret: string
+  secret_revealed_once: true
+}
+
+export type WebhookSecret = {
+  webhook_id: string
+  signing_secret: string
+  secret_revealed_once: true
+}
+
+export type WebhookPayload = {
+  url: string
+  events: WebhookEvent[]
+}
+
+export type WebhookUpdatePayload = Partial<WebhookPayload> & {
+  status?: Webhook["status"]
+}
+
+export type WebhookDelivery = {
+  delivery_id: string
+  event_id: string
+  event_type: string
+  attempt_number: number
+  status: string
+  response_status: number | null
+  response_summary: string | null
+  payload: Record<string, unknown>
+  signature: string
+  delivered_at: string | null
+  created_at: string | null
+}
+
+export type WebhookEventInfo = {
+  event_type: WebhookEvent
+  delivery: string
+  retry: string
+}
+
+export type DeveloperHome = {
+  bank_id: string
+  environment: ApiEnvironment
+  authentication: string
+  api_docs_path: string
+  machine_endpoints: string[]
+  webhook_delivery: string
+}
+
+// team and tenant settings
+export type BankStaffRole = "bank_admin" | "bank_risk_analyst" | "bank_integration_engineer"
+
+export type BankStaff = {
+  staff_id: string
+  user_id: string
+  name: string | null
+  email: string
+  role: BankStaffRole
+  permissions: string[]
+  // masked to the last four digits
+  mfa_phone: string | null
+  status: "active" | "revoked"
+  last_login_at: string | null
+  created_at: string | null
+}
+
+export type BankStaffPayload = {
+  name: string
+  email: string
+  role: BankStaffRole
+  mfa_phone: string
+  temporary_password: string
+  permissions?: string[]
+}
+
+export type BankStaffUpdatePayload = {
+  role?: BankStaffRole
+  permissions?: string[]
+  status?: BankStaff["status"]
+}
+
+export type BankSettings = {
+  bank_id: string
+  name: string
+  environment: ApiEnvironment
+  supported_vendor_categories: string[]
+  retention_days: number
+  security_settings: Record<string, unknown>
+  updated_at: string | null
+}
+
+export type BankSettingsPayload = Partial<Omit<BankSettings, "bank_id" | "updated_at">>
+
+export type ChangePasswordPayload = {
+  current_password: string
+  new_password: string
 }
 
 export type BankLoginPayload = {

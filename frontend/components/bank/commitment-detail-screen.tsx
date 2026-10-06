@@ -3,8 +3,12 @@
 import Link from "next/link"
 import { LockIcon } from "@hugeicons/core-free-icons"
 import { getBankCommitment } from "@/actions/bank"
+import { commitmentTabs, isCommitmentTab, type CommitmentTab } from "@/config/bank"
 import { routes } from "@/config/routes"
+import { useBankAccess } from "@/hooks/use-bank-access"
 import { useQuery } from "@/hooks/use-query"
+import { useUrlTab } from "@/hooks/use-url-tab"
+import { GroupHealthPanel, SupportCases } from "@/components/bank/commitment-review"
 import { DataTable, TableSkeleton, type Column } from "@/components/bank/data-table"
 import { DetailList, PageHeader, Section } from "@/components/bank/page-header"
 import { QueryState } from "@/components/bank/query-state"
@@ -13,6 +17,7 @@ import { Timeline } from "@/components/bank/timeline"
 import { Alert } from "@/components/ui/alert"
 import { buttonVariants } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsCount, TabsList, TabsPanel, TabsTab } from "@/components/ui/tabs"
 import type { BankCommitment } from "@/types"
 import { formatDateTime, formatNaira, humanize } from "@/utils/format"
 
@@ -20,18 +25,34 @@ type Member = BankCommitment["members"][number]
 type Payout = BankCommitment["payout_schedule"][number]
 type Contribution = BankCommitment["contributions"][number]
 
-// B4
-export function CommitmentDetailScreen({ id }: { id: string }) {
+// B4. each part of the lock sits in its own tab; the open one lives in ?tab=
+export function CommitmentDetailScreen({ id, initialTab }: { id: string; initialTab?: CommitmentTab }) {
   const query = useQuery(getBankCommitment, [id])
 
   return (
     <QueryState query={query} noun="this commitment" skeleton={<DetailSkeleton />}>
-      {(commitment) => <CommitmentDetail commitment={commitment} />}
+      {(commitment) => <CommitmentDetail commitment={commitment} initialTab={initialTab} onChanged={query.retry} />}
     </QueryState>
   )
 }
 
-function CommitmentDetail({ commitment }: { commitment: BankCommitment }) {
+type CommitmentDetailProps = {
+  commitment: BankCommitment
+  initialTab?: CommitmentTab
+  onChanged: () => void
+}
+
+function CommitmentDetail({ commitment, initialTab, onChanged }: CommitmentDetailProps) {
+  const { can } = useBankAccess()
+  const underReview = commitment.status === "under_review"
+  // a lock under review opens on its support case, since that's what needs doing
+  const [tab, setTab] = useUrlTab<CommitmentTab>(initialTab ?? (underReview ? "support" : "overview"))
+  const openCases = (commitment.support_cases ?? []).filter((item) => item.status === "open").length
+  const counts: Partial<Record<CommitmentTab, { value: number; alert?: boolean }>> = {
+    members: { value: commitment.members.length },
+    contributions: { value: commitment.contributions.length },
+    ...(openCases > 0 && { support: { value: openCases, alert: true } }),
+  }
   const names = new Map(commitment.members.map((member) => [member.user_id, member.name]))
   const nameOf = (userId: string) => names.get(userId) ?? userId
   const totalContributed = commitment.contributions.reduce((sum, row) => sum + row.amount, 0)
@@ -77,81 +98,132 @@ function CommitmentDetail({ commitment }: { commitment: BankCommitment }) {
           </>
         }
         actions={
-          <Link
-            href={`${routes.bank.settlements}?commitment_id=${encodeURIComponent(commitment.commitment_id)}`}
-            className={buttonVariants({ variant: "outline", size: "sm" })}
-          >
-            settlements
-          </Link>
+          can("bank:settlements:read") && (
+            <Link
+              href={`${routes.bank.settlements}?commitment_id=${encodeURIComponent(commitment.commitment_id)}`}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              settlements
+            </Link>
+          )
         }
       />
 
-      <div className="flex flex-col gap-10">
-        <DetailList
-          items={[
-            {
-              label: "locked vendor",
-              value: (
-                <span className="flex flex-wrap items-center gap-1.5">
-                  {commitment.vendor.name ?? commitment.vendor.vendor_id}
-                  {commitment.vendor.verified && <StatusBadge status="verified" />}
-                </span>
-              ),
-            },
-            { label: "contribution", value: `${formatNaira(commitment.contribution_amount)} ${humanize(commitment.frequency)}` },
-            { label: "cycles done", value: `${commitment.completed_cycle_count} of ${commitment.cycles}` },
-            { label: "current cycle", value: commitment.current_cycle_number },
-            { label: "contributed so far", value: formatNaira(totalContributed) },
-            { label: "members", value: commitment.members.length },
-            { label: "created", value: formatDateTime(commitment.created_at) },
-          ]}
-        />
-
-        <PayoutDecision commitment={commitment} nameOf={nameOf} />
-
-        <Section title="payout schedule" description="who receives each cycle's pool, and where that voucher is now.">
-          <DataTable caption="payout schedule" columns={payoutColumns} rows={commitment.payout_schedule} rowKey={(row) => String(row.cycle_number)} />
-        </Section>
-
-        <Section title="members" description="bank staff may see scores here. members never see each other's.">
-          <DataTable
-            caption="members"
-            columns={memberColumns}
-            rows={commitment.members}
-            rowKey={(row) => row.user_id}
-            rowHref={(row) => routes.bank.user(row.user_id)}
-          />
-        </Section>
-
-        <Section title="contributions">
-          {commitment.contributions.length === 0 ? (
-            <p className="rounded-2xl border-2 border-dashed border-hairline px-4 py-6 text-center text-sm font-semibold text-muted-foreground">
-              no contributions recorded yet.
-            </p>
+      {underReview && (
+        <Alert variant="error" title="under review" className="mb-6">
+          a support case is open. contributions and payouts wait until it&apos;s resolved
+          {tab === "support" ? (
+            " below."
           ) : (
-            <DataTable
-              caption="contributions"
-              columns={contributionColumns}
-              rows={commitment.contributions}
-              rowKey={(row) => row.contribution_id}
-            />
+            <>
+              {" "}in the{" "}
+              <button
+                type="button"
+                title="open the support tab"
+                onClick={() => setTab("support")}
+                className="cursor-pointer font-extrabold underline underline-offset-4"
+              >
+                support tab
+              </button>
+              .
+            </>
           )}
-        </Section>
+        </Alert>
+      )}
 
-        <Section title="activity">
-          <Timeline
-            items={commitment.activity.map((item) => ({
-              id: item.activity_id,
-              title: humanize(item.type),
-              detail: [nameOf(item.actor_user_id), item.cycle_number ? `cycle ${item.cycle_number}` : null]
-                .filter(Boolean)
-                .join(" · "),
-              at: item.occurred_at,
-            }))}
-            empty="nothing has happened on this commitment yet."
-          />
-        </Section>
-      </div>
+      <Tabs value={tab} onValueChange={(value) => isCommitmentTab(value) && setTab(value)}>
+        <TabsList aria-label="commitment sections">
+          {commitmentTabs.map((item) => {
+            const count = counts[item.value]
+            return (
+              <TabsTab key={item.value} value={item.value} title={`show ${item.label}`}>
+                {item.label}
+                {count && <TabsCount alert={count.alert}>{count.value}</TabsCount>}
+              </TabsTab>
+            )
+          })}
+        </TabsList>
+
+        <TabsPanel value="overview">
+          <div className="flex flex-col gap-10">
+            <DetailList
+              items={[
+                { label: "locked vendor", value: commitment.vendor.name ?? commitment.vendor.vendor_id },
+                { label: "contribution", value: `${formatNaira(commitment.contribution_amount)} ${humanize(commitment.frequency)}` },
+                { label: "cycles done", value: `${commitment.completed_cycle_count} of ${commitment.cycles}` },
+                { label: "current cycle", value: commitment.current_cycle_number },
+                { label: "contributed so far", value: formatNaira(totalContributed) },
+                { label: "members", value: commitment.members.length },
+                { label: "created", value: formatDateTime(commitment.created_at) },
+              ]}
+            />
+            <GroupHealthPanel commitmentId={commitment.commitment_id} status={commitment.status} />
+          </div>
+        </TabsPanel>
+
+        <TabsPanel value="payouts">
+          <div className="flex flex-col gap-10">
+            <PayoutDecision commitment={commitment} nameOf={nameOf} />
+            <Section title="payout schedule" description="who receives each cycle's pool, and where that voucher is now.">
+              <DataTable
+                caption="payout schedule"
+                columns={payoutColumns}
+                rows={commitment.payout_schedule}
+                rowKey={(row) => String(row.cycle_number)}
+              />
+            </Section>
+          </div>
+        </TabsPanel>
+
+        <TabsPanel value="members">
+          <Section title="members" description="bank staff may see scores here. members never see each other's.">
+            <DataTable
+              caption="members"
+              columns={memberColumns}
+              rows={commitment.members}
+              rowKey={(row) => row.user_id}
+              rowHref={(row) => routes.bank.user(row.user_id)}
+            />
+          </Section>
+        </TabsPanel>
+
+        <TabsPanel value="contributions">
+          <Section title="contributions" description={`${formatNaira(totalContributed)} paid in so far.`}>
+            {commitment.contributions.length === 0 ? (
+              <p className="rounded-2xl border-2 border-dashed border-hairline px-4 py-6 text-center text-sm font-semibold text-muted-foreground">
+                no contributions recorded yet.
+              </p>
+            ) : (
+              <DataTable
+                caption="contributions"
+                columns={contributionColumns}
+                rows={commitment.contributions}
+                rowKey={(row) => row.contribution_id}
+              />
+            )}
+          </Section>
+        </TabsPanel>
+
+        <TabsPanel value="support">
+          <SupportCases commitment={commitment} onChanged={onChanged} />
+        </TabsPanel>
+
+        <TabsPanel value="activity">
+          <Section title="activity">
+            <Timeline
+              items={commitment.activity.map((item) => ({
+                id: item.activity_id,
+                title: humanize(item.type),
+                detail: [nameOf(item.actor_user_id), item.cycle_number ? `cycle ${item.cycle_number}` : null]
+                  .filter(Boolean)
+                  .join(" · "),
+                at: item.occurred_at,
+              }))}
+              empty="nothing has happened on this commitment yet."
+            />
+          </Section>
+        </TabsPanel>
+      </Tabs>
     </>
   )
 }
@@ -203,6 +275,7 @@ function DetailSkeleton() {
     <>
       <Skeleton className="mb-3 h-5 w-28" />
       <Skeleton className="mb-8 h-10 w-72" />
+      <Skeleton className="mb-8 h-10 w-full max-w-xl rounded-xl" />
       <Skeleton className="mb-10 h-32 rounded-2xl" />
       <TableSkeleton rows={4} />
     </>

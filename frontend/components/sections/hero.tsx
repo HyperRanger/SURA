@@ -1,7 +1,6 @@
 import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowRight01Icon, } from "@hugeicons/core-free-icons"
 import Link from "next/link"
-import { isDemoEnabled } from "@/config/env"
 import { heroStats } from "@/config/landing"
 import { routes } from "@/config/routes"
 import { buttonVariants } from "@/components/ui/button"
@@ -25,19 +24,13 @@ export function Hero() {
           </p>
 
           <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-            <Link href={routes.signup} className={buttonVariants({ size: "lg" })}>
-              get started
+            <Link href={routes.bank.login} title="sign in to the bank console" className={buttonVariants({ size: "lg" })}>
+              open the bank console
               <HugeiconsIcon icon={ArrowRight01Icon} size={20} strokeWidth={2.5} />
             </Link>
-            {isDemoEnabled ? (
-              <Link href={routes.demo} className={buttonVariants({ variant: "outline", size: "lg" })}>
-                try the demo
-              </Link>
-            ) : (
-              <a href="#how-it-works" className={buttonVariants({ variant: "outline", size: "lg" })}>
-                see how it works
-              </a>
-            )}
+            <Link href={routes.forBanks} className={buttonVariants({ variant: "outline", size: "lg" })}>
+              see the api for banks
+            </Link>
           </div>
 
         </div>

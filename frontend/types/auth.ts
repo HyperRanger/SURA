@@ -65,6 +65,8 @@ export type Session = {
   userId: string
   role: UserRole
   institutionId?: string
+  // bank sessions only. what the api granted at sign in; it still checks every call
+  permissions?: string[]
 }
 
 // held between /login or /signup and /verify, so a refresh on /verify keeps working

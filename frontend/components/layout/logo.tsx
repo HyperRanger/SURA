@@ -17,7 +17,7 @@ const ivory = "/sura-logo-horizontal-dark.svg"
 
 export function Logo({ className, tone = "default" }: LogoProps) {
   return (
-    <Link href="/" aria-label="sura home" className={cn("flex shrink-0 items-center", className)}>
+    <Link href="/" aria-label="sura home" title="sura home" className={cn("flex shrink-0 items-center", className)}>
       {tone === "inverse" ? (
         <Image src={ivory} alt="" width={width} height={height} priority unoptimized />
       ) : (
