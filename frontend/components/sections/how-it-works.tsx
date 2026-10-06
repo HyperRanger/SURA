@@ -9,9 +9,9 @@ export function HowItWorks() {
     <section id="how-it-works" className="bg-cloud py-20 md:py-28">
       <div className="container-page">
         <SectionHeading
-          eyebrow="how it works"
-          title="from first contribution to first payout"
-          description="four steps for members. the bank's app handles the screens, sura handles the rules."
+          eyebrow="How it works"
+          title="From first contribution to first payout"
+          description="Four steps for members. The bank's app handles the screens, Sura handles the rules."
         />
 
         <ol className="relative mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
@@ -38,10 +38,10 @@ export function HowItWorks() {
         <div className="mt-10 grid items-center gap-8 rounded-[2rem] border-b-8 border-primary-deep bg-primary p-7 text-primary-foreground md:grid-cols-[1fr_1.2fr] md:p-10">
           <div>
             <p className="text-sm font-extrabold text-gold">
-              for banks and fintechs
+              For banks and fintechs
             </p>
             <h3 className="mt-2 text-2xl font-black tracking-tight text-balance sm:text-3xl">
-              launch a savings and credit product without building underwriting from scratch
+              Launch a savings and credit product without building underwriting from scratch
             </h3>
           </div>
           <ul className="grid gap-3 sm:grid-cols-2">

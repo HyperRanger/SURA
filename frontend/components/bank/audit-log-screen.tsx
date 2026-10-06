@@ -31,37 +31,37 @@ import { formatDateTime, humanize } from "@/utils/format"
 type Kind = AuditLogEntry["type"]
 
 const kindOptions: { value: Kind; label: string }[] = [
-  { value: "score", label: "score changes" },
-  { value: "bank_access", label: "staff actions" },
+  { value: "score", label: "Score changes" },
+  { value: "bank_access", label: "Staff actions" },
 ]
 
 const idLink = (href: string, id: string) => (
-  <Link href={href} className="font-mono text-xs text-link normal-case underline-offset-4 hover:underline">
+  <Link href={href} className="font-mono text-xs text-link underline-offset-4 hover:underline">
     {id}
   </Link>
 )
 
 const columns: Column<AuditLogEntry>[] = [
   {
-    header: "what happened",
+    header: "What happened",
     cell: (row) => (row.type === "score" ? row.reason ?? humanize(row.event_type) : humanize(row.event_type)),
   },
   {
-    header: "kind",
-    cell: (row) => <StatusBadge status={row.type} label={row.type === "score" ? "score" : "staff"} tone={row.type === "score" ? "gold" : "indigo"} />,
+    header: "Kind",
+    cell: (row) => <StatusBadge status={row.type} label={row.type === "score" ? "Score" : "Staff"} tone={row.type === "score" ? "gold" : "indigo"} />,
   },
   {
-    header: "customer or subject",
+    header: "Customer or subject",
     cell: (row) =>
       row.user_id
         ? idLink(routes.bank.user(row.user_id), row.user_id)
-        : <span className="font-mono text-xs normal-case">{row.subject_id ?? "—"}</span>,
+        : <span className="font-mono text-xs">{row.subject_id ?? "—"}</span>,
   },
   {
-    header: "actor",
-    cell: (row) => <span className="font-mono text-xs normal-case">{row.actor_id ?? "sura"}</span>,
+    header: "Actor",
+    cell: (row) => <span className="font-mono text-xs">{row.actor_id ?? "sura"}</span>,
   },
-  { header: "when", cell: (row) => formatDateTime(row.occurred_at) },
+  { header: "When", cell: (row) => formatDateTime(row.occurred_at) },
 ]
 
 function downloadCsv(csv: string) {
@@ -97,8 +97,8 @@ export function AuditLogScreen() {
   return (
     <>
       <PageHeader
-        title="audit log"
-        description="every score change across your customers, and every action your staff took in this console."
+        title="Audit log"
+        description="Every score change across your customers, and every action your staff took in this console."
         actions={
           <Button type="button" variant="outline" size="sm" loading={exporter.isPending} onClick={handleExport}>
             {!exporter.isPending && <HugeiconsIcon icon={Download01Icon} size={18} strokeWidth={2.2} />}
@@ -108,7 +108,7 @@ export function AuditLogScreen() {
       />
 
       {exporter.error && (
-        <Alert variant="error" title="couldn't export the log" className="mb-5">
+        <Alert variant="error" title="Couldn't export the log" className="mb-5">
           {exporter.error.message}
         </Alert>
       )}
@@ -116,15 +116,15 @@ export function AuditLogScreen() {
       <FilterBar>
         <SearchFilter
           id="audit-user"
-          label="filter by customer id"
-          placeholder="exact sura customer id, e.g. usr_demo_amara"
+          label="Filter by customer ID"
+          placeholder="Exact Sura customer ID, e.g. usr_demo_amara"
           value={userSearch}
           onChange={setUserSearch}
         />
-        <TextFilter id="audit-actor" label="actor" placeholder="staff user id" value={actorSearch} onChange={setActorSearch} />
-        <SelectFilter id="audit-kind" label="show" value={kind} onChange={setKind} options={kindOptions} allLabel="everything" />
-        <DateFilter id="audit-from" label="from" value={dateFrom} onChange={setDateFrom} />
-        <DateFilter id="audit-to" label="to" value={dateTo} onChange={setDateTo} />
+        <TextFilter id="audit-actor" label="Actor" placeholder="Staff user ID" value={actorSearch} onChange={setActorSearch} />
+        <SelectFilter id="audit-kind" label="Show" value={kind} onChange={setKind} options={kindOptions} allLabel="Everything" />
+        <DateFilter id="audit-from" label="From" value={dateFrom} onChange={setDateFrom} />
+        <DateFilter id="audit-to" label="To" value={dateTo} onChange={setDateTo} />
       </FilterBar>
 
       <QueryState
@@ -135,14 +135,14 @@ export function AuditLogScreen() {
         empty={
           <EmptyState
             icon={Audit01Icon}
-            title={filtered ? "nothing matches these filters" : "the log is empty"}
-            description={filtered ? "try a wider date range or another customer." : "score changes and staff actions will appear here."}
+            title={filtered ? "Nothing matches these filters" : "The log is empty"}
+            description={filtered ? "Try a wider date range or another customer." : "Score changes and staff actions will appear here."}
           />
         }
       >
         {(rows) => (
           <DataTable
-            caption="audit log"
+            caption="Audit log"
             columns={columns}
             rows={kind ? rows.filter((row) => row.type === kind) : rows}
             rowKey={(row) => `${row.type}-${row.id}`}

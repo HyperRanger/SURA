@@ -12,11 +12,11 @@ export function ForBanksHero() {
       <div className="container-page relative grid items-center gap-12 lg:grid-cols-[1.15fr_0.85fr]">
         <div>
           <h1 className="mt-6 text-4xl leading-[1.05] font-black tracking-tight text-balance sm:text-5xl md:text-6xl">
-            a savings product and a credit signal, <span className="text-link">in one api.</span>
+            A savings product and a credit signal, <span className="text-link">in one API.</span>
           </h1>
           <p className="mt-6 max-w-xl text-base leading-relaxed text-pretty text-muted-foreground sm:text-lg">
-            sura runs rotating savings circles on your rails and turns every on-time contribution
-            into a score your credit team can audit line by line. you keep the customer, the brand
+            Sura runs rotating savings circles on your rails and turns every on-time contribution
+            into a score your credit team can audit line by line. You keep the customer, the brand
             and the money.
           </p>
 
@@ -28,16 +28,16 @@ export function ForBanksHero() {
                 rel="noreferrer"
                 className={buttonVariants({ size: "lg" })}
               >
-                read the api docs
+                Read the API docs
                 <HugeiconsIcon icon={ArrowUpRight01Icon} size={20} strokeWidth={2.5} />
               </a>
             )}
             <Link
               href={routes.bank.login}
-              title="sign in to the bank console"
+              title="Sign in to the bank console"
               className={buttonVariants({ variant: "outline", size: "lg" })}
             >
-              open the bank console
+              Open the bank console
             </Link>
           </div>
         </div>

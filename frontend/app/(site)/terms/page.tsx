@@ -3,7 +3,7 @@ import { termsOfUse } from "@/config/legal"
 import { LegalDocument } from "@/components/shared/legal-document"
 
 export const metadata: Metadata = {
-  title: "terms of use — sura",
+  title: "Terms of use — Sura",
   description: termsOfUse.summary,
 }
 

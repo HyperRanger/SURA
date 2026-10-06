@@ -3,10 +3,10 @@ import { env } from "@/config/env"
 import { routes } from "@/config/routes"
 
 export const siteConfig = {
-  name: "sura",
-  title: "sura — structured savings and credit for irregular income",
+  name: "Sura",
+  title: "Sura — structured savings and credit for irregular income",
   description:
-    "sura lets banks and fintechs offer rotating savings circles with enforced rules, vendor-locked payouts and a transparent score that turns on-time contributions into a credit record.",
+    "Sura lets banks and fintechs offer rotating savings circles with enforced rules, vendor-locked payouts and a transparent score that turns on-time contributions into a credit record.",
   // placeholder inbox until the team confirms a real one
   contactEmail: "",
   apiUrl: env.apiUrl,
@@ -15,35 +15,35 @@ export const siteConfig = {
 
 // anchors are absolute so the header works on every public page, not just the landing
 export const mainNav: NavLink[] = [
-  { label: "features", href: "/#features" },
-  { label: "how it works", href: "/#how-it-works" },
-  { label: "for banks", href: routes.forBanks },
-  { label: "faq", href: "/#faq" },
+  { label: "Features", href: "/#features" },
+  { label: "How it works", href: "/#how-it-works" },
+  { label: "For banks", href: routes.forBanks },
+  { label: "FAQ", href: "/#faq" },
 ]
 
 export const footerNav: { title: string; links: NavLink[] }[] = [
   {
-    title: "product",
+    title: "Product",
     links: [
-      { label: "sura lock", href: "/#features" },
-      { label: "sura score", href: "/#features" },
-      { label: "how it works", href: "/#how-it-works" },
-      { label: "faq", href: "/#faq" },
+      { label: "Sura Lock", href: "/#features" },
+      { label: "Sura Score", href: "/#features" },
+      { label: "How it works", href: "/#how-it-works" },
+      { label: "FAQ", href: "/#faq" },
     ],
   },
   {
-    title: "for partners",
+    title: "For partners",
     links: [
-      { label: "bank console", href: routes.bank.login },
-      { label: "the api for banks", href: routes.forBanks },
+      { label: "Bank console", href: routes.bank.login },
+      { label: "The API for banks", href: routes.forBanks },
     ],
   },
   {
-    title: "company",
+    title: "Company",
     links: [
-      { label: "for banks", href: routes.forBanks },
-      { label: "terms of use", href: routes.terms },
-      { label: "privacy", href: routes.privacy },
+      { label: "For banks", href: routes.forBanks },
+      { label: "Terms of use", href: routes.terms },
+      { label: "Privacy", href: routes.privacy },
     ],
   },
 ]

@@ -3,7 +3,7 @@ import { privacyNotice } from "@/config/legal"
 import { LegalDocument } from "@/components/shared/legal-document"
 
 export const metadata: Metadata = {
-  title: "privacy notice — sura",
+  title: "Privacy notice — Sura",
   description: privacyNotice.summary,
 }
 

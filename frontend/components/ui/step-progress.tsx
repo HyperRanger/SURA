@@ -26,13 +26,13 @@ export function StepProgress({ current, total, onBack, label = "progress", class
             className="-ml-2 inline-flex items-center gap-1 rounded-full py-1.5 pr-3 pl-2 text-sm font-bold text-muted-foreground transition-colors hover:bg-cloud hover:text-link"
           >
             <HugeiconsIcon icon={ArrowLeft01Icon} size={18} strokeWidth={2.5} />
-            back
+            Back
           </button>
         ) : (
           <span />
         )}
         <span className="text-xs font-extrabold text-muted-foreground" aria-live="polite">
-          step {current + 1} of {total}
+          Step {current + 1} of {total}
         </span>
       </div>
       <div

@@ -29,7 +29,7 @@ export function Dialog({ open, onOpenChange, title, description, children, class
         <DialogPrimitive.Popup
           data-slot="dialog-content"
           className={cn(
-            "card-raised fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col overflow-y-auto rounded-3xl p-5 text-foreground shadow-xl lowercase transition duration-150 outline-none sm:p-6",
+            "card-raised fixed top-1/2 left-1/2 z-50 flex max-h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 flex-col overflow-y-auto rounded-3xl p-5 text-foreground shadow-xl transition duration-150 outline-none sm:p-6",
             "data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0",
             className
           )}
@@ -43,9 +43,9 @@ export function Dialog({ open, onOpenChange, title, description, children, class
                 </DialogPrimitive.Description>
               )}
             </div>
-            <DialogPrimitive.Close render={<Button variant="ghost" size="icon" title="close" className="-mt-1 -mr-2 shrink-0" />}>
+            <DialogPrimitive.Close render={<Button variant="ghost" size="icon" title="Close" className="-mt-1 -mr-2 shrink-0" />}>
               <HugeiconsIcon icon={Cancel01Icon} size={20} strokeWidth={2.2} />
-              <span className="sr-only">close</span>
+              <span className="sr-only">Close</span>
             </DialogPrimitive.Close>
           </div>
           {children}

@@ -37,11 +37,11 @@ export class ApiError extends Error {
 }
 
 const fallbackMessages: Record<ApiErrorKind, string> = {
-  network: "we couldn't reach sura. check your connection and try again.",
-  timeout: "sura is taking too long to respond. please try again.",
-  cancelled: "the request was cancelled.",
-  http: "something went wrong on our side. please try again.",
-  unknown: "something went wrong. please try again.",
+  network: "We couldn't reach Sura. Check your connection and try again.",
+  timeout: "Sura is taking too long to respond. Please try again.",
+  cancelled: "The request was cancelled.",
+  http: "Something went wrong on our side. Please try again.",
+  unknown: "Something went wrong. Please try again.",
 }
 
 type ValidationIssue = { msg?: string; loc?: (string | number)[] }

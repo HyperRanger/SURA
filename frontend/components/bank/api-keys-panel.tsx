@@ -24,8 +24,8 @@ import type { ApiEnvironment, ApiKey, ApiKeyScope, ApiKeyWithSecret } from "@/ty
 import { formatDateTime } from "@/utils/format"
 
 const environmentOptions: { value: ApiEnvironment; label: string; description: string }[] = [
-  { value: "sandbox", label: "sandbox", description: "for building and testing against demo data." },
-  { value: "live", label: "live", description: "for production systems reading real customers." },
+  { value: "sandbox", label: "Sandbox", description: "For building and testing against demo data." },
+  { value: "live", label: "Live", description: "For production systems reading real customers." },
 ]
 
 const noArgs: [] = []
@@ -76,44 +76,44 @@ export function ApiKeysPanel({ onTryKey }: { onTryKey?: (secret: string) => void
   const createButton = (
     <Button type="button" size="sm" onClick={() => setDialog({ step: "create" })}>
       <HugeiconsIcon icon={Add01Icon} size={18} strokeWidth={2.4} />
-      create api key
+      Create API key
     </Button>
   )
 
   const columns: Column<ApiKey>[] = [
-    { header: "name", cell: (row) => <span className="normal-case">{row.name}</span> },
-    { header: "key", cell: (row) => <span className="font-mono text-xs normal-case">{row.prefix}••••</span> },
+    { header: "Name", cell: (row) => row.name },
+    { header: "Key", cell: (row) => <span className="font-mono text-xs">{row.prefix}••••</span> },
     {
-      header: "scopes",
-      cell: (row) => <span className="font-mono text-xs normal-case">{row.scopes.join(", ")}</span>,
+      header: "Scopes",
+      cell: (row) => <span className="font-mono text-xs">{row.scopes.join(", ")}</span>,
     },
-    { header: "environment", cell: (row) => <StatusBadge status={row.environment} /> },
-    { header: "status", cell: (row) => <StatusBadge status={keyStatus(row, now)} /> },
-    { header: "created", cell: (row) => formatDateTime(row.created_at) },
-    { header: "last used", cell: (row) => (row.last_used_at ? formatDateTime(row.last_used_at) : "never") },
+    { header: "Environment", cell: (row) => <StatusBadge status={row.environment} /> },
+    { header: "Status", cell: (row) => <StatusBadge status={keyStatus(row, now)} /> },
+    { header: "Created", cell: (row) => formatDateTime(row.created_at) },
+    { header: "Last used", cell: (row) => (row.last_used_at ? formatDateTime(row.last_used_at) : "Never") },
     {
-      header: "manage",
+      header: "Manage",
       align: "right",
       wide: true,
       cell: (row) =>
         keyStatus(row, now) === "revoked" ? null : (
           <div className="relative z-10 flex flex-wrap gap-2 md:justify-end">
             <ConfirmButton
-              confirmLabel="yes, rotate"
+              confirmLabel="Yes, rotate"
               loading={rotate.isPending && busyKey === row.key_id}
               disabled={busyKey !== null && busyKey !== row.key_id}
               onConfirm={() => handleRotate(row)}
             >
-              rotate
+              Rotate
             </ConfirmButton>
             <ConfirmButton
-              confirmLabel="yes, revoke"
+              confirmLabel="Yes, revoke"
               variant="ghost"
               loading={revoke.isPending && busyKey === row.key_id}
               disabled={busyKey !== null && busyKey !== row.key_id}
               onConfirm={() => handleRevoke(row)}
             >
-              revoke
+              Revoke
             </ConfirmButton>
           </div>
         ),
@@ -122,8 +122,8 @@ export function ApiKeysPanel({ onTryKey }: { onTryKey?: (secret: string) => void
 
   return (
     <Section
-      title="api keys"
-      description="authenticate your servers' requests with X-Sura-API-Key. never share or expose a key publicly."
+      title="API keys"
+      description="Authenticate your servers' requests with X-Sura-API-Key. Never share or expose a key publicly."
       action={keys.data && keys.data.length > 0 && createButton}
     >
       <div className="flex flex-col gap-4">
@@ -131,19 +131,19 @@ export function ApiKeysPanel({ onTryKey }: { onTryKey?: (secret: string) => void
 
         <QueryState
           query={keys}
-          noun="api keys"
+          noun="API keys"
           skeleton={<TableSkeleton rows={2} />}
           isEmpty={(rows) => rows.length === 0}
           empty={
             <EmptyState
               icon={Key01Icon}
-              title="no api keys yet"
-              description="create a sandbox key to make your first machine request."
+              title="No API keys yet"
+              description="Create a sandbox key to make your first machine request."
               action={createButton}
             />
           }
         >
-          {(rows) => <DataTable caption="api keys" columns={columns} rows={rows} rowKey={(row) => row.key_id} />}
+          {(rows) => <DataTable caption="API keys" columns={columns} rows={rows} rowKey={(row) => row.key_id} />}
         </QueryState>
       </div>
 
@@ -153,24 +153,24 @@ export function ApiKeysPanel({ onTryKey }: { onTryKey?: (secret: string) => void
         title={
           dialog?.step === "secret"
             ? dialog.key.rotated_key_id
-              ? `new secret for ${dialog.key.name}`
+              ? `New secret for ${dialog.key.name}`
               : `${dialog.key.name} is ready`
-            : "create api key"
+            : "Create API key"
         }
-        description={dialog?.step === "create" ? "scope each key to what that one system needs." : undefined}
+        description={dialog?.step === "create" ? "Scope each key to what that one system needs." : undefined}
       >
         {dialog?.step === "secret" ? (
           <SecretView secret={dialog.key.secret} onDone={() => setDialog(null)}>
             {dialog.key.rotated_key_id && (
               <p className="text-sm font-semibold text-muted-foreground">
-                the old key stopped working the moment this one was issued.
+                The old key stopped working the moment this one was issued.
               </p>
             )}
             {onTryKey && (
               <Button
                 type="button"
                 variant="outline"
-                title="make a live request with this key"
+                title="Make a live request with this key"
                 onClick={() => {
                   onTryKey(dialog.key.secret)
                   setDialog(null)
@@ -178,7 +178,7 @@ export function ApiKeysPanel({ onTryKey }: { onTryKey?: (secret: string) => void
                 className="sm:self-start"
               >
                 <HugeiconsIcon icon={SentIcon} size={18} strokeWidth={2.2} />
-                try it in the playground
+                Try it in the playground
               </Button>
             )}
           </SecretView>
@@ -217,8 +217,8 @@ function CreateKeyForm({ onCreated, onCancel }: CreateKeyFormProps) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const nextErrors = {
-      name: name.trim() ? undefined : "name the system that will use this key",
-      scopes: scopes.length ? undefined : "choose at least one scope",
+      name: name.trim() ? undefined : "Name the system that will use this key",
+      scopes: scopes.length ? undefined : "Choose at least one scope",
     }
     setErrors(nextErrors)
     if (nextErrors.name || nextErrors.scopes) return
@@ -234,7 +234,7 @@ function CreateKeyForm({ onCreated, onCancel }: CreateKeyFormProps) {
 
   return (
     <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-5">
-      <Field id="key-name" label="name" error={errors.name}>
+      <Field id="key-name" label="Name" error={errors.name}>
         <Input
           id="key-name"
           value={name}
@@ -253,7 +253,7 @@ function CreateKeyForm({ onCreated, onCancel }: CreateKeyFormProps) {
 
       <div className="flex flex-col gap-2">
         <span id="key-environment-label" className="text-sm font-extrabold">
-          environment
+          Environment
         </span>
         <ChoiceCards
           name="key-environment"
@@ -266,7 +266,7 @@ function CreateKeyForm({ onCreated, onCancel }: CreateKeyFormProps) {
       </div>
 
       <fieldset>
-        <legend className="mb-2 text-sm font-extrabold">scopes</legend>
+        <legend className="mb-2 text-sm font-extrabold">Scopes</legend>
         <div className="flex flex-col gap-3">
           {apiKeyScopes.map((scope) => (
             <Checkbox
@@ -277,7 +277,7 @@ function CreateKeyForm({ onCreated, onCancel }: CreateKeyFormProps) {
               invalid={Boolean(errors.scopes)}
               label={
                 <>
-                  <span className="font-mono font-extrabold text-foreground normal-case">{scope.label}</span>
+                  <span className="font-mono font-extrabold text-foreground">{scope.label}</span>
                   <span className="block text-xs">{scope.description}</span>
                 </>
               }
@@ -287,12 +287,12 @@ function CreateKeyForm({ onCreated, onCancel }: CreateKeyFormProps) {
         <FieldError message={errors.scopes} />
       </fieldset>
 
-      <Field id="key-expiry" label="expires (optional)" hint="leave empty for a key that never expires.">
+      <Field id="key-expiry" label="Expires (optional)" hint="Leave empty for a key that never expires.">
         <DatePicker
           id="key-expiry"
           value={expiry}
           onChange={setExpiry}
-          placeholder="never expires"
+          placeholder="Never expires"
           aria-describedby="key-expiry-hint"
           // a key can't expire before today
           disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
@@ -303,10 +303,10 @@ function CreateKeyForm({ onCreated, onCancel }: CreateKeyFormProps) {
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button type="button" variant="ghost" onClick={onCancel} disabled={create.isPending}>
-          cancel
+          Cancel
         </Button>
         <Button type="submit" loading={create.isPending}>
-          create key
+          Create key
         </Button>
       </div>
     </form>

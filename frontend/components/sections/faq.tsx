@@ -13,10 +13,10 @@ export function Faq() {
     <section id="faq" className="py-20 md:py-28">
       <div className="container-page">
         <SectionHeading
-          title="frequently asked questions"
+          title="Frequently asked questions"
           description={
             <>
-              can&apos;t find what you&apos;re looking for? email{" "}
+              Can&apos;t find what you&apos;re looking for? Email{" "}
               <a href={`mailto:${siteConfig.contactEmail}`} className="font-bold text-link hover:underline">
                 {siteConfig.contactEmail}
               </a>

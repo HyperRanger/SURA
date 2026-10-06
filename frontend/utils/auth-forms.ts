@@ -34,26 +34,26 @@ export const signupStepFields: Record<SignupStepId, readonly (keyof SignupValues
   business: ["businessName", "businessCategory", "termsAccepted"],
 }
 
-const phoneRule =compose(required("enter your phone number"), nigerianMobile())
+const phoneRule =compose(required("Enter your phone number"), nigerianMobile())
 
 export function signupSchema(values: SignupValues) {
   const shared = {
-    name: compose(required("enter your full name"), maxLength(200)),
+    name: compose(required("Enter your full name"), maxLength(200)),
     phone: phoneRule,
-    termsAccepted: checked("accept the terms to continue"),
+    termsAccepted: checked("Accept the terms to continue"),
   }
 
   if (values.role === "vendor") {
     return {
       ...shared,
-      businessName: compose(required("enter your business name"), maxLength(200)),
-      businessCategory: compose(required("say what your business sells"), maxLength(120)),
+      businessName: compose(required("Enter your business name"), maxLength(200)),
+      businessCategory: compose(required("Say what your business sells"), maxLength(120)),
     }
   }
 
   return {
     ...shared,
-    context: oneOf(incomeContexts, "pick the one closest to how you earn"),
+    context: oneOf(incomeContexts, "Pick the one closest to how you earn"),
   }
 }
 

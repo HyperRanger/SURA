@@ -37,7 +37,7 @@ export function DataTable<T>({ columns, rows, rowKey, rowHref, caption }: DataTa
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 text-sm font-extrabold">
                   {href ? (
-                    <Link href={href} title="open details" className="after:absolute after:inset-0 after:rounded-2xl focus-visible:outline-none">
+                    <Link href={href} title="Open details" className="after:absolute after:inset-0 after:rounded-2xl focus-visible:outline-none">
                       {primary.cell(row)}
                     </Link>
                   ) : (
@@ -101,7 +101,7 @@ export function DataTable<T>({ columns, rows, rowKey, rowHref, caption }: DataTa
                       )}
                     >
                       {index === 0 && href ? (
-                        <Link href={href} title="open details" className="after:absolute after:inset-0 focus-visible:outline-none">
+                        <Link href={href} title="Open details" className="after:absolute after:inset-0 focus-visible:outline-none">
                           {column.cell(row)}
                         </Link>
                       ) : (

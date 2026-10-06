@@ -19,7 +19,7 @@ export function LegalDocument({ document }: { document: LegalDocumentData }) {
           {document.summary}
         </p>
         <p className="mt-4 text-sm font-bold text-muted-foreground">
-          last updated <time dateTime={document.updated}>{formatDate(document.updated)}</time>
+          Last updated <time dateTime={document.updated}>{formatDate(document.updated)}</time>
         </p>
       </header>
 

@@ -58,28 +58,28 @@ function CommitmentDetail({ commitment, initialTab, onChanged }: CommitmentDetai
   const totalContributed = commitment.contributions.reduce((sum, row) => sum + row.amount, 0)
 
   const memberColumns: Column<Member>[] = [
-    { header: "member", cell: (row) => row.name },
-    { header: "role", cell: (row) => humanize(row.role) },
-    { header: "score", cell: (row) => row.score, align: "right" },
-    { header: "tier", cell: (row) => <StatusBadge status={row.tier} /> },
-    { header: "joined", cell: (row) => formatDateTime(row.joined_at) },
+    { header: "Member", cell: (row) => row.name },
+    { header: "Role", cell: (row) => humanize(row.role) },
+    { header: "Score", cell: (row) => row.score, align: "right" },
+    { header: "Tier", cell: (row) => <StatusBadge status={row.tier} /> },
+    { header: "Joined", cell: (row) => formatDateTime(row.joined_at) },
   ]
 
   const payoutColumns: Column<Payout>[] = [
-    { header: "cycle", cell: (row) => `cycle ${row.cycle_number}` },
-    { header: "beneficiary", cell: (row) => nameOf(row.beneficiary_id) },
-    { header: "amount", cell: (row) => formatNaira(row.amount), align: "right" },
-    { header: "payout", cell: (row) => <StatusBadge status={row.status} /> },
-    { header: "voucher", cell: (row) => <StatusBadge status={row.voucher_status} /> },
-    { header: "settlement", cell: (row) => <StatusBadge status={row.settlement_status} /> },
+    { header: "Cycle", cell: (row) => `Cycle ${row.cycle_number}` },
+    { header: "Beneficiary", cell: (row) => nameOf(row.beneficiary_id) },
+    { header: "Amount", cell: (row) => formatNaira(row.amount), align: "right" },
+    { header: "Payout", cell: (row) => <StatusBadge status={row.status} /> },
+    { header: "Voucher", cell: (row) => <StatusBadge status={row.voucher_status} /> },
+    { header: "Settlement", cell: (row) => <StatusBadge status={row.settlement_status} /> },
   ]
 
   const contributionColumns: Column<Contribution>[] = [
-    { header: "member", cell: (row) => nameOf(row.user_id) },
-    { header: "cycle", cell: (row) => row.cycle_number, align: "right" },
-    { header: "amount", cell: (row) => formatNaira(row.amount), align: "right" },
-    { header: "status", cell: (row) => <StatusBadge status={row.status} /> },
-    { header: "paid", cell: (row) => formatDateTime(row.paid_at) },
+    { header: "Member", cell: (row) => nameOf(row.user_id) },
+    { header: "Cycle", cell: (row) => row.cycle_number, align: "right" },
+    { header: "Amount", cell: (row) => formatNaira(row.amount), align: "right" },
+    { header: "Status", cell: (row) => <StatusBadge status={row.status} /> },
+    { header: "Paid", cell: (row) => formatDateTime(row.paid_at) },
   ]
 
   return (
@@ -87,12 +87,12 @@ function CommitmentDetail({ commitment, initialTab, onChanged }: CommitmentDetai
       <PageHeader
         title={commitment.title}
         backHref={routes.bank.commitments}
-        backLabel="commitments"
+        backLabel="Commitments"
         meta={
           <>
             <StatusBadge status={commitment.status} />
             <StatusBadge status={commitment.type} tone="neutral" />
-            <span className="font-mono text-xs font-semibold text-muted-foreground normal-case">
+            <span className="font-mono text-xs font-semibold text-muted-foreground">
               {commitment.commitment_id}
             </span>
           </>
@@ -103,15 +103,15 @@ function CommitmentDetail({ commitment, initialTab, onChanged }: CommitmentDetai
               href={`${routes.bank.settlements}?commitment_id=${encodeURIComponent(commitment.commitment_id)}`}
               className={buttonVariants({ variant: "outline", size: "sm" })}
             >
-              settlements
+              Settlements
             </Link>
           )
         }
       />
 
       {underReview && (
-        <Alert variant="error" title="under review" className="mb-6">
-          a support case is open. contributions and payouts wait until it&apos;s resolved
+        <Alert variant="error" title="Under review" className="mb-6">
+          A support case is open. Contributions and payouts wait until it&apos;s resolved
           {tab === "support" ? (
             " below."
           ) : (
@@ -119,11 +119,11 @@ function CommitmentDetail({ commitment, initialTab, onChanged }: CommitmentDetai
               {" "}in the{" "}
               <button
                 type="button"
-                title="open the support tab"
+                title="Open the support tab"
                 onClick={() => setTab("support")}
                 className="cursor-pointer font-extrabold underline underline-offset-4"
               >
-                support tab
+                Support tab
               </button>
               .
             </>
@@ -132,11 +132,11 @@ function CommitmentDetail({ commitment, initialTab, onChanged }: CommitmentDetai
       )}
 
       <Tabs value={tab} onValueChange={(value) => isCommitmentTab(value) && setTab(value)}>
-        <TabsList aria-label="commitment sections">
+        <TabsList aria-label="Commitment sections">
           {commitmentTabs.map((item) => {
             const count = counts[item.value]
             return (
-              <TabsTab key={item.value} value={item.value} title={`show ${item.label}`}>
+              <TabsTab key={item.value} value={item.value} title={`Show ${item.label.toLowerCase()}`}>
                 {item.label}
                 {count && <TabsCount alert={count.alert}>{count.value}</TabsCount>}
               </TabsTab>
@@ -148,13 +148,13 @@ function CommitmentDetail({ commitment, initialTab, onChanged }: CommitmentDetai
           <div className="flex flex-col gap-10">
             <DetailList
               items={[
-                { label: "locked vendor", value: commitment.vendor.name ?? commitment.vendor.vendor_id },
-                { label: "contribution", value: `${formatNaira(commitment.contribution_amount)} ${humanize(commitment.frequency)}` },
-                { label: "cycles done", value: `${commitment.completed_cycle_count} of ${commitment.cycles}` },
-                { label: "current cycle", value: commitment.current_cycle_number },
-                { label: "contributed so far", value: formatNaira(totalContributed) },
-                { label: "members", value: commitment.members.length },
-                { label: "created", value: formatDateTime(commitment.created_at) },
+                { label: "Locked vendor", value: commitment.vendor.name ?? commitment.vendor.vendor_id },
+                { label: "Contribution", value: `${formatNaira(commitment.contribution_amount)} ${humanize(commitment.frequency).toLowerCase()}` },
+                { label: "Cycles done", value: `${commitment.completed_cycle_count} of ${commitment.cycles}` },
+                { label: "Current cycle", value: commitment.current_cycle_number },
+                { label: "Contributed so far", value: formatNaira(totalContributed) },
+                { label: "Members", value: commitment.members.length },
+                { label: "Created", value: formatDateTime(commitment.created_at) },
               ]}
             />
             <GroupHealthPanel commitmentId={commitment.commitment_id} status={commitment.status} />
@@ -164,9 +164,9 @@ function CommitmentDetail({ commitment, initialTab, onChanged }: CommitmentDetai
         <TabsPanel value="payouts">
           <div className="flex flex-col gap-10">
             <PayoutDecision commitment={commitment} nameOf={nameOf} />
-            <Section title="payout schedule" description="who receives each cycle's pool, and where that voucher is now.">
+            <Section title="Payout schedule" description="Who receives each cycle's pool, and where that voucher is now.">
               <DataTable
-                caption="payout schedule"
+                caption="Payout schedule"
                 columns={payoutColumns}
                 rows={commitment.payout_schedule}
                 rowKey={(row) => String(row.cycle_number)}
@@ -176,9 +176,9 @@ function CommitmentDetail({ commitment, initialTab, onChanged }: CommitmentDetai
         </TabsPanel>
 
         <TabsPanel value="members">
-          <Section title="members" description="bank staff may see scores here. members never see each other's.">
+          <Section title="Members" description="Bank staff may see scores here. Members never see each other's.">
             <DataTable
-              caption="members"
+              caption="Members"
               columns={memberColumns}
               rows={commitment.members}
               rowKey={(row) => row.user_id}
@@ -188,14 +188,14 @@ function CommitmentDetail({ commitment, initialTab, onChanged }: CommitmentDetai
         </TabsPanel>
 
         <TabsPanel value="contributions">
-          <Section title="contributions" description={`${formatNaira(totalContributed)} paid in so far.`}>
+          <Section title="Contributions" description={`${formatNaira(totalContributed)} paid in so far.`}>
             {commitment.contributions.length === 0 ? (
               <p className="rounded-2xl border-2 border-dashed border-hairline px-4 py-6 text-center text-sm font-semibold text-muted-foreground">
-                no contributions recorded yet.
+                No contributions recorded yet.
               </p>
             ) : (
               <DataTable
-                caption="contributions"
+                caption="Contributions"
                 columns={contributionColumns}
                 rows={commitment.contributions}
                 rowKey={(row) => row.contribution_id}
@@ -209,17 +209,17 @@ function CommitmentDetail({ commitment, initialTab, onChanged }: CommitmentDetai
         </TabsPanel>
 
         <TabsPanel value="activity">
-          <Section title="activity">
+          <Section title="Activity">
             <Timeline
               items={commitment.activity.map((item) => ({
                 id: item.activity_id,
                 title: humanize(item.type),
-                detail: [nameOf(item.actor_user_id), item.cycle_number ? `cycle ${item.cycle_number}` : null]
+                detail: [nameOf(item.actor_user_id), item.cycle_number ? `Cycle ${item.cycle_number}` : null]
                   .filter(Boolean)
                   .join(" · "),
                 at: item.occurred_at,
               }))}
-              empty="nothing has happened on this commitment yet."
+              empty="Nothing has happened on this commitment yet."
             />
           </Section>
         </TabsPanel>
@@ -236,7 +236,7 @@ function PayoutDecision({ commitment, nameOf }: { commitment: BankCommitment; na
   const capped = first && regular !== null && first.amount < regular
 
   return (
-    <Section title="payout order and cap">
+    <Section title="Payout order and cap">
       <div className="flex flex-col gap-3">
         {commitment.payout_order.length > 0 && (
           <ol className="card-raised flex flex-wrap gap-2 rounded-2xl p-4">
@@ -251,17 +251,17 @@ function PayoutDecision({ commitment, nameOf }: { commitment: BankCommitment; na
           </ol>
         )}
         {!first ? (
-          <Alert variant="info" title="no payout schedule yet">
-            the schedule is fixed once every invited member has joined.
+          <Alert variant="info" title="No payout schedule yet">
+            The schedule is fixed once every invited member has joined.
           </Alert>
         ) : capped ? (
-          <Alert variant="gold" icon={LockIcon} title={`cycle 1 is capped at ${formatNaira(first.amount)}`}>
-            later cycles pay {formatNaira(regular)}. a group where nobody has history above the entry tier chooses its own
+          <Alert variant="gold" icon={LockIcon} title={`Cycle 1 is capped at ${formatNaira(first.amount)}`}>
+            Later cycles pay {formatNaira(regular)}. A group where nobody has history above the entry tier chooses its own
             order, and its first payout is capped, so a stranger can&apos;t take the first pool and leave.
           </Alert>
         ) : (
-          <Alert variant="info" title="no first-payout cap">
-            every cycle pays the same pool. in a group where someone already had history above the entry tier, early
+          <Alert variant="info" title="No first-payout cap">
+            Every cycle pays the same pool. In a group where someone already had history above the entry tier, early
             slots go to members by score, highest first.
           </Alert>
         )}

@@ -27,8 +27,8 @@ const RETENTION_MIN = 30
 const RETENTION_MAX = 3650
 
 const environmentOptions: { value: ApiEnvironment; label: string }[] = [
-  { value: "sandbox", label: "sandbox" },
-  { value: "live", label: "live" },
+  { value: "sandbox", label: "Sandbox" },
+  { value: "live", label: "Live" },
 ]
 
 // B13
@@ -41,7 +41,7 @@ export function SettingsScreen() {
       noun="settings"
       skeleton={
         <>
-          <PageHeader title="settings" description="your bank's name, environment and data retention on sura." />
+          <PageHeader title="Settings" description="Your bank's name, environment and data retention on Sura." />
           <Skeleton className="h-40 rounded-2xl" />
         </>
       }
@@ -59,39 +59,39 @@ function SettingsView({ settings, onSaved }: { settings: BankSettings; onSaved: 
   return (
     <>
       <PageHeader
-        title="settings"
-        description="your bank's name, environment and data retention on sura."
+        title="Settings"
+        description="Your bank's name, environment and data retention on Sura."
         actions={
-          <Button type="button" title="change your bank's settings" onClick={() => setEditing(true)}>
+          <Button type="button" title="Change your bank's settings" onClick={() => setEditing(true)}>
             <HugeiconsIcon icon={PencilEdit02Icon} size={18} strokeWidth={2.2} />
-            edit settings
+            Edit settings
           </Button>
         }
       />
 
       <div className="flex flex-col gap-10">
         {saved && (
-          <Alert variant="info" title="settings saved">
-            the change is recorded in your audit log.
+          <Alert variant="info" title="Settings saved">
+            The change is recorded in your audit log.
           </Alert>
         )}
 
         <DetailList
           items={[
-            { label: "bank name", value: settings.name },
+            { label: "Bank name", value: settings.name },
             {
-              label: "environment",
+              label: "Environment",
               value: <StatusBadge status={settings.environment} tone={settings.environment === "live" ? "gold" : "indigo"} />,
             },
-            { label: "data retention", value: `${settings.retention_days} days` },
-            { label: "last changed", value: formatDateTime(settings.updated_at) },
+            { label: "Data retention", value: `${settings.retention_days} days` },
+            { label: "Last changed", value: formatDateTime(settings.updated_at) },
           ]}
         />
 
-        <Section title="supported vendor categories" description="where your customers' locked savings can be spent.">
+        <Section title="Supported vendor categories" description="Where your customers' locked savings can be spent.">
           {settings.supported_vendor_categories.length === 0 ? (
             <p className="rounded-2xl border-2 border-dashed border-hairline px-4 py-6 text-center text-sm font-semibold text-muted-foreground">
-              no categories yet. add them from edit settings.
+              No categories yet. Add them from Edit settings.
             </p>
           ) : (
             <ul className="flex flex-wrap gap-2">
@@ -106,7 +106,7 @@ function SettingsView({ settings, onSaved }: { settings: BankSettings; onSaved: 
           )}
         </Section>
 
-        <Section title="security settings" description="managed with sura during onboarding. read only here.">
+        <Section title="Security settings" description="Managed with Sura during onboarding. Read only here.">
           <CodeBlock code={JSON.stringify(settings.security_settings, null, 2)} />
         </Section>
       </div>
@@ -114,8 +114,8 @@ function SettingsView({ settings, onSaved }: { settings: BankSettings; onSaved: 
       <Dialog
         open={editing}
         onOpenChange={setEditing}
-        title="edit settings"
-        description="every change is written to your audit log."
+        title="Edit settings"
+        description="Every change is written to your audit log."
         className="max-w-xl"
       >
         {/* keyed so reopening after a save starts from what the api now holds */}
@@ -154,11 +154,11 @@ function SettingsForm({ settings, onSaved, onCancel }: SettingsFormProps) {
     event.preventDefault()
     const days = Number(retention)
     const nextErrors: Errors = {
-      name: name.trim() ? undefined : "enter your bank's name",
+      name: name.trim() ? undefined : "Enter your bank's name",
       retention:
         Number.isInteger(days) && days >= RETENTION_MIN && days <= RETENTION_MAX
           ? undefined
-          : `choose between ${RETENTION_MIN} and ${RETENTION_MAX} days`,
+          : `Choose between ${RETENTION_MIN} and ${RETENTION_MAX} days`,
     }
     setErrors(nextErrors)
     if (nextErrors.name || nextErrors.retention) return
@@ -178,7 +178,7 @@ function SettingsForm({ settings, onSaved, onCancel }: SettingsFormProps) {
   return (
     <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-5">
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field id="settings-name" label="bank name" error={errors.name}>
+        <Field id="settings-name" label="Bank name" error={errors.name}>
           <Input
             id="settings-name"
             value={name}
@@ -191,7 +191,7 @@ function SettingsForm({ settings, onSaved, onCancel }: SettingsFormProps) {
         </Field>
         <Field
           id="settings-retention"
-          label="data retention (days)"
+          label="Data retention (days)"
           error={errors.retention}
           hint={`${RETENTION_MIN} to ${RETENTION_MAX} days`}
         >
@@ -212,15 +212,15 @@ function SettingsForm({ settings, onSaved, onCancel }: SettingsFormProps) {
 
       <SelectFilter
         id="settings-environment"
-        label="environment"
+        label="Environment"
         value={environment}
         onChange={setEnvironment}
         options={environmentOptions}
-        allLabel="choose"
+        allLabel="Choose"
         className="sm:w-full"
       />
 
-      <Field id="settings-categories" label="supported vendor categories" hint="separate with commas">
+      <Field id="settings-categories" label="Supported vendor categories" hint="Separate with commas">
         <Input
           id="settings-categories"
           value={categories}
@@ -235,10 +235,10 @@ function SettingsForm({ settings, onSaved, onCancel }: SettingsFormProps) {
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button type="button" variant="ghost" onClick={onCancel} disabled={save.isPending}>
-          cancel
+          Cancel
         </Button>
         <Button type="submit" loading={save.isPending}>
-          save settings
+          Save settings
         </Button>
       </div>
     </form>

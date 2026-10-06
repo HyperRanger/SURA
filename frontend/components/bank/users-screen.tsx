@@ -20,21 +20,21 @@ import type { BankUserFilters, BankUserRow, FlagStatus, ScoreTier } from "@/type
 import { formatPercent } from "@/utils/format"
 
 const columns: Column<BankUserRow>[] = [
-  { header: "customer", cell: (row) => row.name },
+  { header: "Customer", cell: (row) => row.name },
   {
-    header: "bank reference",
-    cell: (row) => <span className="font-mono normal-case">{row.bank_customer_id ?? "—"}</span>,
+    header: "Bank reference",
+    cell: (row) => <span className="font-mono">{row.bank_customer_id ?? "—"}</span>,
   },
-  { header: "score", cell: (row) => row.score, align: "right" },
-  { header: "tier", cell: (row) => <StatusBadge status={row.tier} /> },
+  { header: "Score", cell: (row) => row.score, align: "right" },
+  { header: "Tier", cell: (row) => <StatusBadge status={row.tier} /> },
   {
-    header: "verification",
+    header: "Verification",
     cell: (row) => <StatusBadge status={row.verified ? "verified" : "unverified"} />,
   },
-  { header: "active locks", cell: (row) => row.active_commitments, align: "right" },
-  { header: "on time", cell: (row) => formatPercent(row.on_time_contribution_rate), align: "right" },
+  { header: "Active locks", cell: (row) => row.active_commitments, align: "right" },
+  { header: "On time", cell: (row) => formatPercent(row.on_time_contribution_rate), align: "right" },
   {
-    header: "open flags",
+    header: "Open flags",
     cell: (row) => (row.open_flags > 0 ? <StatusBadge status="open" label={String(row.open_flags)} /> : "0"),
     align: "right",
   },
@@ -45,13 +45,13 @@ type FloatEligibility = NonNullable<BankUserFilters["float_eligibility"]>
 type CommitmentStatus = (typeof commitmentStatuses)[number]
 
 const verificationOptions: { value: Verification; label: string }[] = [
-  { value: "verified", label: "verified" },
-  { value: "unverified", label: "unverified" },
+  { value: "verified", label: "Verified" },
+  { value: "unverified", label: "Unverified" },
 ]
 
 const floatOptions: { value: FloatEligibility; label: string }[] = [
-  { value: "eligible", label: "eligible" },
-  { value: "locked", label: "locked" },
+  { value: "eligible", label: "Eligible" },
+  { value: "locked", label: "Locked" },
 ]
 
 const commitmentStatusOptions = toOptions(commitmentStatuses)
@@ -86,16 +86,16 @@ export function UsersScreen() {
   return (
     <>
       <PageHeader
-        title="customers"
-        description="your customers on sura, with their score and tier. identifiers are masked."
+        title="Customers"
+        description="Your customers on Sura, with their score and tier. Identifiers are masked."
       />
 
       <div className="mb-3 flex flex-col gap-3 sm:mb-5 sm:flex-row sm:items-end">
         <div className="flex min-w-0 items-end gap-2 sm:flex-1">
           <SearchFilter
             id="customer-search"
-            label="search customers"
-            placeholder="name, phone, sura id, bank reference or commitment id"
+            label="Search customers"
+            placeholder="Name, phone, Sura ID, bank reference or commitment ID"
             value={search}
             onChange={setSearch}
             className="flex-1"
@@ -105,12 +105,12 @@ export function UsersScreen() {
             variant="outline"
             aria-expanded={showFilters}
             aria-controls="customer-filters"
-            title={showFilters ? "hide filters" : "show filters"}
+            title={showFilters ? "Hide filters" : "Show filters"}
             onClick={() => setShowFilters((open) => !open)}
             className="relative h-12 px-4 sm:hidden"
           >
             <HugeiconsIcon icon={FilterHorizontalIcon} size={18} strokeWidth={2.2} />
-            <span className="sr-only">filters</span>
+            <span className="sr-only">Filters</span>
             {activeFilters > 0 && (
               <span className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-gold text-[0.65rem] font-black text-gold-foreground">
                 {activeFilters}
@@ -120,8 +120,8 @@ export function UsersScreen() {
         </div>
         <TextFilter
           id="customer-reference"
-          label="bank customer id (exact)"
-          placeholder="your full customer reference"
+          label="Bank customer ID (exact)"
+          placeholder="Your full customer reference"
           value={reference}
           onChange={setReference}
           className={cn(!showFilters && "hidden", "sm:flex")}
@@ -129,41 +129,41 @@ export function UsersScreen() {
       </div>
 
       <FilterGrid id="customer-filters" className={cn(!showFilters && "hidden", "sm:grid")}>
-        <SelectFilter id="customer-tier" label="score tier" value={tier} onChange={setTier} options={scoreTiers} className="sm:w-auto" />
+        <SelectFilter id="customer-tier" label="Score tier" value={tier} onChange={setTier} options={scoreTiers} className="sm:w-auto" />
         <SelectFilter
           id="customer-flags"
-          label="flag status"
+          label="Flag status"
           value={flagStatus}
           onChange={setFlagStatus}
           options={flagStatuses}
-          allLabel="any"
+          allLabel="Any"
           className="sm:w-auto"
         />
         <SelectFilter
           id="customer-verified"
-          label="verification"
+          label="Verification"
           value={verification}
           onChange={setVerification}
           options={verificationOptions}
-          allLabel="any"
+          allLabel="Any"
           className="sm:w-auto"
         />
         <SelectFilter
           id="customer-float"
-          label="float eligibility"
+          label="Float eligibility"
           value={floatEligibility}
           onChange={setFloatEligibility}
           options={floatOptions}
-          allLabel="any"
+          allLabel="Any"
           className="sm:w-auto"
         />
         <SelectFilter
           id="customer-commitment-status"
-          label="has a lock that is"
+          label="Has a lock that is"
           value={commitmentStatus}
           onChange={setCommitmentStatus}
           options={commitmentStatusOptions}
-          allLabel="any"
+          allLabel="Any"
           className="col-span-2 sm:col-span-1 sm:w-auto"
         />
       </FilterGrid>
@@ -176,20 +176,20 @@ export function UsersScreen() {
         empty={
           <EmptyState
             icon={UserGroupIcon}
-            title={bankCustomerId ? "no customer with that reference" : filtered ? "no customers match" : "no customers yet"}
+            title={bankCustomerId ? "No customer with that reference" : filtered ? "No customers match" : "No customers yet"}
             description={
               bankCustomerId
-                ? "the reference must match exactly, and belong to a customer of your bank."
+                ? "The reference must match exactly, and belong to a customer of your bank."
                 : filtered
-                ? "try a different search or clear the filters."
-                : "customers appear here once they sign up to sura through your bank."
+                ? "Try a different search or clear the filters."
+                : "Customers appear here once they sign up to Sura through your bank."
             }
           />
         }
       >
         {(rows) => (
           <DataTable
-            caption="customers"
+            caption="Customers"
             columns={columns}
             rows={rows}
             rowKey={(row) => row.user_id}

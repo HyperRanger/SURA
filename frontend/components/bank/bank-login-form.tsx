@@ -18,12 +18,12 @@ import { TextField } from "@/components/ui/text-field"
 import type { BankMfaChallenge, BankSessionResponse } from "@/types"
 import { compose, maxLength, required } from "@/utils/validators"
 
-const looksLikeEmail = (value: string) => (/^[^\s@]+@[^\s@]+$/.test(value.trim()) ? undefined : "enter your work email")
+const looksLikeEmail = (value: string) => (/^[^\s@]+@[^\s@]+$/.test(value.trim()) ? undefined : "Enter your work email")
 
 function loginSchema() {
   return {
-    email: compose(required("enter your work email"), looksLikeEmail, maxLength(320)),
-    password: required("enter your password"),
+    email: compose(required("Enter your work email"), looksLikeEmail, maxLength(320)),
+    password: required("Enter your password"),
   }
 }
 
@@ -75,7 +75,7 @@ export function BankLoginForm({ next }: { next?: string }) {
           inputMode="email"
           autoComplete="username"
           autoFocus
-          label="work email"
+          label="Work email"
           placeholder="analyst@yourbank.com"
           value={values.email}
           onChange={(event) => setValue("email", event.target.value)}
@@ -85,31 +85,31 @@ export function BankLoginForm({ next }: { next?: string }) {
           id="password"
           type="password"
           autoComplete="current-password"
-          label="password"
+          label="Password"
           value={values.password}
           onChange={(event) => setValue("password", event.target.value)}
           error={errors.password}
         />
 
         {login.error && (
-          <Alert variant="error" title={login.error.is(423) ? "account locked" : undefined}>
+          <Alert variant="error" title={login.error.is(423) ? "Account locked" : undefined}>
             {login.error.message}
           </Alert>
         )}
 
         <Button type="submit" size="lg" loading={login.isPending} disabled={demo.isPending} className="w-full">
-          {login.isPending ? "signing in" : "sign in"}
+          {login.isPending ? "Signing in" : "Sign in"}
         </Button>
       </form>
 
       {isDemoEnabled && (
         <div className="flex flex-col gap-3 border-t-2 border-dashed border-hairline pt-6">
-          <p className="text-center text-xs font-extrabold text-muted-foreground">for the live demo</p>
+          <p className="text-center text-xs font-extrabold text-muted-foreground">For the live demo</p>
           <Button type="button" variant="outline" size="lg" loading={demo.isPending} disabled={busy} onClick={handleDemo}>
-            {demo.isPending ? "opening the demo bank" : "continue as demo bank"}
+            {demo.isPending ? "Opening the demo bank" : "Continue as demo bank"}
           </Button>
           {demo.error && (
-            <Alert variant="error">{demo.error.is(404) ? "the demo is switched off on this api." : demo.error.message}</Alert>
+            <Alert variant="error">{demo.error.is(404) ? "The demo is switched off on this API." : demo.error.message}</Alert>
           )}
         </div>
       )}
@@ -144,7 +144,7 @@ function MfaStep({ challenge, onVerified, onRestart }: MfaStepProps) {
   return (
     <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-6">
       <p className="text-sm leading-relaxed font-semibold text-muted-foreground">
-        we sent a {OTP_LENGTH}-digit code to the phone on your staff account.
+        We sent a {OTP_LENGTH}-digit code to the phone on your staff account.
       </p>
 
       <DemoCodeHint
@@ -166,7 +166,7 @@ function MfaStep({ challenge, onVerified, onRestart }: MfaStepProps) {
         length={OTP_LENGTH}
         disabled={verify.isPending || mustRestart}
         invalid={Boolean(verify.error)}
-        label="security code"
+        label="Security code"
         autoFocus
       />
 
@@ -174,16 +174,16 @@ function MfaStep({ challenge, onVerified, onRestart }: MfaStepProps) {
 
       {mustRestart ? (
         <Button type="button" size="lg" onClick={onRestart} className="w-full">
-          sign in again
+          Sign in again
         </Button>
       ) : (
         <Button type="submit" size="lg" loading={verify.isPending} disabled={code.length !== OTP_LENGTH} className="w-full">
-          {verify.isPending ? "checking" : "verify"}
+          {verify.isPending ? "Checking" : "Verify"}
         </Button>
       )}
 
       <Button type="button" variant="link" size="sm" onClick={onRestart} disabled={verify.isPending}>
-        use a different account
+        Use a different account
       </Button>
     </form>
   )

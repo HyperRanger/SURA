@@ -66,7 +66,7 @@ export function BankShell({ children }: { children: ReactNode }) {
     return (
       <div className="flex flex-1 items-center justify-center py-20 text-muted-foreground">
         <Spinner className="size-6" />
-        <span className="sr-only">checking your bank session</span>
+        <span className="sr-only">Checking your bank session</span>
       </div>
     )
   }
@@ -93,7 +93,7 @@ export function BankShell({ children }: { children: ReactNode }) {
           <BankBrand />
           <ThemeToggle />
         </div>
-        <nav aria-label="bank console" className="flex-1 overflow-y-auto px-3">
+        <nav aria-label="Bank console" className="flex-1 overflow-y-auto px-3">
           <NavLinks nav={nav} pathname={pathname} />
         </nav>
         <div className="border-t-2 border-hairline p-4">
@@ -120,8 +120,8 @@ function BankBrand() {
 
 function NoAccess({ label }: { label: string }) {
   return (
-    <Alert variant="info" title={`your role can't open ${label}`}>
-      ask a bank administrator to grant this permission to your account.
+    <Alert variant="info" title={`Your role can't open ${label.toLowerCase()}`}>
+      Ask a bank administrator to grant this permission to your account.
     </Alert>
   )
 }
@@ -193,13 +193,13 @@ function AccountMenu({ nav, session, onSignOut, onNavigate }: AccountMenuProps) 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        title={`signed in as ${role}. open account menu`}
+        title={`Signed in as ${role}. Open account menu`}
         className="group flex w-full cursor-pointer items-center gap-3 rounded-2xl border-2 border-transparent p-1.5 pr-2.5 text-left transition-colors outline-none hover:border-hairline hover:bg-cloud focus-visible:ring-4 focus-visible:ring-ring/30 data-popup-open:border-hairline data-popup-open:bg-cloud"
       >
         <UserAvatar session={session} />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-black">{role}</span>
-          <span className="block text-xs font-bold text-muted-foreground">your account</span>
+          <span className="block text-xs font-bold text-muted-foreground">Your account</span>
         </span>
         <HugeiconsIcon
           icon={UnfoldMoreIcon}
@@ -215,7 +215,7 @@ function AccountMenu({ nav, session, onSignOut, onNavigate }: AccountMenuProps) 
           <div className="min-w-0">
             <p className="truncate text-sm font-black">{role}</p>
             {session.institutionId && (
-              <p className="truncate font-mono text-xs font-semibold text-muted-foreground normal-case" title={session.institutionId}>
+              <p className="truncate font-mono text-xs font-semibold text-muted-foreground" title={session.institutionId}>
                 {session.institutionId}
               </p>
             )}
@@ -224,24 +224,24 @@ function AccountMenu({ nav, session, onSignOut, onNavigate }: AccountMenuProps) 
 
         {links.length > 0 && (
           <DropdownMenuGroup>
-            <DropdownMenuLabel>manage</DropdownMenuLabel>
+            <DropdownMenuLabel>Manage</DropdownMenuLabel>
             {links.map((item) => (
               <DropdownMenuLinkItem
                 key={item.id}
-                title={`open ${item.label}`}
+                title={`Open ${item.label.toLowerCase()}`}
                 render={<Link href={item.href} onClick={onNavigate} />}
               >
                 <HugeiconsIcon icon={item.icon} size={18} strokeWidth={2.2} />
-                {item.id === "B14" ? "your account" : item.label}
+                {item.id === "B14" ? "Your account" : item.label}
               </DropdownMenuLinkItem>
             ))}
           </DropdownMenuGroup>
         )}
 
         <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" title="sign out of the bank console" onClick={onSignOut}>
+        <DropdownMenuItem variant="destructive" title="Sign out of the bank console" onClick={onSignOut}>
           <HugeiconsIcon icon={Logout01Icon} size={18} strokeWidth={2.2} />
-          sign out
+          Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -263,23 +263,23 @@ function MobileMenu({ nav, pathname, session, onSignOut }: MobileMenuProps) {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger
-        aria-label="open console menu"
-        title="open console menu"
+        aria-label="Open console menu"
+        title="Open console menu"
         className="flex h-10 items-center gap-2 rounded-full border-2 border-hairline pr-2.5 pl-3.5 text-sm font-extrabold text-foreground transition-colors hover:border-link hover:text-link"
       >
         {current?.label ?? "menu"}
         <HugeiconsIcon icon={Menu01Icon} size={20} strokeWidth={2} />
       </SheetTrigger>
 
-      <SheetContent side="right" className="w-full max-w-xs gap-0 lowercase">
+      <SheetContent side="right" className="w-full max-w-xs gap-0">
         <SheetHeader className="p-5">
           <SheetTitle render={<div />}>
             <BankBrand />
           </SheetTitle>
-          <SheetDescription className="sr-only">bank console navigation</SheetDescription>
+          <SheetDescription className="sr-only">Bank console navigation</SheetDescription>
         </SheetHeader>
 
-        <nav aria-label="bank console" className="flex-1 overflow-y-auto px-3">
+        <nav aria-label="Bank console" className="flex-1 overflow-y-auto px-3">
           <NavLinks nav={nav} pathname={pathname} onNavigate={close} />
         </nav>
 

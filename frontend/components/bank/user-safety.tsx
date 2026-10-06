@@ -32,14 +32,14 @@ import { formatDateTime, humanize } from "@/utils/format"
 const REASON_MAX = 1000
 
 const restrictionColumns: Column<Restriction>[] = [
-  { header: "action", cell: (row) => <StatusBadge status={row.action} /> },
-  { header: "reason", cell: (row) => <span className="normal-case">{row.reason}</span> },
+  { header: "Action", cell: (row) => <StatusBadge status={row.action} /> },
+  { header: "Reason", cell: (row) => row.reason },
   {
-    header: "flag",
-    cell: (row) => <span className="font-mono text-xs normal-case">{row.flag_id ?? "—"}</span>,
+    header: "Flag",
+    cell: (row) => <span className="font-mono text-xs">{row.flag_id ?? "—"}</span>,
   },
-  { header: "by", cell: (row) => <span className="font-mono text-xs normal-case">{row.actor_id}</span> },
-  { header: "when", cell: (row) => formatDateTime(row.created_at) },
+  { header: "By", cell: (row) => <span className="font-mono text-xs">{row.actor_id}</span> },
+  { header: "When", cell: (row) => formatDateTime(row.created_at) },
 ]
 
 // the actions that make sense from where the account is now
@@ -73,29 +73,29 @@ export function AccountSafety({ user, flags, onChanged }: AccountSafetyProps) {
 
   return (
     <Section
-      title="account safety"
-      description="restrict, suspend or reinstate this customer. each decision is written to the audit log."
+      title="Account safety"
+      description="Restrict, suspend or reinstate this customer. Each decision is written to the audit log."
       action={
         canWrite && (
-          <ConfirmButton confirmLabel="yes, sign them out" loading={revoke.isPending} onConfirm={handleRevoke}>
-            revoke sessions
+          <ConfirmButton confirmLabel="Yes, sign them out" loading={revoke.isPending} onConfirm={handleRevoke}>
+            Revoke sessions
           </ConfirmButton>
         )
       }
     >
       <div className="flex flex-col gap-4">
         <div className="card-raised flex flex-wrap items-center gap-3 rounded-2xl p-4">
-          <span className="text-sm font-extrabold">account status</span>
+          <span className="text-sm font-extrabold">Account status</span>
           <StatusBadge status={user.account_status} />
           {user.restriction_reason && (
-            <span className="text-sm font-semibold text-muted-foreground normal-case">{user.restriction_reason}</span>
+            <span className="text-sm font-semibold text-muted-foreground">{user.restriction_reason}</span>
           )}
         </div>
 
         <ActionError error={revoke.error} />
         {revokedAt && (
-          <Alert variant="info" title="every session ended">
-            the customer has to sign in again on every device. revoked {formatDateTime(revokedAt)}.
+          <Alert variant="info" title="Every session ended">
+            The customer has to sign in again on every device. Revoked {formatDateTime(revokedAt)}.
           </Alert>
         )}
 
@@ -119,14 +119,14 @@ export function AccountSafety({ user, flags, onChanged }: AccountSafetyProps) {
             empty={
               <EmptyState
                 icon={ShieldUserIcon}
-                title="no restrictions on record"
-                description="this account has never been restricted or suspended."
+                title="No restrictions on record"
+                description="This account has never been restricted or suspended."
               />
             }
           >
             {(rows) => (
               <DataTable
-                caption="restriction history"
+                caption="Restriction history"
                 columns={restrictionColumns}
                 rows={rows}
                 rowKey={(row) => row.restriction_id}
@@ -160,7 +160,7 @@ function RestrictionForm({
     event.preventDefault()
     if (!action) return
     if (!reason.trim()) {
-      setReasonError("say why, so the decision can be reviewed later")
+      setReasonError("Say why, so the decision can be reviewed later")
       return
     }
     const result = await apply.mutate(user.user_id, {
@@ -179,7 +179,7 @@ function RestrictionForm({
   return (
     <form noValidate onSubmit={handleSubmit} className="card-raised flex flex-col gap-5 rounded-2xl p-4 sm:p-5">
       <fieldset>
-        <legend className="mb-2 text-sm font-extrabold">decision</legend>
+        <legend className="mb-2 text-sm font-extrabold">Decision</legend>
         <div className={cn("grid gap-2", options.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
           {options.map((option) => (
             <label
@@ -206,20 +206,20 @@ function RestrictionForm({
       </fieldset>
 
       {flags && flags.length > 0 && (
-        <Field id="restriction-flag" label="linked flag (optional)">
+        <Field id="restriction-flag" label="Linked flag (optional)">
           <Select
             items={[
-              { value: null, label: "no flag" },
+              { value: null, label: "No flag" },
               ...flags.map((flag) => ({ value: flag.flag_id, label: `${humanize(flag.rule)} · ${flag.status}` })),
             ]}
             value={flagId || null}
             onValueChange={(next) => setFlagId(next ?? "")}
           >
-            <SelectTrigger id="restriction-flag" title="link this decision to a risk flag">
+            <SelectTrigger id="restriction-flag" title="Link this decision to a risk flag">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={null}>no flag</SelectItem>
+              <SelectItem value={null}>No flag</SelectItem>
               {flags.map((flag) => (
                 <SelectItem key={flag.flag_id} value={flag.flag_id}>
                   {humanize(flag.rule)} · {flag.status}
@@ -230,7 +230,7 @@ function RestrictionForm({
         </Field>
       )}
 
-      <Field id="restriction-reason" label="reason" error={reasonError} hint={`${reason.length} / ${REASON_MAX}`}>
+      <Field id="restriction-reason" label="Reason" error={reasonError} hint={`${reason.length} / ${REASON_MAX}`}>
         <Textarea
           id="restriction-reason"
           rows={3}
@@ -242,7 +242,7 @@ function RestrictionForm({
           }}
           aria-invalid={Boolean(reasonError) || undefined}
           aria-describedby={reasonError ? "restriction-reason-error" : "restriction-reason-hint"}
-          placeholder="what you saw and why this account should change"
+          placeholder="What you saw and why this account should change"
         />
       </Field>
 
@@ -255,7 +255,7 @@ function RestrictionForm({
         variant={action === "reinstated" ? "outline" : "default"}
         className="sm:self-start"
       >
-        {chosen ? `${chosen.label} this account` : "choose a decision"}
+        {chosen ? `${chosen.label} this account` : "Choose a decision"}
       </Button>
     </form>
   )
@@ -275,7 +275,7 @@ export function UserActivity({ userId }: { userId: string }) {
   const activity = useQuery(listBankUserActivity, [userId])
 
   return (
-    <Section title="activity" description="score changes, lock events, consent and flags, newest first.">
+    <Section title="Activity" description="Score changes, lock events, consent and flags, newest first.">
       <QueryState query={activity} noun="activity" skeleton={<Skeleton className="h-40 rounded-2xl" />}>
         {(events) => (
           <Timeline
@@ -285,7 +285,7 @@ export function UserActivity({ userId }: { userId: string }) {
               detail: activityDetail(event),
               at: event.occurred_at,
             }))}
-            empty="nothing has happened on this account yet."
+            empty="Nothing has happened on this account yet."
           />
         )}
       </QueryState>

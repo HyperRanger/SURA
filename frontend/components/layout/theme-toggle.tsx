@@ -13,8 +13,8 @@ export function ThemeToggle({ className }: { className?: string }) {
   return (
     <button
       type="button"
-      aria-label="toggle dark mode"
-      title="toggle dark mode"
+      aria-label="Toggle dark mode"
+      title="Toggle dark mode"
       onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
       className={cn(
         "flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-hairline text-foreground transition-colors hover:border-link hover:text-link",

@@ -16,15 +16,15 @@ export function DemoCodeHint({ code, onUse, disabled }: DemoCodeHintProps) {
   return (
     <Alert
       variant="gold"
-      title="demo code"
+      title="Demo code"
       action={
         <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={() => onUse(code)}>
-          use it
+          Use it
         </Button>
       }
     >
       <span className="font-mono text-base font-black tracking-[0.3em]">{code}</span>
-      <span className="block text-xs">shown outside production only.</span>
+      <span className="block text-xs">Shown outside production only.</span>
     </Alert>
   )
 }

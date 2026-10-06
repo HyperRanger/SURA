@@ -7,7 +7,7 @@ import { BankLoginForm } from "@/components/bank/bank-login-form"
 import { safeNextPath } from "@/utils/redirect"
 
 export const metadata: Metadata = {
-  title: "bank console sign in — sura",
+  title: "Bank console sign in — Sura",
 }
 
 // B1
@@ -17,13 +17,13 @@ export default async function BankLoginPage({ searchParams }: PageProps<"/bank/l
   return (
     <AuthShell>
       <AuthCard
-        title="bank console"
-        description="sign in with the staff account your institution provisioned for you."
+        title="Bank console"
+        description="Sign in with the staff account your institution provisioned for you."
         footer={
           <>
-            not a bank partner?{" "}
+            Not a bank partner?{" "}
             <Link href={routes.forBanks} className="font-extrabold text-link underline-offset-4 hover:underline">
-              see what the api does
+              See what the API does
             </Link>
           </>
         }

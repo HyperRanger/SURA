@@ -15,7 +15,7 @@ const dateFormatter = new Intl.DateTimeFormat("en-NG", {
   timeZone: "Africa/Lagos",
 })
 
-// "2026-10-01" → "1 october 2026" (shown lowercase by the site styles)
+// "2026-10-01" → "1 October 2026"
 export function formatDate(value: string | Date) {
   return dateFormatter.format(typeof value === "string" ? new Date(value) : value)
 }
@@ -45,7 +45,7 @@ function parseApiDate(value: string) {
   return new Date(/[zZ]|[+-]\d{2}:?\d{2}$/.test(value) ? value : `${value}Z`)
 }
 
-// "2026-10-01T14:05:00" → "1 oct 2026, 3:05 pm" in lagos time. "—" when missing
+// "2026-10-01T14:05:00" → "1 Oct 2026, 3:05 pm" in lagos time. "—" when missing
 export function formatDateTime(value: string | null | undefined) {
   if (!value) return "—"
   const date = parseApiDate(value)
@@ -58,8 +58,9 @@ export function formatPercent(ratio: number | null | undefined) {
   return `${Math.round(ratio * 100)}%`
 }
 
-// "risk_flag_resolved" or "voucher.redeemed" → "risk flag resolved"
+// "risk_flag_resolved" or "voucher.redeemed" → "Risk flag resolved"
 export function humanize(value: string | null | undefined) {
   if (!value) return "—"
-  return value.replace(/[_.]+/g, " ").trim()
+  const words = value.replace(/[_.]+/g, " ").trim()
+  return words.charAt(0).toUpperCase() + words.slice(1)
 }

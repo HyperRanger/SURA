@@ -5,7 +5,7 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons"
 import { cn } from "@/lib/utils"
 
-const WEEKDAYS = ["su", "mo", "tu", "we", "th", "fr", "sa"]
+const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"]
 
 const monthFormatter = new Intl.DateTimeFormat("en-NG", { month: "long", year: "numeric" })
 const dayFormatter = new Intl.DateTimeFormat("en-NG", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
@@ -47,11 +47,11 @@ export function Calendar({ selected, onSelect, disabled, className }: CalendarPr
   return (
     <div data-slot="calendar" className={cn("w-72 select-none", className)}>
       <div className="mb-2 flex items-center justify-between gap-2">
-        <NavButton label="previous month" icon={ArrowLeft01Icon} onClick={() => shift(-1)} />
+        <NavButton label="Previous month" icon={ArrowLeft01Icon} onClick={() => shift(-1)} />
         <p aria-live="polite" className="text-sm font-black">
-          {monthFormatter.format(month).toLowerCase()}
+          {monthFormatter.format(month)}
         </p>
-        <NavButton label="next month" icon={ArrowRight01Icon} onClick={() => shift(1)} />
+        <NavButton label="Next month" icon={ArrowRight01Icon} onClick={() => shift(1)} />
       </div>
 
       <div className="grid grid-cols-7 gap-1">
@@ -71,8 +71,8 @@ export function Calendar({ selected, onSelect, disabled, className }: CalendarPr
               type="button"
               aria-pressed={isSelected}
               aria-current={isToday ? "date" : undefined}
-              aria-label={dayFormatter.format(day).toLowerCase()}
-              title={dayFormatter.format(day).toLowerCase()}
+              aria-label={dayFormatter.format(day)}
+              title={dayFormatter.format(day)}
               disabled={isDisabled}
               onClick={() => onSelect(day)}
               className={cn(

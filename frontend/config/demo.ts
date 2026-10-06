@@ -28,45 +28,45 @@ export type DemoPersona = {
 export const demoPersonas: DemoPersona[] = [
   {
     id: "amara",
-    name: "amara okafor",
-    tagline: "student",
-    description: "created the laptop fund and already redeemed cycle 1.",
+    name: "Amara Okafor",
+    tagline: "Student",
+    description: "Created the Laptop Fund and already redeemed cycle 1.",
     area: "member",
     icon: StudentIcon,
     signIn: { type: "seeded-user", userId: "usr_demo_amara" },
   },
   {
     id: "tunde",
-    name: "tunde adeyemi",
-    tagline: "trader",
-    description: "next in line for a payout, but still owes this cycle.",
+    name: "Tunde Adeyemi",
+    tagline: "Trader",
+    description: "Next in line for a payout, but still owes this cycle.",
     area: "member",
     icon: Store01Icon,
     signIn: { type: "seeded-user", userId: "usr_demo_tunde" },
   },
   {
     id: "member",
-    name: "new member",
-    tagline: "freelancer",
-    description: "a fresh account with no history, to create or join a circle.",
+    name: "New member",
+    tagline: "Freelancer",
+    description: "A fresh account with no history, to create or join a circle.",
     area: "member",
     icon: LaptopIcon,
     signIn: { type: "role", role: "individual" },
   },
   {
     id: "vendor",
-    name: "demo vendor",
-    tagline: "vendor terminal",
-    description: "the counter view, where sura vouchers are checked and redeemed.",
+    name: "Demo vendor",
+    tagline: "Vendor terminal",
+    description: "The counter view, where Sura vouchers are checked and redeemed.",
     area: "vendor",
     icon: Ticket01Icon,
     signIn: { type: "role", role: "vendor" },
   },
   {
     id: "bank",
-    name: "demo bank",
-    tagline: "bank console",
-    description: "the full admin console: customers, locks, flags, api keys and webhooks.",
+    name: "Demo bank",
+    tagline: "Bank console",
+    description: "The full admin console: customers, locks, flags, API keys and webhooks.",
     area: "bank",
     icon: BankIcon,
     signIn: { type: "bank" },
@@ -74,9 +74,9 @@ export const demoPersonas: DemoPersona[] = [
 ]
 
 export const demoAreas: { area: DemoArea; title: string; description: string }[] = [
-  { area: "member", title: "members", description: "the savers in a circle" },
-  { area: "vendor", title: "vendor", description: "where payouts are redeemed" },
-  { area: "bank", title: "bank", description: "the partner reading the data" },
+  { area: "member", title: "Members", description: "The savers in a circle" },
+  { area: "vendor", title: "Vendor", description: "Where payouts are redeemed" },
+  { area: "bank", title: "Bank", description: "The partner reading the data" },
 ]
 
 // the named people need the backend's demo otp code; without it they are hidden

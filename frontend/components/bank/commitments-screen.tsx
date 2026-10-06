@@ -17,13 +17,13 @@ import type { BankCommitmentRow } from "@/types"
 import { formatDateTime, formatNaira, humanize } from "@/utils/format"
 
 const columns: Column<BankCommitmentRow>[] = [
-  { header: "commitment", cell: (row) => row.title },
-  { header: "status", cell: (row) => <StatusBadge status={row.status} /> },
-  { header: "type", cell: (row) => humanize(row.type) },
-  { header: "members", cell: (row) => row.member_count, align: "right" },
-  { header: "cycles done", cell: (row) => `${row.completed_cycle_count} of ${row.cycles}`, align: "right" },
-  { header: "contributed", cell: (row) => formatNaira(row.total_contributed), align: "right" },
-  { header: "created", cell: (row) => formatDateTime(row.created_at) },
+  { header: "Commitment", cell: (row) => row.title },
+  { header: "Status", cell: (row) => <StatusBadge status={row.status} /> },
+  { header: "Type", cell: (row) => humanize(row.type) },
+  { header: "Members", cell: (row) => row.member_count, align: "right" },
+  { header: "Cycles done", cell: (row) => `${row.completed_cycle_count} of ${row.cycles}`, align: "right" },
+  { header: "Contributed", cell: (row) => formatNaira(row.total_contributed), align: "right" },
+  { header: "Created", cell: (row) => formatDateTime(row.created_at) },
 ]
 
 const statusOptions = toOptions(commitmentStatuses)
@@ -39,19 +39,19 @@ export function CommitmentsScreen() {
   return (
     <>
       <PageHeader
-        title="commitments"
-        description="every sura lock with at least one of your customers in it. open one to review its health or raise a support case."
+        title="Commitments"
+        description="Every Sura lock with at least one of your customers in it. Open one to review its health or raise a support case."
       />
 
       <FilterBar>
         <SearchFilter
           id="commitment-search"
-          label="search commitments"
-          placeholder="title, commitment id, vendor or member id"
+          label="Search commitments"
+          placeholder="Title, commitment ID, vendor or member ID"
           value={search}
           onChange={setSearch}
         />
-        <SelectFilter id="commitment-status" label="status" value={status} onChange={setStatus} options={statusOptions} />
+        <SelectFilter id="commitment-status" label="Status" value={status} onChange={setStatus} options={statusOptions} />
       </FilterBar>
 
       <QueryState
@@ -62,18 +62,18 @@ export function CommitmentsScreen() {
         empty={
           <EmptyState
             icon={RepeatIcon}
-            title={filtered ? "no commitments match" : "no commitments yet"}
+            title={filtered ? "No commitments match" : "No commitments yet"}
             description={
               filtered
-                ? "try a different search or clear the status filter."
-                : "they appear here once one of your customers creates or joins a sura lock."
+                ? "Try a different search or clear the status filter."
+                : "They appear here once one of your customers creates or joins a Sura lock."
             }
           />
         }
       >
         {(rows) => (
           <DataTable
-            caption="commitments"
+            caption="Commitments"
             columns={columns}
             rows={rows}
             rowKey={(row) => row.commitment_id}

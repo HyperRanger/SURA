@@ -73,7 +73,7 @@ export function SelectFilter<T extends string>({
   value,
   onChange,
   options,
-  allLabel = "all",
+  allLabel = "All",
   className,
 }: SelectFilterProps<T>) {
   return (
@@ -125,7 +125,7 @@ export function TextFilter({ id, label, value, onChange, placeholder, className 
         placeholder={placeholder}
         autoComplete="off"
         spellCheck={false}
-        className="h-12 font-mono text-sm normal-case"
+        className="h-12 font-mono text-sm"
       />
     </div>
   )
@@ -145,7 +145,7 @@ export function DateFilter({ id, label, value, onChange, className }: DateFilter
       <label htmlFor={id} className="text-xs font-extrabold text-muted-foreground">
         {label}
       </label>
-      <DatePicker id={id} value={value} onChange={onChange} placeholder="any day" />
+      <DatePicker id={id} value={value} onChange={onChange} placeholder="Any day" />
     </div>
   )
 }

@@ -49,10 +49,10 @@ function FlagDetail({ flag, onResolved }: { flag: RiskFlagDetail; onResolved: ()
     ...flag.review_history.map((event, index) => ({
       id: `review-${index}`,
       title: humanize(typeof event.details.action === "string" ? `flag ${event.details.action}` : event.event_type),
-      detail: <span className="font-mono text-xs normal-case">{event.actor_id}</span>,
+      detail: <span className="font-mono text-xs">{event.actor_id}</span>,
       at: event.occurred_at,
     })),
-    { id: "raised", title: `raised by ${humanize(flag.rule)}`, detail: "sura fraud rules", at: flag.created_at },
+    { id: "raised", title: `Raised by ${humanize(flag.rule).toLowerCase()}`, detail: "Sura fraud rules", at: flag.created_at },
   ]
 
   return (
@@ -60,7 +60,7 @@ function FlagDetail({ flag, onResolved }: { flag: RiskFlagDetail; onResolved: ()
       <PageHeader
         title={humanize(flag.rule)}
         backHref={routes.bank.flags}
-        backLabel="risk flags"
+        backLabel="Risk flags"
         meta={
           <>
             <StatusBadge status={flag.status} />
@@ -71,15 +71,15 @@ function FlagDetail({ flag, onResolved }: { flag: RiskFlagDetail; onResolved: ()
           <>
             <Link
               href={routes.bank.user(flag.user_id)}
-              title="open this customer's profile"
+              title="Open this customer's profile"
               className={buttonVariants({ variant: "outline", size: "sm" })}
             >
-              view customer
+              View customer
             </Link>
             {canReview && (
-              <Button type="button" size="sm" title="dismiss, confirm or escalate this flag" onClick={() => setReviewing(true)}>
+              <Button type="button" size="sm" title="Dismiss, confirm or escalate this flag" onClick={() => setReviewing(true)}>
                 <HugeiconsIcon icon={TaskDone01Icon} size={18} strokeWidth={2.2} />
-                review flag
+                Review flag
               </Button>
             )}
           </>
@@ -88,38 +88,38 @@ function FlagDetail({ flag, onResolved }: { flag: RiskFlagDetail; onResolved: ()
 
       <div className="flex flex-col gap-10">
         {flag.status === "open" && (
-          <Alert variant="error" title="waiting for review">
-            this customer is under account review until an analyst dismisses, confirms or escalates the flag.
+          <Alert variant="error" title="Waiting for review">
+            This customer is under account review until an analyst dismisses, confirms or escalates the flag.
           </Alert>
         )}
 
         <DetailList
           items={[
             {
-              label: "customer",
+              label: "Customer",
               value: (
-                <Link href={routes.bank.user(flag.user_id)} className="font-mono text-link normal-case underline-offset-4 hover:underline">
+                <Link href={routes.bank.user(flag.user_id)} className="font-mono text-link underline-offset-4 hover:underline">
                   {flag.user_id}
                 </Link>
               ),
             },
-            { label: "raised", value: formatDateTime(flag.created_at) },
-            { label: "resolved", value: formatDateTime(flag.resolved_at) },
-            { label: "flag id", value: <span className="font-mono text-xs normal-case">{flag.flag_id}</span> },
+            { label: "Raised", value: formatDateTime(flag.created_at) },
+            { label: "Resolved", value: formatDateTime(flag.resolved_at) },
+            { label: "Flag ID", value: <span className="font-mono text-xs">{flag.flag_id}</span> },
           ]}
         />
 
-        <Section title="evidence" description="the signals that made the rule fire.">
+        <Section title="Evidence" description="The signals that made the rule fire.">
           {evidence.length === 0 ? (
             <p className="rounded-2xl border-2 border-dashed border-hairline px-4 py-6 text-center text-sm font-semibold text-muted-foreground">
-              no evidence was attached to this flag.
+              No evidence was attached to this flag.
             </p>
           ) : (
             <dl className="card-raised divide-y divide-hairline rounded-2xl">
               {evidence.map(([key, value]) => (
                 <div key={key} className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:gap-6">
                   <dt className="text-sm font-extrabold sm:w-56 sm:shrink-0">{humanize(key)}</dt>
-                  <dd className="min-w-0 font-mono text-sm break-words text-muted-foreground normal-case">
+                  <dd className="min-w-0 font-mono text-sm break-words text-muted-foreground">
                     {typeof value === "string" ? value : JSON.stringify(value)}
                   </dd>
                 </div>
@@ -129,8 +129,8 @@ function FlagDetail({ flag, onResolved }: { flag: RiskFlagDetail; onResolved: ()
         </Section>
 
         {flag.resolution_note && (
-          <Section title="analyst note">
-            <blockquote className="card-raised rounded-2xl p-4 text-sm leading-relaxed font-semibold normal-case">
+          <Section title="Analyst note">
+            <blockquote className="card-raised rounded-2xl p-4 text-sm leading-relaxed font-semibold">
               {flag.resolution_note}
             </blockquote>
           </Section>
@@ -140,19 +140,19 @@ function FlagDetail({ flag, onResolved }: { flag: RiskFlagDetail; onResolved: ()
           <div className="card-raised flex flex-col gap-4 rounded-2xl p-4 sm:flex-row sm:items-center sm:p-5">
             <IconTile icon={TaskDone01Icon} tone="indigo" />
             <div className="min-w-0 flex-1">
-              <p className="text-base font-black">ready to decide?</p>
+              <p className="text-base font-black">Ready to decide?</p>
               <p className="mt-0.5 text-sm leading-snug font-semibold text-muted-foreground">
-                dismiss, confirm or escalate this flag. your decision and note are written to the audit log.
+                Dismiss, confirm or escalate this flag. Your decision and note are written to the audit log.
               </p>
             </div>
-            <Button type="button" title="dismiss, confirm or escalate this flag" onClick={() => setReviewing(true)}>
-              review flag
+            <Button type="button" title="Dismiss, confirm or escalate this flag" onClick={() => setReviewing(true)}>
+              Review flag
             </Button>
           </div>
         )}
 
-        <Section title="timeline">
-          <Timeline items={timeline} empty="no history yet." />
+        <Section title="Timeline">
+          <Timeline items={timeline} empty="No history yet." />
         </Section>
       </div>
 
@@ -160,8 +160,8 @@ function FlagDetail({ flag, onResolved }: { flag: RiskFlagDetail; onResolved: ()
         <Dialog
           open={reviewing}
           onOpenChange={setReviewing}
-          title="review this flag"
-          description="your decision and note are written to the audit log."
+          title="Review this flag"
+          description="Your decision and note are written to the audit log."
           className="max-w-2xl"
         >
           <ResolveForm
@@ -194,7 +194,7 @@ function ResolveForm({ flagId, onResolved, onCancel }: ResolveFormProps) {
     event.preventDefault()
     if (!action) return
     if (!note.trim()) {
-      setNoteError("say why, so the next analyst can follow your reasoning")
+      setNoteError("Say why, so the next analyst can follow your reasoning")
       return
     }
     const result = await resolve.mutate(flagId, { action, note: note.trim() })
@@ -206,7 +206,7 @@ function ResolveForm({ flagId, onResolved, onCancel }: ResolveFormProps) {
   return (
     <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-5">
       <fieldset>
-        <legend className="mb-2 text-sm font-extrabold">decision</legend>
+        <legend className="mb-2 text-sm font-extrabold">Decision</legend>
         <div className="grid gap-2 sm:grid-cols-3">
           {flagActions.map((option) => (
             <label
@@ -233,7 +233,7 @@ function ResolveForm({ flagId, onResolved, onCancel }: ResolveFormProps) {
         </div>
       </fieldset>
 
-      <Field id="flag-note" label="note" error={noteError} hint={`${note.length} / ${NOTE_MAX}`}>
+      <Field id="flag-note" label="Note" error={noteError} hint={`${note.length} / ${NOTE_MAX}`}>
         <textarea
           id="flag-note"
           rows={4}
@@ -245,20 +245,20 @@ function ResolveForm({ flagId, onResolved, onCancel }: ResolveFormProps) {
           }}
           aria-invalid={Boolean(noteError) || undefined}
           aria-describedby={noteError ? "flag-note-error" : "flag-note-hint"}
-          placeholder="what you checked and why you decided this"
-          className="w-full rounded-2xl border-2 border-b-4 border-hairline bg-card px-4 py-3 text-sm font-semibold normal-case outline-none placeholder:font-normal placeholder:text-muted-foreground/70 placeholder:lowercase hover:border-hairline-strong focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/15 aria-invalid:border-destructive"
+          placeholder="What you checked and why you decided this"
+          className="w-full rounded-2xl border-2 border-b-4 border-hairline bg-card px-4 py-3 text-sm font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground/70 hover:border-hairline-strong focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/15 aria-invalid:border-destructive"
         />
       </Field>
 
       {resolve.error && (
         <Alert variant="error">
-          {resolve.error.is(403) ? "your role can't resolve flags. ask a bank administrator." : resolve.error.message}
+          {resolve.error.is(403) ? "Your role can't resolve flags. Ask a bank administrator." : resolve.error.message}
         </Alert>
       )}
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button type="button" variant="ghost" onClick={onCancel} disabled={resolve.isPending}>
-          cancel
+          Cancel
         </Button>
         <Button
           type="submit"
@@ -266,7 +266,7 @@ function ResolveForm({ flagId, onResolved, onCancel }: ResolveFormProps) {
           disabled={!action}
           variant={action === "dismissed" ? "outline" : "default"}
         >
-          {chosen ? `${chosen.label} this flag` : "choose a decision"}
+          {chosen ? `${chosen.label} this flag` : "Choose a decision"}
         </Button>
       </div>
     </form>

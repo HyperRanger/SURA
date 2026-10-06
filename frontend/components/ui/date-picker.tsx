@@ -43,7 +43,7 @@ export function DatePicker({
 }: DatePickerProps) {
   const [open, setOpen] = useState(false)
   const selected = parseDay(value)
-  const label = selected ? displayFormatter.format(selected).toLowerCase() : undefined
+  const label = selected ? displayFormatter.format(selected) : undefined
 
   return (
     <div className={cn("relative", className)}>
@@ -79,8 +79,8 @@ export function DatePicker({
       {selected && (
         <button
           type="button"
-          aria-label="clear date"
-          title="clear date"
+          aria-label="Clear date"
+          title="Clear date"
           onClick={() => onChange("")}
           className="absolute top-1/2 right-2.5 flex size-7 -translate-y-[calc(50%+1px)] cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-cloud hover:text-link"
         >

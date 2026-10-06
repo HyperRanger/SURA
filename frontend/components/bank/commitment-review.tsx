@@ -26,11 +26,11 @@ export function GroupHealthPanel({ commitmentId, status }: { commitmentId: strin
   if (status === "cancelled") return null
 
   return (
-    <Section title="group health" description="advisory only. it never blocks a contribution or changes payout order.">
+    <Section title="Group health" description="Advisory only. It never blocks a contribution or changes payout order.">
       {health.isLoading ? (
         <Skeleton className="h-36 rounded-2xl" />
       ) : health.error ? (
-        <Alert variant="info" title="group health isn't available">
+        <Alert variant="info" title="Group health isn't available">
           {health.error.message}
         </Alert>
       ) : health.data ? (
@@ -39,25 +39,25 @@ export function GroupHealthPanel({ commitmentId, status }: { commitmentId: strin
             <StatusBadge status={health.data.group_health} />
             <StatusBadge status={health.data.confidence} label={`${health.data.confidence} confidence`} tone="neutral" />
           </div>
-          <ul className="flex list-disc flex-col gap-1 pl-5 text-sm font-semibold text-muted-foreground normal-case">
+          <ul className="flex list-disc flex-col gap-1 pl-5 text-sm font-semibold text-muted-foreground">
             {health.data.reasons.map((reason) => (
               <li key={reason}>{reason}</li>
             ))}
           </ul>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
-            <Metric label="joined" value={`${health.data.metrics.joined_member_count} of ${health.data.metrics.member_count}`} />
-            <Metric label="cycles paid" value={health.data.metrics.completed_cycles} />
-            <Metric label="cycles missed" value={health.data.metrics.missed_cycles} />
-            <Metric label="completion" value={formatPercent(health.data.metrics.historical_cycle_completion_rate)} />
+            <Metric label="Joined" value={`${health.data.metrics.joined_member_count} of ${health.data.metrics.member_count}`} />
+            <Metric label="Cycles paid" value={health.data.metrics.completed_cycles} />
+            <Metric label="Cycles missed" value={health.data.metrics.missed_cycles} />
+            <Metric label="Completion" value={formatPercent(health.data.metrics.historical_cycle_completion_rate)} />
             <Metric
-              label="this cycle"
+              label="This cycle"
               value={`${formatNaira(health.data.metrics.current_cycle_contributed_total)} of ${formatNaira(health.data.metrics.current_cycle_required_total)}`}
             />
-            <Metric label="deadline" value={humanize(health.data.metrics.current_cycle_deadline_state)} />
-            <Metric label="due" value={formatDateTime(health.data.metrics.current_cycle_due_at)} />
-            <Metric label="grace" value={`${health.data.metrics.current_cycle_grace_period_hours}h`} />
+            <Metric label="Deadline" value={humanize(health.data.metrics.current_cycle_deadline_state)} />
+            <Metric label="Due" value={formatDateTime(health.data.metrics.current_cycle_due_at)} />
+            <Metric label="Grace" value={`${health.data.metrics.current_cycle_grace_period_hours}h`} />
           </dl>
-          <p className="text-xs font-bold text-muted-foreground normal-case">{health.data.policy_note}</p>
+          <p className="text-xs font-bold text-muted-foreground">{health.data.policy_note}</p>
         </div>
       ) : null}
     </Section>
@@ -83,12 +83,12 @@ export function SupportCases({ commitment, onChanged }: { commitment: BankCommit
   const canOpen = canWrite && !openCase && (commitment.status === "active" || commitment.status === "pending_members")
 
   return (
-    <Section title="support cases" description="opening a case puts the lock under review until it's resolved.">
+    <Section title="Support cases" description="Opening a case puts the lock under review until it's resolved.">
       <div className="flex flex-col gap-4">
         {canOpen && <OpenCaseForm commitmentId={commitment.commitment_id} onOpened={onChanged} />}
         {cases.length === 0 && !canOpen && (
           <p className="rounded-2xl border-2 border-dashed border-hairline px-4 py-6 text-center text-sm font-semibold text-muted-foreground">
-            no support cases on this lock.
+            No support cases on this lock.
           </p>
         )}
         {cases.map((item) => (
@@ -113,7 +113,7 @@ function OpenCaseForm({ commitmentId, onOpened }: { commitmentId: string; onOpen
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!reason.trim()) {
-      setError("say what needs reviewing")
+      setError("Say what needs reviewing")
       return
     }
     const result = await open.mutate(commitmentId, reason.trim())
@@ -125,7 +125,7 @@ function OpenCaseForm({ commitmentId, onOpened }: { commitmentId: string; onOpen
 
   return (
     <form noValidate onSubmit={handleSubmit} className="card-raised flex flex-col gap-4 rounded-2xl p-4 sm:p-5">
-      <Field id="case-reason" label="open a case" error={error} hint={`${reason.length} / ${TEXT_MAX}`}>
+      <Field id="case-reason" label="Open a case" error={error} hint={`${reason.length} / ${TEXT_MAX}`}>
         <Textarea
           id="case-reason"
           rows={3}
@@ -142,7 +142,7 @@ function OpenCaseForm({ commitmentId, onOpened }: { commitmentId: string; onOpen
       </Field>
       <ActionError error={open.error} />
       <Button type="submit" loading={open.isPending} className="sm:self-start">
-        open case
+        Open case
       </Button>
     </form>
   )
@@ -164,7 +164,7 @@ function CaseCard({ commitmentId, item, canResolve, onResolved }: CaseCardProps)
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!note.trim()) {
-      setError("say how it was resolved")
+      setError("Say how it was resolved")
       return
     }
     const result = await resolve.mutate(commitmentId, item.case_id, note.trim())
@@ -175,20 +175,20 @@ function CaseCard({ commitmentId, item, canResolve, onResolved }: CaseCardProps)
     <div className="card-raised flex flex-col gap-3 rounded-2xl p-4 sm:p-5">
       <div className="flex flex-wrap items-center gap-2">
         <StatusBadge status={item.status} />
-        <span className="text-xs font-bold text-muted-foreground">opened {formatDateTime(item.opened_at)}</span>
+        <span className="text-xs font-bold text-muted-foreground">Opened {formatDateTime(item.opened_at)}</span>
         {item.resolved_at && (
-          <span className="text-xs font-bold text-muted-foreground">· resolved {formatDateTime(item.resolved_at)}</span>
+          <span className="text-xs font-bold text-muted-foreground">· Resolved {formatDateTime(item.resolved_at)}</span>
         )}
       </div>
-      <p className="text-sm font-semibold normal-case">{item.reason}</p>
+      <p className="text-sm font-semibold">{item.reason}</p>
       {item.resolution_note && (
-        <blockquote className="border-l-4 border-hairline pl-3 text-sm font-semibold text-muted-foreground normal-case">
+        <blockquote className="border-l-4 border-hairline pl-3 text-sm font-semibold text-muted-foreground">
           {item.resolution_note}
         </blockquote>
       )}
       {canResolve && (
         <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <Field id={noteId} label="resolution note" error={error}>
+          <Field id={noteId} label="Resolution note" error={error}>
             <Textarea
               id={noteId}
               rows={2}
@@ -200,12 +200,12 @@ function CaseCard({ commitmentId, item, canResolve, onResolved }: CaseCardProps)
               }}
               aria-invalid={Boolean(error) || undefined}
               aria-describedby={error ? `${noteId}-error` : undefined}
-              placeholder="what was checked and decided"
+              placeholder="What was checked and decided"
             />
           </Field>
           <ActionError error={resolve.error} />
           <Button type="submit" variant="outline" size="sm" loading={resolve.isPending} className="sm:self-start">
-            resolve and reactivate the lock
+            Resolve and reactivate the lock
           </Button>
         </form>
       )}

@@ -21,11 +21,11 @@ import type { FlagStatus, RiskFlag, RiskRuleRun } from "@/types"
 import { formatDateTime, humanize } from "@/utils/format"
 
 const columns: Column<RiskFlag>[] = [
-  { header: "rule that fired", cell: (row) => humanize(row.rule) },
-  { header: "severity", cell: (row) => <StatusBadge status={row.severity} /> },
-  { header: "status", cell: (row) => <StatusBadge status={row.status} /> },
-  { header: "customer", cell: (row) => <span className="font-mono text-xs normal-case">{row.user_id}</span> },
-  { header: "raised", cell: (row) => formatDateTime(row.created_at) },
+  { header: "Rule that fired", cell: (row) => humanize(row.rule) },
+  { header: "Severity", cell: (row) => <StatusBadge status={row.severity} /> },
+  { header: "Status", cell: (row) => <StatusBadge status={row.status} /> },
+  { header: "Customer", cell: (row) => <span className="font-mono text-xs">{row.user_id}</span> },
+  { header: "Raised", cell: (row) => formatDateTime(row.created_at) },
 ]
 
 const severityOptions = toOptions(flagSeverities)
@@ -52,12 +52,12 @@ export function FlagsScreen() {
   return (
     <>
       <PageHeader
-        title="risk flags"
-        description="patterns sura's fraud rules detected. review the evidence, then dismiss, confirm or escalate."
+        title="Risk flags"
+        description="Patterns Sura's fraud rules detected. Review the evidence, then dismiss, confirm or escalate."
         actions={
           can("bank:flags:write") && (
             <Button type="button" variant="outline" size="sm" loading={runner.isPending} onClick={handleRun}>
-              run review rules
+              Run review rules
             </Button>
           )
         }
@@ -70,15 +70,15 @@ export function FlagsScreen() {
           className="mb-5"
           title={`${lastRun.flags_created_count} new ${lastRun.flags_created_count === 1 ? "flag" : "flags"}`}
         >
-          checked {lastRun.members_evaluated} customers against {lastRun.rules_run.length} rules. rules only open flags;
+          Checked {lastRun.members_evaluated} customers against {lastRun.rules_run.length} rules. Rules only open flags;
           they never restrict an account.
         </Alert>
       )}
 
       <FilterBar>
-        <SelectFilter id="flag-status" label="status" value={status} onChange={setStatus} options={flagStatuses} />
-        <SelectFilter id="flag-severity" label="severity" value={severity} onChange={setSeverity} options={severityOptions} />
-        <SelectFilter id="flag-rule" label="rule" value={rule} onChange={setRule} options={ruleOptions} className="sm:w-60" />
+        <SelectFilter id="flag-status" label="Status" value={status} onChange={setStatus} options={flagStatuses} />
+        <SelectFilter id="flag-severity" label="Severity" value={severity} onChange={setSeverity} options={severityOptions} />
+        <SelectFilter id="flag-rule" label="Rule" value={rule} onChange={setRule} options={ruleOptions} className="sm:w-60" />
       </FilterBar>
 
       <QueryState
@@ -89,18 +89,18 @@ export function FlagsScreen() {
         empty={
           <EmptyState
             icon={Flag02Icon}
-            title={status === "open" && !severity && !rule ? "no open flags" : "no flags match"}
+            title={status === "open" && !severity && !rule ? "No open flags" : "No flags match"}
             description={
               status === "open" && !severity && !rule
-                ? "nothing is waiting for review. set status to all to see resolved flags."
-                : "try another status, severity or rule."
+                ? "Nothing is waiting for review. Set status to All to see resolved flags."
+                : "Try another status, severity or rule."
             }
           />
         }
       >
         {(rows) => (
           <DataTable
-            caption="risk flags"
+            caption="Risk flags"
             columns={columns}
             rows={rows}
             rowKey={(row) => row.flag_id}

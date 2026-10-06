@@ -35,7 +35,7 @@ export function Header() {
         <nav
           ref={glassRef}
           onPointerMove={handlePointerMove}
-          aria-label="primary"
+          aria-label="Primary"
           className="glass flex h-16 items-center justify-between rounded-full pr-3 pl-5"
         >
           <div className="flex items-center gap-8">
@@ -58,10 +58,10 @@ export function Header() {
             <ThemeToggle />
             <Link
               href={routes.bank.login}
-              title="sign in to the bank console"
+              title="Sign in to the bank console"
               className={buttonVariants({ size: "sm" })}
             >
-              bank login
+              Bank login
             </Link>
           </div>
 

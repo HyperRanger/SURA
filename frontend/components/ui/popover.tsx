@@ -38,7 +38,7 @@ function PopoverContent({
         <PopoverPrimitive.Popup
           data-slot="popover-content"
           className={cn(
-            "card-raised origin-(--transform-origin) rounded-3xl p-3 text-foreground shadow-lg lowercase outline-none",
+            "card-raised origin-(--transform-origin) rounded-3xl p-3 text-foreground shadow-lg outline-none",
             "transition-[transform,scale,opacity] duration-150 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0",
             className
           )}
