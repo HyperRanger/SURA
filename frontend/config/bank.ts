@@ -100,6 +100,38 @@ export function isDeveloperTab(value: unknown): value is DeveloperTab {
   return developerTabs.some((tab) => tab.value === value)
 }
 
+// the commitment detail tabs, in order. the open one is kept in ?tab=
+export const commitmentTabs = [
+  { value: "overview", label: "overview" },
+  { value: "payouts", label: "payouts" },
+  { value: "members", label: "members" },
+  { value: "contributions", label: "contributions" },
+  { value: "support", label: "support" },
+  { value: "activity", label: "activity" },
+] as const
+
+export type CommitmentTab = (typeof commitmentTabs)[number]["value"]
+
+export function isCommitmentTab(value: unknown): value is CommitmentTab {
+  return commitmentTabs.some((tab) => tab.value === value)
+}
+
+// the customer detail tabs, in order. flags and safety only show to roles that can read flags
+export const customerTabs = [
+  { value: "overview", label: "overview" },
+  { value: "commitments", label: "commitments" },
+  { value: "score-history", label: "score history" },
+  { value: "flags", label: "flags" },
+  { value: "safety", label: "account safety" },
+  { value: "activity", label: "activity" },
+] as const
+
+export type CustomerTab = (typeof customerTabs)[number]["value"]
+
+export function isCustomerTab(value: unknown): value is CustomerTab {
+  return customerTabs.some((tab) => tab.value === value)
+}
+
 // the api scopes a machine key can hold. matches BANK_API_SCOPES in contracts.py
 export const apiKeyScopes: { value: ApiKeyScope; label: string; description: string }[] = [
   { value: "score:read", label: "score:read", description: "a customer's score, tier and pillar evidence." },
