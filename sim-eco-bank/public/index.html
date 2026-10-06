@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#075b9f">
+    <title>Sim_eco_bank — Sura demo</title>
+    <style>
+      :root{--blue:#075b9f;--deep:#043763;--gold:#e6b447;--ink:#142842;--muted:#68798e;--bg:#f3f7fa;--line:#e3eaf0;--sura:#29235c;--green:#0a875e}*{box-sizing:border-box}body{margin:0;background:#062849;color:var(--ink);font:14px Inter,system-ui,sans-serif}.app{width:min(390px,100%);height:100dvh;margin:auto;overflow:auto;background:var(--bg);padding:0 18px 28px;box-shadow:0 24px 70px #0007}.header{margin:0 -18px 18px;padding:21px 22px 55px;color:#fff;background:linear-gradient(135deg,var(--deep),var(--blue));position:relative;overflow:hidden}.header:after{content:"";position:absolute;right:-65px;bottom:-95px;width:190px;height:190px;border:1px solid #fff3;border-radius:50%;box-shadow:0 0 0 29px #fff1}.top,.greet,.line,.row{display:flex;align-items:center}.top,.line{justify-content:space-between}.brand{font-size:19px;font-weight:850;letter-spacing:-.8px}.brand span{color:var(--gold)}.bell{width:37px;height:37px;border-radius:50%;display:grid;place-items:center;background:#fff1;border:1px solid #fff3}.greet{gap:10px;margin-top:24px}.avatar{width:39px;height:39px;display:grid;place-items:center;border:2px solid #fff8;border-radius:50%;background:linear-gradient(140deg,#ffd99c,#b8773c);color:#69421e;font-size:12px;font-weight:850}.greet small{display:block;opacity:.75;font-size:10px}.greet b{display:block;margin-top:2px;font-size:15px}.card{background:#fff;border:1px solid #0f385f0b;border-radius:17px;box-shadow:0 7px 19px #113e6910}.balance{position:relative;margin-top:-50px;padding:17px}.balanceTop,.meta{display:flex;justify-content:space-between;align-items:center}.balanceTop{color:#62738a;font-size:10px;font-weight:750}.amount{margin-top:9px;font-size:27px;font-weight:850;letter-spacing:-1px}.meta{margin-top:10px;color:#8795a5;font-size:9.5px}.quick{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:18px 0 21px}.quick div{text-align:center;color:var(--ink);font-size:9.5px;font-weight:750}.quick i{width:45px;height:45px;display:grid;place-items:center;margin:auto auto 6px;border-radius:14px;background:#e8f2fb;color:var(--blue);font-size:19px;font-style:normal}.line{margin:0 2px 10px}.line h2{margin:0;font-size:13px}.live{color:var(--green);font-size:9px;font-weight:850}.sura{padding:16px;position:relative;overflow:hidden;border:1px solid #e4e1f0;background:linear-gradient(135deg,#fff,#faf9ff)}.sura:after{content:"";position:absolute;right:-52px;bottom:-75px;width:155px;height:155px;border-radius:50%;background:radial-gradient(circle,#29235c20,transparent 67%)}.sHead{display:flex;gap:9px;align-items:center;position:relative}.sLogo{width:72px}.sHead small{color:#797394;font-size:10px;font-weight:700}.pill{margin-left:auto;padding:5px 7px;border-radius:15px;background:#efedf9;color:var(--sura);font-size:8px;font-weight:850}.scoreLine{display:flex;justify-content:space-between;align-items:end;margin-top:16px;position:relative}.score{font-size:29px;font-weight:850;letter-spacing:-1px;color:var(--sura)}.score span{font-size:10px;color:#827ba0}.tier{padding:6px 7px;border-radius:8px;background:#fff4d8;color:#765408;font-size:8px;font-weight:850}.meter{height:6px;margin-top:12px;overflow:hidden;border-radius:20px;background:#e9e8f0}.meter i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--sura),#d9a441)}.copy{margin:9px 0 0;color:#625d7d;font-size:10px;line-height:1.45;position:relative}.lock,.activity{margin-top:13px;padding:13px 15px}.lockTop{display:flex;justify-content:space-between;align-items:center}.lock b{font-size:11px}.status{padding:4px 7px;border-radius:15px;background:#e8f7f0;color:var(--green);font-size:8px;font-weight:850}.lock p{margin:7px 0 0;color:var(--muted);font-size:9.5px}.lock strong{color:var(--ink)}.row{gap:10px;margin-top:12px}.icon{width:36px;height:36px;display:grid;place-items:center;border-radius:11px;background:#fff4d8;color:#a26a00}.row b{display:block;font-size:10.5px}.row small{display:block;margin-top:3px;color:var(--muted);font-size:9.5px}.row strong{margin-left:auto;font-size:10px;color:#c55050}.note{margin:14px 2px;color:var(--muted);font-size:9px;line-height:1.45}@media(max-width:420px){body{background:var(--bg)}.app{width:100%;box-shadow:none}}
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <header class="header"><div class="top"><div class="brand">Sim_<span>eco</span>_bank</div><div class="bell">♧</div></div><div class="greet"><div class="avatar">AO</div><div><small>Good morning</small><b>Amara Okafor</b></div></div></header>
+      <section class="card balance"><div class="balanceTop"><span>Everyday account</span><span>◉</span></div><div class="amount">₦284,500.00</div><div class="meta"><span>•••• 1024</span><span>Illustrative balance</span></div></section>
+      <div class="quick"><div><i>↗</i>Transfer</div><div><i>▦</i>Pay bills</div><div><i>⌁</i>Cards</div><div><i>⋯</i>More</div></div>
+      <div class="line"><h2>Your Sura profile</h2><span class="live" id="state">Loading live data</span></div>
+      <section class="card sura"><div class="sHead"><img class="sLogo" src="https://raw.githubusercontent.com/HyperRanger/SURA/Master/frontend/public/sura-logo-horizontal.svg" alt="Sura"><small>Trust Score</small><span class="pill">LIVE DATA</span></div><div class="scoreLine"><div class="score" id="score">— <span>/ 1000</span></div><div class="tier" id="tier">LOADING</div></div><div class="meter"><i id="meter" style="width:0"></i></div><p class="copy" id="score-copy">Fetching the current explainable Sura Score.</p></section>
+      <section class="card lock"><div class="lockTop"><b id="lock-title">Active Sura Lock</b><span class="status" id="status">LOADING</span></div><p id="lock-meta">Fetching your live commitment data.</p></section>
+      <section class="card activity"><div class="line"><h2>Latest Sura activity</h2></div><div class="row"><div class="icon">✓</div><div><b id="activity-title">Lock activity</b><small id="activity-meta">Awaiting live data</small></div><strong id="activity-amount">—</strong></div></section>
+      <p class="note">The score and Lock fields above are read from Sura’s deployed API for this seeded demo customer. The bank account balance is illustrative.</p>
+    </main>
+    <script>
+      const money = (amount) => new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(amount || 0);
+      const pretty = (value) => (value || "unknown").replaceAll("_", " ").toUpperCase();
+      fetch("/api/demo-data").then((response) => {
+        if (!response.ok) throw new Error("Unable to load demo data");
+        return response.json();
+      }).then((data) => {
+        const score = data.score.current;
+        const lock = data.active_commitment;
+        document.querySelector("#score").innerHTML = score.score + " <span>/ 1000</span>";
+        document.querySelector("#tier").textContent = pretty(score.tier);
+        document.querySelector("#meter").style.width = Math.min(100, score.score / 10) + "%";
+        document.querySelector("#score-copy").textContent = "Score version " + score.score_version + " · live deployed record.";
+        document.querySelector("#lock-title").textContent = lock ? lock.title : "No active Sura Lock";
+        document.querySelector("#status").textContent = lock ? pretty(lock.status) : "NO ACTIVE LOCK";
+        document.querySelector("#lock-meta").innerHTML = lock ? money(lock.contribution_amount) + " contribution · <strong>" + lock.completed_cycle_count + " of " + lock.cycles + " cycles complete</strong>" : "No active commitment found.";
+        document.querySelector("#activity-title").textContent = lock ? "Sura Lock contribution" : "Sura profile loaded";
+        document.querySelector("#activity-meta").textContent = lock ? "Live commitment: " + lock.title : "Connected to Sura";
+        document.querySelector("#activity-amount").textContent = lock ? "− " + money(lock.contribution_amount) : "✓";
+        document.querySelector("#state").textContent = "● Live from Sura";
+      }).catch(() => {
+        document.querySelector("#state").textContent = "Live data unavailable";
+        document.querySelector("#state").style.color = "#c55050";
+        document.querySelector("#score-copy").textContent = "The deployed Sura API could not be reached. Reload to retry.";
+      });
+    </script>
+  </body>
+</html>
