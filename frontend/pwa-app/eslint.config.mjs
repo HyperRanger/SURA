@@ -12,8 +12,6 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // the member and vendor app is its own next project with its own lint config
-    "pwa-app/**",
   ]),
 ]);
 
