@@ -85,7 +85,7 @@ export function AccountSafety({ user, flags, onChanged }: AccountSafetyProps) {
     >
       <div className="flex flex-col gap-4">
         <div className="card-raised flex flex-wrap items-center gap-3 rounded-2xl p-4">
-          <span className="text-sm font-extrabold">Account status</span>
+          <span className="text-sm font-bold">Account status</span>
           <StatusBadge status={user.account_status} />
           {user.restriction_reason && (
             <span className="text-sm font-semibold text-muted-foreground">{user.restriction_reason}</span>
@@ -179,7 +179,7 @@ function RestrictionForm({
   return (
     <form noValidate onSubmit={handleSubmit} className="card-raised flex flex-col gap-5 rounded-2xl p-4 sm:p-5">
       <fieldset>
-        <legend className="mb-2 text-sm font-extrabold">Decision</legend>
+        <legend className="mb-2 text-sm font-bold">Decision</legend>
         <div className={cn("grid gap-2", options.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
           {options.map((option) => (
             <label
@@ -198,7 +198,7 @@ function RestrictionForm({
                 onChange={() => setAction(option.value)}
                 className="sr-only"
               />
-              <span className="text-sm font-black">{option.label}</span>
+              <span className="text-sm font-bold">{option.label}</span>
               <span className="text-xs leading-snug font-semibold text-muted-foreground">{option.description}</span>
             </label>
           ))}

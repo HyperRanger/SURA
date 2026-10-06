@@ -24,7 +24,7 @@ export function AuthCard({
     <div className={cn("w-full max-w-md", className)}>
       <div className="card-raised rounded-3xl p-5 sm:p-8">
         {header && <div className="mb-6">{header}</div>}
-        <h1 id={titleId} className="text-2xl font-black tracking-tight text-balance sm:text-3xl">
+        <h1 id={titleId} className="text-2xl font-bold tracking-tight text-balance sm:text-3xl">
           {title}
         </h1>
         {description && (

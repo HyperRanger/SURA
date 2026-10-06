@@ -125,7 +125,7 @@ function UserDetail({ user, initialTab, onChanged }: UserDetailProps) {
                 type="button"
                 title="Open the flags tab"
                 onClick={() => setTab("flags")}
-                className="cursor-pointer font-extrabold underline underline-offset-4"
+                className="cursor-pointer font-bold underline underline-offset-4"
               >
                 Flags tab
               </button>
@@ -154,7 +154,7 @@ function UserDetail({ user, initialTab, onChanged }: UserDetailProps) {
           <div className="flex flex-col gap-10">
             <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
               <div className="card-raised rounded-2xl p-5">
-                <p className="text-xs font-extrabold tracking-wide text-muted-foreground">Sura score</p>
+                <p className="text-xs font-bold tracking-wide text-muted-foreground">Sura score</p>
                 <div className="mt-2">
                   <ScoreFigure report={report} />
                 </div>
@@ -172,7 +172,7 @@ function UserDetail({ user, initialTab, onChanged }: UserDetailProps) {
                 )}
               </div>
               <div className="card-raised rounded-2xl p-5">
-                <p className="mb-4 text-xs font-extrabold tracking-wide text-muted-foreground">Five pillars</p>
+                <p className="mb-4 text-xs font-bold tracking-wide text-muted-foreground">Five pillars</p>
                 <ScorePillars report={report} />
               </div>
             </div>

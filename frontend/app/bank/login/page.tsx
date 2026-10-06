@@ -22,7 +22,7 @@ export default async function BankLoginPage({ searchParams }: PageProps<"/bank/l
         footer={
           <>
             Not a bank partner?{" "}
-            <Link href={routes.forBanks} className="font-extrabold text-link underline-offset-4 hover:underline">
+            <Link href={routes.forBanks} className="font-bold text-link underline-offset-4 hover:underline">
               See what the API does
             </Link>
           </>

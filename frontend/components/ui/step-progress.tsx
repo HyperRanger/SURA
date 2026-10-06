@@ -31,7 +31,7 @@ export function StepProgress({ current, total, onBack, label = "progress", class
         ) : (
           <span />
         )}
-        <span className="text-xs font-extrabold text-muted-foreground" aria-live="polite">
+        <span className="text-xs font-bold text-muted-foreground" aria-live="polite">
           Step {current + 1} of {total}
         </span>
       </div>

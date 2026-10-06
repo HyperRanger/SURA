@@ -14,7 +14,7 @@ export function ScorePillars({ report }: { report: ScoreReport }) {
         return (
           <li key={pillar.key}>
             <div className="flex items-baseline justify-between gap-3 text-sm">
-              <span className="font-extrabold">{pillar.label}</span>
+              <span className="font-bold">{pillar.label}</span>
               <span className="shrink-0 font-bold tabular-nums text-muted-foreground">
                 <span className="text-foreground">{points}</span> / {max}
               </span>
@@ -40,8 +40,8 @@ export function ScorePillars({ report }: { report: ScoreReport }) {
 export function ScoreFigure({ report }: { report: ScoreReport }) {
   return (
     <div className="flex items-end gap-2">
-      <span className="text-5xl font-black tracking-tight text-gold-deep tabular-nums">{report.score}</span>
-      <span className="pb-1.5 text-sm font-extrabold text-muted-foreground">/ {MAX_SCORE}</span>
+      <span className="text-5xl font-bold tracking-tight text-gold-deep tabular-nums">{report.score}</span>
+      <span className="pb-1.5 text-sm font-bold text-muted-foreground">/ {MAX_SCORE}</span>
     </div>
   )
 }

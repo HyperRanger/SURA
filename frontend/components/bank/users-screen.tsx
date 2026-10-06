@@ -112,7 +112,7 @@ export function UsersScreen() {
             <HugeiconsIcon icon={FilterHorizontalIcon} size={18} strokeWidth={2.2} />
             <span className="sr-only">Filters</span>
             {activeFilters > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-gold text-[0.65rem] font-black text-gold-foreground">
+              <span className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-gold text-[0.65rem] font-bold text-gold-foreground">
                 {activeFilters}
               </span>
             )}

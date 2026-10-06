@@ -67,7 +67,7 @@ export function GroupHealthPanel({ commitmentId, status }: { commitmentId: strin
 function Metric({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="min-w-0">
-      <dt className="text-xs font-extrabold tracking-wide text-muted-foreground">{label}</dt>
+      <dt className="text-xs font-bold tracking-wide text-muted-foreground">{label}</dt>
       <dd className="mt-1 text-sm font-bold break-words">{value}</dd>
     </div>
   )

@@ -12,7 +12,7 @@ export function BankContact() {
     <section id="contact" className="py-20 md:py-28">
       <div className="container-page">
         <div className="rounded-[2.5rem] border-b-8 border-primary-deep bg-primary px-6 py-14 text-center text-primary-foreground sm:px-12 md:py-20">
-          <h2 className="mx-auto max-w-2xl text-3xl font-black tracking-tight text-balance sm:text-4xl md:text-5xl">
+          <h2 className="mx-auto max-w-2xl text-3xl font-bold tracking-tight text-balance sm:text-4xl md:text-5xl">
             See Sura on your own rails
           </h2>
           <p className="mx-auto mt-4 max-w-xl leading-relaxed text-primary-foreground/85 sm:text-lg">

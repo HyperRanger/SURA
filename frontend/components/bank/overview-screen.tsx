@@ -128,7 +128,7 @@ function Overview({ overview, range, onRangeChange, refreshing }: OverviewProps)
             type="button"
             title="Show activity from every day"
             onClick={() => onRangeChange({ from: "", to: "" })}
-            className="h-12 cursor-pointer self-start rounded-full px-3 text-sm font-extrabold text-link underline-offset-4 hover:underline sm:self-auto"
+            className="h-12 cursor-pointer self-start rounded-full px-3 text-sm font-bold text-link underline-offset-4 hover:underline sm:self-auto"
           >
             All time
           </button>
@@ -169,7 +169,7 @@ function Overview({ overview, range, onRangeChange, refreshing }: OverviewProps)
                 >
                   <IconTile icon={shortcut.icon} tone={shortcut.tone} />
                   <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-1 text-base font-black">
+                    <span className="flex items-center gap-1 text-base font-bold">
                       {shortcut.title}
                       <HugeiconsIcon
                         icon={ArrowRight01Icon}
@@ -208,7 +208,7 @@ function Overview({ overview, range, onRangeChange, refreshing }: OverviewProps)
                 <li key={event.event_id} className="flex items-center gap-3 px-4 py-3">
                   <RowIcon icon={Activity01Icon} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-extrabold">{humanize(event.event_type)}</span>
+                    <span className="block truncate text-sm font-bold">{humanize(event.event_type)}</span>
                     <span
                       className="block truncate font-mono text-xs font-semibold text-muted-foreground"
                       title={event.subject_id}
@@ -244,7 +244,7 @@ function Overview({ overview, range, onRangeChange, refreshing }: OverviewProps)
                     <Link
                       href={routes.bank.commitment(settlement.commitment_id)}
                       title="Open the commitment this settlement belongs to"
-                      className="block text-sm font-extrabold tabular-nums after:absolute after:inset-0"
+                      className="block text-sm font-bold tabular-nums after:absolute after:inset-0"
                     >
                       {formatNaira(settlement.amount)}
                     </Link>
@@ -270,26 +270,26 @@ function ContributionHero({ overview }: { overview: BankOverview }) {
   return (
     <div className="relative isolate overflow-hidden rounded-3xl border-b-4 border-primary-deep bg-primary p-5 text-primary-foreground sm:p-6 lg:col-span-2">
 
-      <p className="text-xs font-extrabold tracking-wide text-primary-foreground/70">Total contributed</p>
-      <p className="mt-1 text-4xl font-black tracking-tight text-gold tabular-nums sm:text-5xl">
+      <p className="text-xs font-bold tracking-wide text-primary-foreground/70">Total contributed</p>
+      <p className="mt-1 text-4xl font-bold tracking-tight text-gold tabular-nums sm:text-5xl">
         {formatNaira(overview.total_contributed)}
       </p>
 
       <dl className="mt-6 grid grid-cols-2 gap-4 sm:max-w-md">
         <div>
-          <dt className="text-xs font-extrabold text-primary-foreground/70">Active commitments</dt>
-          <dd className="mt-0.5 text-2xl font-black tabular-nums">{overview.active_commitments}</dd>
+          <dt className="text-xs font-bold text-primary-foreground/70">Active commitments</dt>
+          <dd className="mt-0.5 text-2xl font-bold tabular-nums">{overview.active_commitments}</dd>
         </div>
         <div>
-          <dt className="text-xs font-extrabold text-primary-foreground/70">Customers</dt>
-          <dd className="mt-0.5 text-2xl font-black tabular-nums">{overview.customers}</dd>
+          <dt className="text-xs font-bold text-primary-foreground/70">Customers</dt>
+          <dd className="mt-0.5 text-2xl font-bold tabular-nums">{overview.customers}</dd>
         </div>
       </dl>
 
       <div className="mt-6">
         <div className="flex items-baseline justify-between gap-3">
-          <p className="text-xs font-extrabold text-primary-foreground/70">Completion rate</p>
-          <p className="text-sm font-black tabular-nums">{formatPercent(overview.completion_rate)}</p>
+          <p className="text-xs font-bold text-primary-foreground/70">Completion rate</p>
+          <p className="text-sm font-bold tabular-nums">{formatPercent(overview.completion_rate)}</p>
         </div>
         <div
           role="meter"
@@ -320,7 +320,7 @@ function StatCard({ label, value, icon, hint, alert, href }: StatCardProps) {
   const body = (
     <>
       <span className="flex items-start justify-between gap-2">
-        <span className="text-xs font-extrabold tracking-wide text-muted-foreground">{label}</span>
+        <span className="text-xs font-bold tracking-wide text-muted-foreground">{label}</span>
         <span
           className={cn(
             "flex size-9 shrink-0 items-center justify-center rounded-full",
@@ -331,7 +331,7 @@ function StatCard({ label, value, icon, hint, alert, href }: StatCardProps) {
         </span>
       </span>
       <span>
-        <span className={cn("block text-3xl font-black tracking-tight tabular-nums", alert && "text-destructive")}>{value}</span>
+        <span className={cn("block text-3xl font-bold tracking-tight tabular-nums", alert && "text-destructive")}>{value}</span>
         {hint && (
           <span className="mt-0.5 flex items-center gap-1 text-xs font-bold text-muted-foreground">
             {hint}
@@ -384,7 +384,7 @@ function ViewAll({ href, label }: { href: string; label: string }) {
     <Link
       href={href}
       title={`open ${label}`}
-      className="shrink-0 text-sm font-extrabold text-link underline-offset-4 hover:underline"
+      className="shrink-0 text-sm font-bold text-link underline-offset-4 hover:underline"
     >
       View all
     </Link>

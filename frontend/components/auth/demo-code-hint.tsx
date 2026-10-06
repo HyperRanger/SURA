@@ -23,7 +23,7 @@ export function DemoCodeHint({ code, onUse, disabled }: DemoCodeHintProps) {
         </Button>
       }
     >
-      <span className="font-mono text-base font-black tracking-[0.3em]">{code}</span>
+      <span className="font-mono text-base font-bold tracking-[0.3em]">{code}</span>
       <span className="block text-xs">Shown outside production only.</span>
     </Alert>
   )

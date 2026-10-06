@@ -48,7 +48,7 @@ export function AccountScreen() {
           <div className="card-raised flex flex-col gap-4 rounded-2xl p-4 sm:flex-row sm:items-center sm:p-5">
             <IconTile icon={LockPasswordIcon} tone="indigo" />
             <div className="min-w-0 flex-1">
-              <p className="text-base font-black">Password</p>
+              <p className="text-base font-bold">Password</p>
               <p className="mt-0.5 text-sm leading-snug font-semibold text-muted-foreground">
                 Changing it signs you out everywhere, including here. You then sign in with the new one.
               </p>

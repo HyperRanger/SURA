@@ -13,7 +13,7 @@ export function LegalContents({ items }: { items: ContentsItem[] }) {
 
   return (
     <nav aria-label="Contents" className="lg:sticky lg:top-28">
-      <h2 className="text-xs font-extrabold tracking-wider text-gold-deep">On this page</h2>
+      <h2 className="text-xs font-bold tracking-wider text-gold-deep">On this page</h2>
       <ol className="mt-4 flex flex-col border-l border-border">
         {items.map((item, index) => {
           const isActive = item.id === active

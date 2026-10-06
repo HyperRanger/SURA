@@ -28,7 +28,7 @@ export function Timeline({ items, empty }: { items: TimelineItem[]; empty: strin
           <span aria-hidden="true" className="mt-1.5 size-3 shrink-0 rounded-full border-2 border-ring bg-card" />
           <div className="min-w-0 flex-1">
             <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
-              <p className="text-sm font-extrabold">{item.title}</p>
+              <p className="text-sm font-bold">{item.title}</p>
               <time className="shrink-0 text-xs font-bold text-muted-foreground">{formatDateTime(item.at)}</time>
             </div>
             {item.detail && <div className="mt-0.5 text-sm font-semibold text-muted-foreground">{item.detail}</div>}

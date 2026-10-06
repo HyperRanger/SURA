@@ -12,7 +12,7 @@ export function Hero() {
 
       <div className="container-page relative grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr]">
         <div>
-          <h1 className="mt-6 text-4xl leading-[1.05] font-black tracking-tight text-balance sm:text-5xl md:text-6xl">
+          <h1 className="mt-6 text-4xl leading-[1.05] font-bold tracking-tight text-balance sm:text-5xl md:text-6xl">
             Save together. Build a record{" "}
             <span className="text-link">banks can read.</span>
           </h1>
@@ -44,7 +44,7 @@ export function Hero() {
             <div key={stat.label} className="card-raised rounded-3xl p-6">
               <dt className="sr-only">{stat.label}</dt>
               <dd>
-                <span className="block text-4xl font-black tracking-tight text-link">
+                <span className="block text-4xl font-bold tracking-tight text-link">
                   {stat.value}
                 </span>
                 <span className="mt-2 block text-sm leading-snug font-bold">{stat.label}</span>

@@ -31,7 +31,7 @@ export function Field({ id, label, hint, error, asLabel = true, className, child
     <div data-slot="field" className={cn("flex flex-col gap-2", className)}>
       <LabelTag
         {...(asLabel ? { htmlFor: id } : { id: `${id}-label` })}
-        className="text-sm font-extrabold text-foreground"
+        className="text-sm font-bold text-foreground"
       >
         {label}
       </LabelTag>

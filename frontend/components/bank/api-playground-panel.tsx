@@ -116,7 +116,7 @@ export function ApiPlaygroundPanel({ apiKey, onApiKeyChange, onCreateKey }: ApiP
                   type="button"
                   title="Go to API keys and create a sandbox key"
                   onClick={onCreateKey}
-                  className="cursor-pointer font-extrabold text-link underline-offset-4 hover:underline"
+                  className="cursor-pointer font-bold text-link underline-offset-4 hover:underline"
                 >
                   Create a key
                 </button>{" "}
@@ -159,7 +159,7 @@ export function ApiPlaygroundPanel({ apiKey, onApiKeyChange, onCreateKey }: ApiP
           </Field>
 
           <div className="flex flex-col gap-2">
-            <span id="playground-endpoint-label" className="text-sm font-extrabold">
+            <span id="playground-endpoint-label" className="text-sm font-bold">
               Endpoint
             </span>
             <ChoiceCards
@@ -222,7 +222,7 @@ export function ApiPlaygroundPanel({ apiKey, onApiKeyChange, onCreateKey }: ApiP
         <div className="flex min-w-0 flex-col gap-4">
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-extrabold">Request</p>
+              <p className="text-sm font-bold">Request</p>
               <CopyButton value={curl(apiKey.trim() || "<your api key>")} label="Copy curl" />
             </div>
             <CodeBlock code={curl(apiKey.trim() ? maskKey(apiKey.trim()) : "<your api key>")} />
@@ -230,7 +230,7 @@ export function ApiPlaygroundPanel({ apiKey, onApiKeyChange, onCreateKey }: ApiP
 
           <div className="flex flex-col gap-2" aria-live="polite">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-sm font-extrabold">Response</p>
+              <p className="text-sm font-bold">Response</p>
               {response && (
                 <span className="flex items-center gap-2">
                   <StatusBadge

@@ -17,7 +17,7 @@ export function PageHeader({ title, description, backHref, backLabel, meta, acti
       {backHref && <BackButton fallbackHref={backHref} label={backLabel} className="-ml-2 mb-2" />}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-2xl font-black tracking-tight text-balance sm:text-3xl">{title}</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-balance sm:text-3xl">{title}</h1>
           {description && (
             <p className="mt-1.5 max-w-2xl text-sm leading-relaxed font-semibold text-muted-foreground">
               {description}
@@ -44,7 +44,7 @@ export function Section({ title, description, action, children, className }: Sec
     <section className={className}>
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
-          <h2 className="text-lg font-black">{title}</h2>
+          <h2 className="text-lg font-bold">{title}</h2>
           {description && <p className="mt-0.5 text-sm font-semibold text-muted-foreground">{description}</p>}
         </div>
         {action}
@@ -60,7 +60,7 @@ export function DetailList({ items }: { items: { label: string; value: ReactNode
     <dl className="card-raised grid grid-cols-2 gap-x-4 gap-y-4 rounded-2xl p-4 sm:grid-cols-3 sm:p-5 lg:grid-cols-4">
       {items.map((item) => (
         <div key={item.label} className="min-w-0">
-          <dt className="text-xs font-extrabold tracking-wide text-muted-foreground">{item.label}</dt>
+          <dt className="text-xs font-bold tracking-wide text-muted-foreground">{item.label}</dt>
           <dd className="mt-1 text-sm font-bold break-words">{item.value}</dd>
         </div>
       ))}

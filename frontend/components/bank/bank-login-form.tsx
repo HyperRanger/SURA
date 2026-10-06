@@ -104,7 +104,7 @@ export function BankLoginForm({ next }: { next?: string }) {
 
       {isDemoEnabled && (
         <div className="flex flex-col gap-3 border-t-2 border-dashed border-hairline pt-6">
-          <p className="text-center text-xs font-extrabold text-muted-foreground">For the live demo</p>
+          <p className="text-center text-xs font-bold text-muted-foreground">For the live demo</p>
           <Button type="button" variant="outline" size="lg" loading={demo.isPending} disabled={busy} onClick={handleDemo}>
             {demo.isPending ? "Opening the demo bank" : "Continue as demo bank"}
           </Button>

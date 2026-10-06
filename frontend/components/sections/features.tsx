@@ -19,7 +19,7 @@ export function Features() {
         </div>
 
         <div className="mt-16 rounded-[2rem] bg-cloud p-6 sm:p-8">
-          <p className="text-center text-sm font-extrabold tracking-wide text-muted-foreground">
+          <p className="text-center text-sm font-bold tracking-wide text-muted-foreground">
             Built for people paid in bursts, and the banks that serve them
           </p>
           <ul className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -32,7 +32,7 @@ export function Features() {
                   <HugeiconsIcon icon={audience.icon} size={22} strokeWidth={2} />
                 </span>
                 <span>
-                  <span className="block text-sm font-black">{audience.title}</span>
+                  <span className="block text-sm font-bold">{audience.title}</span>
                   <span className="block text-xs leading-snug font-semibold text-muted-foreground">
                     {audience.description}
                   </span>

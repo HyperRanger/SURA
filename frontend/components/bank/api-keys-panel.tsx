@@ -252,7 +252,7 @@ function CreateKeyForm({ onCreated, onCancel }: CreateKeyFormProps) {
       </Field>
 
       <div className="flex flex-col gap-2">
-        <span id="key-environment-label" className="text-sm font-extrabold">
+        <span id="key-environment-label" className="text-sm font-bold">
           Environment
         </span>
         <ChoiceCards
@@ -266,7 +266,7 @@ function CreateKeyForm({ onCreated, onCancel }: CreateKeyFormProps) {
       </div>
 
       <fieldset>
-        <legend className="mb-2 text-sm font-extrabold">Scopes</legend>
+        <legend className="mb-2 text-sm font-bold">Scopes</legend>
         <div className="flex flex-col gap-3">
           {apiKeyScopes.map((scope) => (
             <Checkbox
@@ -277,7 +277,7 @@ function CreateKeyForm({ onCreated, onCancel }: CreateKeyFormProps) {
               invalid={Boolean(errors.scopes)}
               label={
                 <>
-                  <span className="font-mono font-extrabold text-foreground">{scope.label}</span>
+                  <span className="font-mono font-bold text-foreground">{scope.label}</span>
                   <span className="block text-xs">{scope.description}</span>
                 </>
               }

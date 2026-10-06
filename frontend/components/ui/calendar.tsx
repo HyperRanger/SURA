@@ -48,7 +48,7 @@ export function Calendar({ selected, onSelect, disabled, className }: CalendarPr
     <div data-slot="calendar" className={cn("w-72 select-none", className)}>
       <div className="mb-2 flex items-center justify-between gap-2">
         <NavButton label="Previous month" icon={ArrowLeft01Icon} onClick={() => shift(-1)} />
-        <p aria-live="polite" className="text-sm font-black">
+        <p aria-live="polite" className="text-sm font-bold">
           {monthFormatter.format(month)}
         </p>
         <NavButton label="Next month" icon={ArrowRight01Icon} onClick={() => shift(1)} />
@@ -56,7 +56,7 @@ export function Calendar({ selected, onSelect, disabled, className }: CalendarPr
 
       <div className="grid grid-cols-7 gap-1">
         {WEEKDAYS.map((day) => (
-          <span key={day} aria-hidden className="flex h-8 items-center justify-center text-xs font-extrabold text-muted-foreground">
+          <span key={day} aria-hidden className="flex h-8 items-center justify-center text-xs font-bold text-muted-foreground">
             {day}
           </span>
         ))}

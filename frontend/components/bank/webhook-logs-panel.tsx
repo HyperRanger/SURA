@@ -162,17 +162,17 @@ function DeliveryDetail({ delivery }: { delivery: WebhookDelivery }) {
       <dl className="card-raised grid grid-cols-2 gap-x-4 gap-y-3 rounded-2xl p-4 sm:grid-cols-4">
         {facts.map((fact) => (
           <div key={fact.label} className="min-w-0">
-            <dt className="text-xs font-extrabold tracking-wide text-muted-foreground">{fact.label}</dt>
+            <dt className="text-xs font-bold tracking-wide text-muted-foreground">{fact.label}</dt>
             <dd className="mt-1 text-sm font-bold">{fact.value}</dd>
           </div>
         ))}
         <div className="col-span-full min-w-0">
-          <dt className="text-xs font-extrabold tracking-wide text-muted-foreground">Event ID</dt>
+          <dt className="text-xs font-bold tracking-wide text-muted-foreground">Event ID</dt>
           <dd className="mt-1 font-mono text-xs font-semibold break-all">{delivery.event_id}</dd>
         </div>
         {delivery.response_summary && (
           <div className="col-span-full min-w-0">
-            <dt className="text-xs font-extrabold tracking-wide text-muted-foreground">Note</dt>
+            <dt className="text-xs font-bold tracking-wide text-muted-foreground">Note</dt>
             <dd className="mt-1 text-sm font-semibold text-muted-foreground">{delivery.response_summary}</dd>
           </div>
         )}

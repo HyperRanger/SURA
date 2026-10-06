@@ -7,7 +7,7 @@ export function ScoreDelta({ before, after }: { before: number | null; after: nu
   return (
     <span
       className={cn(
-        "font-extrabold tabular-nums",
+        "font-bold tabular-nums",
         delta > 0 && "text-gold-deep",
         delta < 0 && "text-destructive",
         delta === 0 && "text-muted-foreground"

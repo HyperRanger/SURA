@@ -241,7 +241,7 @@ function StaffCard({ staff, isSelf, onChanged }: StaffCardProps) {
     <div className="card-raised flex flex-col gap-4 rounded-2xl p-4 sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="text-base font-black">
+          <p className="text-base font-bold">
             {staff.name ?? staff.email}
             {isSelf && <span className="ml-2 text-xs font-bold text-muted-foreground">(you)</span>}
           </p>
@@ -351,7 +351,7 @@ function PermissionsEditor({ staff, onChanged }: { staff: BankStaff; onChanged: 
 
   return (
     <fieldset className="flex flex-col gap-3">
-      <legend className="mb-2 text-sm font-extrabold">Permissions</legend>
+      <legend className="mb-2 text-sm font-bold">Permissions</legend>
       <p className="-mt-1 text-xs font-semibold text-muted-foreground">
         Narrow what this person can do within their role. Permissions outside the role can&apos;t be granted.
       </p>
@@ -370,7 +370,7 @@ function PermissionsEditor({ staff, onChanged }: { staff: BankStaff; onChanged: 
               }
               label={
                 <>
-                  <span className="font-extrabold text-foreground">{permission.label}</span>
+                  <span className="font-bold text-foreground">{permission.label}</span>
                   <span className="block font-mono text-xs">{permission.value}</span>
                 </>
               }

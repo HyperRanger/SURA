@@ -31,7 +31,7 @@ export function ApiIntegration() {
     <section className="bg-cloud py-20 md:py-28">
       <div className="container-page grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
         <div>
-          <h2 className="text-3xl font-black tracking-tight text-balance sm:text-4xl">
+          <h2 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl">
             How it plugs in
           </h2>
           <p className="mt-4 leading-relaxed text-muted-foreground">
@@ -43,7 +43,7 @@ export function ApiIntegration() {
               <li key={step.title} className="card-raised flex items-start gap-4 rounded-3xl p-5">
                 <IconTile icon={step.icon} />
                 <div>
-                  <h3 className="font-black">
+                  <h3 className="font-bold">
                     <span className="text-gold-deep">{index + 1}.</span> {step.title}
                   </h3>
                   <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{step.description}</p>

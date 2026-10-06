@@ -207,7 +207,7 @@ function WebhookForm({ webhook, onCancel, onCreated, onSaved }: WebhookFormProps
 
       <fieldset>
         <div className="mb-2 flex items-center justify-between gap-3">
-          <legend className="text-sm font-extrabold">Events</legend>
+          <legend className="text-sm font-bold">Events</legend>
           <Button
             type="button"
             variant="link"

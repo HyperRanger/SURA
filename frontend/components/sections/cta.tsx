@@ -7,7 +7,7 @@ export function Cta() {
       <div className="container-page">
         <div className="relative overflow-hidden rounded-[2.5rem] border-b-8 border-primary-deep bg-primary px-6 py-14 text-center text-primary-foreground sm:px-12 md:py-20">
           <div className="relative mx-auto max-w-2xl">
-            <h2 className="text-3xl font-black tracking-tight text-balance sm:text-4xl md:text-5xl">
+            <h2 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl md:text-5xl">
               Bring Sura to your customers
             </h2>
             <p className="mt-4 text-base leading-relaxed text-primary-foreground/85 sm:text-lg">

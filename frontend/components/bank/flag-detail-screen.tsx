@@ -118,7 +118,7 @@ function FlagDetail({ flag, onResolved }: { flag: RiskFlagDetail; onResolved: ()
             <dl className="card-raised divide-y divide-hairline rounded-2xl">
               {evidence.map(([key, value]) => (
                 <div key={key} className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:gap-6">
-                  <dt className="text-sm font-extrabold sm:w-56 sm:shrink-0">{humanize(key)}</dt>
+                  <dt className="text-sm font-bold sm:w-56 sm:shrink-0">{humanize(key)}</dt>
                   <dd className="min-w-0 font-mono text-sm break-words text-muted-foreground">
                     {typeof value === "string" ? value : JSON.stringify(value)}
                   </dd>
@@ -140,7 +140,7 @@ function FlagDetail({ flag, onResolved }: { flag: RiskFlagDetail; onResolved: ()
           <div className="card-raised flex flex-col gap-4 rounded-2xl p-4 sm:flex-row sm:items-center sm:p-5">
             <IconTile icon={TaskDone01Icon} tone="indigo" />
             <div className="min-w-0 flex-1">
-              <p className="text-base font-black">Ready to decide?</p>
+              <p className="text-base font-bold">Ready to decide?</p>
               <p className="mt-0.5 text-sm leading-snug font-semibold text-muted-foreground">
                 Dismiss, confirm or escalate this flag. Your decision and note are written to the audit log.
               </p>
@@ -206,7 +206,7 @@ function ResolveForm({ flagId, onResolved, onCancel }: ResolveFormProps) {
   return (
     <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-5">
       <fieldset>
-        <legend className="mb-2 text-sm font-extrabold">Decision</legend>
+        <legend className="mb-2 text-sm font-bold">Decision</legend>
         <div className="grid gap-2 sm:grid-cols-3">
           {flagActions.map((option) => (
             <label
@@ -226,7 +226,7 @@ function ResolveForm({ flagId, onResolved, onCancel }: ResolveFormProps) {
                 onChange={() => setAction(option.value)}
                 className="sr-only"
               />
-              <span className="text-sm font-black">{option.label}</span>
+              <span className="text-sm font-bold">{option.label}</span>
               <span className="text-xs leading-snug font-semibold text-muted-foreground">{option.description}</span>
             </label>
           ))}

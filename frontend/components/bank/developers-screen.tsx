@@ -173,19 +173,19 @@ function DocsPanel({ webhookDelivery, onTry }: { webhookDelivery?: string; onTry
       <Section title="Connect" description="Every machine request needs a key from the API keys tab.">
         <dl className="card-raised divide-y-2 divide-hairline rounded-2xl">
           <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-6">
-            <dt className="text-sm font-extrabold sm:w-40 sm:shrink-0">Base URL</dt>
+            <dt className="text-sm font-bold sm:w-40 sm:shrink-0">Base URL</dt>
             <dd className="flex min-w-0 flex-1 items-center justify-between gap-3">
               <span className="font-mono text-sm break-all text-muted-foreground">{baseUrl}</span>
               <CopyButton value={baseUrl} />
             </dd>
           </div>
           <div className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:gap-6">
-            <dt className="text-sm font-extrabold sm:w-40 sm:shrink-0">Auth header</dt>
+            <dt className="text-sm font-bold sm:w-40 sm:shrink-0">Auth header</dt>
             <dd className="font-mono text-sm text-muted-foreground">{sampleRequest.apiKeyHeader}</dd>
           </div>
           {webhookDelivery && (
             <div className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:gap-6">
-              <dt className="text-sm font-extrabold sm:w-40 sm:shrink-0">Webhooks</dt>
+              <dt className="text-sm font-bold sm:w-40 sm:shrink-0">Webhooks</dt>
               <dd className="text-sm font-semibold text-muted-foreground">{webhookDelivery}</dd>
             </div>
           )}
@@ -205,7 +205,7 @@ function DocsPanel({ webhookDelivery, onTry }: { webhookDelivery?: string; onTry
           {machineEndpoints.map((endpoint) => (
             <li key={endpoint.path} className="card-raised rounded-2xl p-4">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-primary px-2.5 py-0.5 text-xs font-black text-primary-foreground">
+                <span className="rounded-full bg-primary px-2.5 py-0.5 text-xs font-bold text-primary-foreground">
                   {endpoint.method}
                 </span>
                 <code className="font-mono text-sm font-bold break-all">{endpoint.path}</code>
@@ -228,7 +228,7 @@ function DocsPanel({ webhookDelivery, onTry }: { webhookDelivery?: string; onTry
 
       <p className="text-sm font-semibold text-muted-foreground">
         Pitching Sura to your team?{" "}
-        <Link href={routes.forBanks} className="font-extrabold text-link underline-offset-4 hover:underline">
+        <Link href={routes.forBanks} className="font-bold text-link underline-offset-4 hover:underline">
           See the overview for banks
         </Link>
       </p>

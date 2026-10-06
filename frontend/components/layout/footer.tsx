@@ -26,7 +26,7 @@ export function Footer() {
 
           {footerNav.map((group) => (
             <div key={group.title}>
-              <h3 className="text-xs font-extrabold tracking-wider text-gold">
+              <h3 className="text-xs font-bold tracking-wider text-gold">
                 {group.title}
               </h3>
               <ul className="mt-4 flex flex-col gap-3">

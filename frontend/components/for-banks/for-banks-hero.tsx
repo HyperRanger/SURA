@@ -11,7 +11,7 @@ export function ForBanksHero() {
     <section className="relative overflow-hidden pt-10 pb-16 md:pt-16 md:pb-24">
       <div className="container-page relative grid items-center gap-12 lg:grid-cols-[1.15fr_0.85fr]">
         <div>
-          <h1 className="mt-6 text-4xl leading-[1.05] font-black tracking-tight text-balance sm:text-5xl md:text-6xl">
+          <h1 className="mt-6 text-4xl leading-[1.05] font-bold tracking-tight text-balance sm:text-5xl md:text-6xl">
             A savings product and a credit signal, <span className="text-link">in one API.</span>
           </h1>
           <p className="mt-6 max-w-xl text-base leading-relaxed text-pretty text-muted-foreground sm:text-lg">

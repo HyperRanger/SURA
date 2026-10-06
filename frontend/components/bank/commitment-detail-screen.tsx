@@ -121,7 +121,7 @@ function CommitmentDetail({ commitment, initialTab, onChanged }: CommitmentDetai
                 type="button"
                 title="Open the support tab"
                 onClick={() => setTab("support")}
-                className="cursor-pointer font-extrabold underline underline-offset-4"
+                className="cursor-pointer font-bold underline underline-offset-4"
               >
                 Support tab
               </button>
@@ -242,7 +242,7 @@ function PayoutDecision({ commitment, nameOf }: { commitment: BankCommitment; na
           <ol className="card-raised flex flex-wrap gap-2 rounded-2xl p-4">
             {commitment.payout_order.map((userId, index) => (
               <li key={`${userId}-${index}`} className="flex items-center gap-2 rounded-full bg-cloud py-1 pr-3 pl-1 text-sm font-bold">
-                <span className="flex size-6 items-center justify-center rounded-full bg-primary text-xs font-black text-primary-foreground">
+                <span className="flex size-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
                   {index + 1}
                 </span>
                 {nameOf(userId)}

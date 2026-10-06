@@ -42,7 +42,7 @@ export function Alert({ variant = "info", title, children, icon, action, classNa
         className="mt-px shrink-0"
       />
       <div className="flex-1">
-        {title && <p className="font-extrabold">{title}</p>}
+        {title && <p className="font-bold">{title}</p>}
         {children && <div className={cn(title && "mt-0.5 font-semibold opacity-90")}>{children}</div>}
       </div>
       {action}

@@ -78,7 +78,7 @@ export function SelectFilter<T extends string>({
 }: SelectFilterProps<T>) {
   return (
     <div className={cn("flex flex-col gap-1.5 sm:w-44", className)}>
-      <label htmlFor={id} className="text-xs font-extrabold text-muted-foreground">
+      <label htmlFor={id} className="text-xs font-bold text-muted-foreground">
         {label}
       </label>
       <Select
@@ -115,7 +115,7 @@ type TextFilterProps = {
 export function TextFilter({ id, label, value, onChange, placeholder, className }: TextFilterProps) {
   return (
     <div className={cn("flex flex-col gap-1.5 sm:w-56", className)}>
-      <label htmlFor={id} className="text-xs font-extrabold text-muted-foreground">
+      <label htmlFor={id} className="text-xs font-bold text-muted-foreground">
         {label}
       </label>
       <Input
@@ -142,7 +142,7 @@ type DateFilterProps = {
 export function DateFilter({ id, label, value, onChange, className }: DateFilterProps) {
   return (
     <div className={cn("flex flex-col gap-1.5 sm:w-48", className)}>
-      <label htmlFor={id} className="text-xs font-extrabold text-muted-foreground">
+      <label htmlFor={id} className="text-xs font-bold text-muted-foreground">
         {label}
       </label>
       <DatePicker id={id} value={value} onChange={onChange} placeholder="Any day" />
