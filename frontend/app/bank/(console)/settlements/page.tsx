@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { SettlementsScreen, type SettlementScope } from "@/components/bank/settlements-screen"
 
-export const metadata: Metadata = { title: "settlements — sura bank console" }
+export const metadata: Metadata = { title: "Settlements — Sura bank console" }
 
 // B10
 export default async function BankSettlementsPage({ searchParams }: PageProps<"/bank/settlements">) {

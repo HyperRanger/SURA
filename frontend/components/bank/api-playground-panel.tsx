@@ -27,14 +27,14 @@ type Endpoint = "score" | "commitments"
 const endpointOptions: ChoiceOption<Endpoint>[] = [
   {
     value: "score",
-    label: "customer score",
-    description: "score, tier and the five-pillar breakdown. needs score:read.",
+    label: "Customer score",
+    description: "Score, tier and the five-pillar breakdown. Needs score:read.",
     icon: ChartLineData01Icon,
   },
   {
     value: "commitments",
-    label: "customer commitments",
-    description: "locks, payout slot and voucher outcome. needs commitments:read.",
+    label: "Customer commitments",
+    description: "Locks, payout slot and voucher outcome. Needs commitments:read.",
     icon: RepeatIcon,
   },
 ]
@@ -50,11 +50,11 @@ const noFilters: [object] = [{}]
 // what a status means for whoever is integrating, in their words
 function statusHint(status: number, endpoint: Endpoint) {
   if (status >= 200 && status < 300) return null
-  if (status === 401) return "the key is missing, mistyped, expired or revoked."
-  if (status === 403) return `this key doesn't hold the ${endpoint === "score" ? "score:read" : "commitments:read"} scope.`
-  if (status === 404) return "no customer of your bank has that sura id."
-  if (status === 429) return "too many requests. wait a moment and send again."
-  return "the api couldn't answer. try again shortly."
+  if (status === 401) return "The key is missing, mistyped, expired or revoked."
+  if (status === 403) return `This key doesn't hold the ${endpoint === "score" ? "score:read" : "commitments:read"} scope.`
+  if (status === 404) return "No customer of your bank has that Sura ID."
+  if (status === 429) return "Too many requests. Wait a moment and send again."
+  return "The API couldn't answer. Try again shortly."
 }
 
 // keys longer than the stored prefix are shown masked, so a screen share never leaks one
@@ -87,7 +87,7 @@ export function ApiPlaygroundPanel({ apiKey, onApiKeyChange, onCreateKey }: ApiP
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     if (!apiKey.trim()) {
-      setKeyError("paste an api key, or create one first")
+      setKeyError("Paste an API key, or create one first")
       return
     }
     if (!customerId) return
@@ -100,25 +100,25 @@ export function ApiPlaygroundPanel({ apiKey, onApiKeyChange, onCreateKey }: ApiP
 
   return (
     <Section
-      title="try the api"
-      description="make a real request with one of your keys and see exactly what your servers would get back."
+      title="Try the API"
+      description="Make a real request with one of your keys and see exactly what your servers would get back."
     >
       <div className="grid gap-4 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:items-start">
         <form noValidate onSubmit={handleSubmit} className="card-raised flex flex-col gap-5 rounded-2xl p-4 sm:p-5">
           <Field
             id="playground-key"
-            label="api key"
+            label="API key"
             error={keyError}
             hint={
               <>
-                kept on this page only.{" "}
+                Kept on this page only.{" "}
                 <button
                   type="button"
-                  title="go to api keys and create a sandbox key"
+                  title="Go to API keys and create a sandbox key"
                   onClick={onCreateKey}
-                  className="cursor-pointer font-extrabold text-link underline-offset-4 hover:underline"
+                  className="cursor-pointer font-bold text-link underline-offset-4 hover:underline"
                 >
-                  create a key
+                  Create a key
                 </button>{" "}
                 if you don&apos;t have one.
               </>
@@ -148,8 +148,8 @@ export function ApiPlaygroundPanel({ apiKey, onApiKeyChange, onCreateKey }: ApiP
               />
               <button
                 type="button"
-                aria-label={showKey ? "hide key" : "show key"}
-                title={showKey ? "hide key" : "show key"}
+                aria-label={showKey ? "Hide key" : "Show key"}
+                title={showKey ? "Hide key" : "Show key"}
                 onClick={() => setShowKey((value) => !value)}
                 className="absolute top-1/2 right-2 flex size-9 -translate-y-[calc(50%+1px)] cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-cloud hover:text-link"
               >
@@ -159,8 +159,8 @@ export function ApiPlaygroundPanel({ apiKey, onApiKeyChange, onCreateKey }: ApiP
           </Field>
 
           <div className="flex flex-col gap-2">
-            <span id="playground-endpoint-label" className="text-sm font-extrabold">
-              endpoint
+            <span id="playground-endpoint-label" className="text-sm font-bold">
+              Endpoint
             </span>
             <ChoiceCards
               name="playground-endpoint"
@@ -172,22 +172,22 @@ export function ApiPlaygroundPanel({ apiKey, onApiKeyChange, onCreateKey }: ApiP
           </div>
 
           {canListCustomers ? (
-            <Field id="playground-customer" label="customer">
+            <Field id="playground-customer" label="Customer">
               <Select
                 items={(customers.data ?? []).map((row) => ({ value: row.user_id, label: row.name }))}
                 value={customerId || null}
                 onValueChange={(next) => setPicked(next ?? "")}
                 disabled={!customers.data?.length}
               >
-                <SelectTrigger id="playground-customer" title="the customer to look up">
-                  <SelectValue placeholder={customers.isLoading ? "loading customers…" : "no customers yet"} />
+                <SelectTrigger id="playground-customer" title="The customer to look up">
+                  <SelectValue placeholder={customers.isLoading ? "Loading customers…" : "No customers yet"} />
                 </SelectTrigger>
                 <SelectContent>
                   {customers.data?.map((row) => (
                     <SelectItem key={row.user_id} value={row.user_id}>
                       <span className="flex min-w-0 items-center justify-between gap-3">
                         <span className="truncate">{row.name}</span>
-                        <span className="shrink-0 font-mono text-xs text-muted-foreground normal-case">{row.user_id}</span>
+                        <span className="shrink-0 font-mono text-xs text-muted-foreground">{row.user_id}</span>
                       </span>
                     </SelectItem>
                   ))}
@@ -195,7 +195,7 @@ export function ApiPlaygroundPanel({ apiKey, onApiKeyChange, onCreateKey }: ApiP
               </Select>
             </Field>
           ) : (
-            <Field id="playground-customer" label="sura customer id">
+            <Field id="playground-customer" label="Sura customer ID">
               <Input
                 id="playground-customer"
                 value={picked || sampleCustomer}
@@ -208,29 +208,29 @@ export function ApiPlaygroundPanel({ apiKey, onApiKeyChange, onCreateKey }: ApiP
           )}
 
           {send.error && (
-            <Alert variant="error" title="the request didn't reach sura">
-              check your connection, then send again.
+            <Alert variant="error" title="The request didn't reach Sura">
+              Check your connection, then send again.
             </Alert>
           )}
 
           <Button type="submit" loading={send.isPending} disabled={!customerId} title={`GET ${path}`}>
             <HugeiconsIcon icon={SentIcon} size={18} strokeWidth={2.2} />
-            send request
+            Send request
           </Button>
         </form>
 
         <div className="flex min-w-0 flex-col gap-4">
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-extrabold">request</p>
-              <CopyButton value={curl(apiKey.trim() || "<your api key>")} label="copy curl" />
+              <p className="text-sm font-bold">Request</p>
+              <CopyButton value={curl(apiKey.trim() || "<your api key>")} label="Copy curl" />
             </div>
             <CodeBlock code={curl(apiKey.trim() ? maskKey(apiKey.trim()) : "<your api key>")} />
           </div>
 
           <div className="flex flex-col gap-2" aria-live="polite">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-sm font-extrabold">response</p>
+              <p className="text-sm font-bold">Response</p>
               {response && (
                 <span className="flex items-center gap-2">
                   <StatusBadge
@@ -253,7 +253,7 @@ export function ApiPlaygroundPanel({ apiKey, onApiKeyChange, onCreateKey }: ApiP
               </>
             ) : (
               <p className="rounded-2xl border-2 border-dashed border-hairline px-4 py-10 text-center text-sm font-semibold text-muted-foreground">
-                send a request to see the live response here.
+                Send a request to see the live response here.
               </p>
             )}
           </div>

@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import { FlagDetailScreen } from "@/components/bank/flag-detail-screen"
 
-export const metadata: Metadata = { title: "risk flag — sura bank console" }
+export const metadata: Metadata = { title: "Risk flag — Sura bank console" }
 
 // B9
 export default async function BankFlagPage({ params }: PageProps<"/bank/flags/[id]">) {

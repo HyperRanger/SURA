@@ -33,12 +33,12 @@ const noArgs: [] = []
 
 // the api only accepts absolute https urls
 function urlError(url: string) {
-  if (!url.trim()) return "enter the https url that should receive events"
+  if (!url.trim()) return "Enter the HTTPS URL that should receive events"
   try {
     const parsed = new URL(url.trim())
-    return parsed.protocol === "https:" ? undefined : "the url must start with https://"
+    return parsed.protocol === "https:" ? undefined : "The URL must start with https://"
   } catch {
-    return "enter a full url, e.g. https://bank.example/hooks/sura"
+    return "Enter a full URL, e.g. https://bank.example/hooks/sura"
   }
 }
 
@@ -50,9 +50,9 @@ type DialogState =
 
 function dialogTitle(dialog: DialogState) {
   if (!dialog) return ""
-  if (dialog.step === "create") return "add an endpoint"
-  if (dialog.step === "edit") return "edit endpoint"
-  return dialog.rotated ? "new signing secret" : "endpoint added"
+  if (dialog.step === "create") return "Add an endpoint"
+  if (dialog.step === "edit") return "Edit endpoint"
+  return dialog.rotated ? "New signing secret" : "Endpoint added"
 }
 
 // B11. subscriptions are configured and tested here. this release sends signed,
@@ -64,14 +64,14 @@ export function WebhooksPanel({ onViewLogs }: { onViewLogs: (webhookId: string) 
   const addButton = (
     <Button type="button" size="sm" onClick={() => setDialog({ step: "create" })}>
       <HugeiconsIcon icon={Add01Icon} size={18} strokeWidth={2.4} />
-      add endpoint
+      Add endpoint
     </Button>
   )
 
   return (
     <Section
-      title="webhooks"
-      description="sura signs each payload with an hmac-sha256 of its body, keyed with the endpoint's signing secret."
+      title="Webhooks"
+      description="Sura signs each payload with an HMAC-SHA256 of its body, keyed with the endpoint's signing secret."
       action={webhooks.data && webhooks.data.length > 0 && addButton}
     >
       <QueryState
@@ -82,8 +82,8 @@ export function WebhooksPanel({ onViewLogs }: { onViewLogs: (webhookId: string) 
         empty={
           <EmptyState
             icon={WebhookIcon}
-            title="no endpoints yet"
-            description="add an https endpoint, then send it a signed test delivery."
+            title="No endpoints yet"
+            description="Add an HTTPS endpoint, then send it a signed test delivery."
             action={addButton}
           />
         }
@@ -111,7 +111,7 @@ export function WebhooksPanel({ onViewLogs }: { onViewLogs: (webhookId: string) 
         title={dialogTitle(dialog)}
         description={
           dialog?.step === "secret" ? (
-            <span className="font-mono break-all normal-case">{dialog.url}</span>
+            <span className="font-mono break-all">{dialog.url}</span>
           ) : dialog?.step === "create" ? (
             "choose where sura should send events, and which ones."
           ) : undefined
@@ -121,8 +121,8 @@ export function WebhooksPanel({ onViewLogs }: { onViewLogs: (webhookId: string) 
           <SecretView secret={dialog.secret} onDone={() => setDialog(null)}>
             <p className="text-sm font-semibold text-muted-foreground">
               {dialog.rotated
-                ? "deliveries are signed with this secret from now on. update your verifier before the next one."
-                : "use this to verify that each delivery really came from sura."}
+                ? "Deliveries are signed with this secret from now on. Update your verifier before the next one."
+                : "Use this to verify that each delivery really came from Sura."}
             </p>
           </SecretView>
         ) : dialog ? (
@@ -171,7 +171,7 @@ function WebhookForm({ webhook, onCancel, onCreated, onSaved }: WebhookFormProps
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const nextErrors = { url: urlError(url), events: events.length ? undefined : "choose at least one event" }
+    const nextErrors = { url: urlError(url), events: events.length ? undefined : "Choose at least one event" }
     setErrors(nextErrors)
     if (nextErrors.url || nextErrors.events) return
 
@@ -187,7 +187,7 @@ function WebhookForm({ webhook, onCancel, onCreated, onSaved }: WebhookFormProps
 
   return (
     <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-5">
-      <Field id={`${prefix}-url`} label="endpoint url" error={errors.url}>
+      <Field id={`${prefix}-url`} label="Endpoint URL" error={errors.url}>
         <Input
           id={`${prefix}-url`}
           type="url"
@@ -207,7 +207,7 @@ function WebhookForm({ webhook, onCancel, onCreated, onSaved }: WebhookFormProps
 
       <fieldset>
         <div className="mb-2 flex items-center justify-between gap-3">
-          <legend className="text-sm font-extrabold">events</legend>
+          <legend className="text-sm font-bold">Events</legend>
           <Button
             type="button"
             variant="link"
@@ -215,7 +215,7 @@ function WebhookForm({ webhook, onCancel, onCreated, onSaved }: WebhookFormProps
             className="h-auto px-0"
             onClick={() => setEvents(allChosen ? [] : [...webhookEvents])}
           >
-            {allChosen ? "clear all" : "select all"}
+            {allChosen ? "Clear all" : "Select all"}
           </Button>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -226,7 +226,7 @@ function WebhookForm({ webhook, onCancel, onCreated, onSaved }: WebhookFormProps
               checked={events.includes(name)}
               onChange={(event) => toggleEvent(name, event.target.checked)}
               invalid={Boolean(errors.events)}
-              label={<span className="font-mono text-xs font-bold text-foreground normal-case">{name}</span>}
+              label={<span className="font-mono text-xs font-bold text-foreground">{name}</span>}
             />
           ))}
         </div>
@@ -237,10 +237,10 @@ function WebhookForm({ webhook, onCancel, onCreated, onSaved }: WebhookFormProps
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button type="button" variant="ghost" onClick={onCancel} disabled={pending}>
-          cancel
+          Cancel
         </Button>
         <Button type="submit" loading={pending}>
-          {webhook ? "save changes" : "add endpoint"}
+          {webhook ? "Save changes" : "Add endpoint"}
         </Button>
       </div>
     </form>
@@ -290,43 +290,43 @@ function WebhookRow({ webhook, onChanged, onEdit, onSecret, onViewLogs }: Webhoo
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={webhook.status} tone={active ? "indigo" : "neutral"} />
-            <p className="min-w-0 font-mono text-sm font-bold break-all normal-case">{webhook.url}</p>
+            <p className="min-w-0 font-mono text-sm font-bold break-all">{webhook.url}</p>
           </div>
           <ul className="mt-3 flex flex-wrap gap-1.5">
             {webhook.events.map((event) => (
               <li
                 key={event}
-                className="rounded-full border-2 border-hairline bg-card px-2.5 py-0.5 font-mono text-xs font-bold normal-case"
+                className="rounded-full border-2 border-hairline bg-card px-2.5 py-0.5 font-mono text-xs font-bold"
               >
                 {event}
               </li>
             ))}
           </ul>
           <p className="mt-3 text-xs font-bold text-muted-foreground">
-            added {formatDateTime(webhook.created_at)}
+            Added {formatDateTime(webhook.created_at)}
             {webhook.updated_at && ` · updated ${formatDateTime(webhook.updated_at)}`}
           </p>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           <Button type="button" size="sm" onClick={handleTest} loading={test.isPending} disabled={!active}>
-            send test
+            Send test
           </Button>
           <Button type="button" size="sm" variant="outline" onClick={onViewLogs}>
-            logs
+            Logs
           </Button>
           <Button type="button" size="sm" variant="outline" onClick={onEdit}>
-            edit
+            Edit
           </Button>
-          <ConfirmButton confirmLabel="yes, rotate" loading={rotate.isPending} onConfirm={handleRotate}>
-            rotate secret
+          <ConfirmButton confirmLabel="Yes, rotate" loading={rotate.isPending} onConfirm={handleRotate}>
+            Rotate secret
           </ConfirmButton>
           {active ? (
-            <ConfirmButton confirmLabel="yes, disable" variant="ghost" loading={disable.isPending} onConfirm={handleDisable}>
-              disable
+            <ConfirmButton confirmLabel="Yes, disable" variant="ghost" loading={disable.isPending} onConfirm={handleDisable}>
+              Disable
             </ConfirmButton>
           ) : (
             <Button type="button" size="sm" variant="ghost" onClick={handleEnable} loading={enable.isPending}>
-              enable
+              Enable
             </Button>
           )}
         </div>
@@ -337,10 +337,10 @@ function WebhookRow({ webhook, onChanged, onEdit, onSecret, onViewLogs }: Webhoo
       {lastTest && (
         <Alert
           variant="info"
-          title={`test delivered · ${lastTest.response_status ?? "no"} response`}
+          title={`Test delivered · ${lastTest.response_status ?? "no"} response`}
           action={
             <Button type="button" variant="outline" size="sm" onClick={onViewLogs}>
-              view in logs
+              View in logs
             </Button>
           }
         >

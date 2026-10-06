@@ -34,7 +34,7 @@ function DropdownMenuContent({
         <MenuPrimitive.Popup
           data-slot="dropdown-menu-content"
           className={cn(
-            "card-raised max-h-(--available-height) min-w-56 origin-(--transform-origin) overflow-y-auto rounded-3xl p-1.5 text-foreground shadow-xl lowercase outline-none",
+            "card-raised max-h-(--available-height) min-w-56 origin-(--transform-origin) overflow-y-auto rounded-3xl p-1.5 text-foreground shadow-xl outline-none",
             "transition-[transform,scale,opacity] duration-150 data-ending-style:scale-95 data-ending-style:opacity-0 data-starting-style:scale-95 data-starting-style:opacity-0",
             className
           )}
@@ -46,7 +46,7 @@ function DropdownMenuContent({
 }
 
 const itemClassName =
-  "flex w-full cursor-pointer items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-extrabold text-muted-foreground outline-none select-none data-highlighted:bg-cloud data-highlighted:text-link data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:shrink-0"
+  "flex w-full cursor-pointer items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-bold text-muted-foreground outline-none select-none data-highlighted:bg-cloud data-highlighted:text-link data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:shrink-0"
 
 function DropdownMenuItem({
   className,
@@ -79,7 +79,7 @@ function DropdownMenuLabel({ className, ...props }: MenuPrimitive.GroupLabel.Pro
   return (
     <MenuPrimitive.GroupLabel
       data-slot="dropdown-menu-label"
-      className={cn("px-3 pt-2 pb-1 text-xs font-extrabold tracking-wide text-muted-foreground", className)}
+      className={cn("px-3 pt-2 pb-1 text-xs font-bold tracking-wide text-muted-foreground", className)}
       {...props}
     />
   )

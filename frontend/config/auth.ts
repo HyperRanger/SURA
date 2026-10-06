@@ -12,23 +12,23 @@ export const OTP_LENGTH = 6
 export const accountTypeOptions: ChoiceOption<SelfServiceRole>[] = [
   {
     value: "individual",
-    label: "i'm saving",
-    description: "join or start savings circles",
+    label: "I'm saving",
+    description: "Join or start savings circles",
     icon: UserIcon,
   },
   {
     value: "vendor",
-    label: "i'm a vendor",
-    description: "accept sura vouchers at my shop",
+    label: "I'm a vendor",
+    description: "Accept Sura vouchers at my shop",
     icon: Store01Icon,
   },
 ]
 
 export const incomeContextOptions: ChoiceOption<IncomeContext>[] = [
-  { value: "trader", label: "trader", description: "daily or weekly sales", icon: Store01Icon },
-  { value: "student", label: "student", description: "allowance or fees", icon: StudentIcon },
-  { value: "freelancer", label: "freelancer", description: "paid per gig", icon: LaptopIcon },
-  { value: "other", label: "other", description: "something else", icon: MoreHorizontalCircle01Icon },
+  { value: "trader", label: "Trader", description: "Daily or weekly sales", icon: Store01Icon },
+  { value: "student", label: "Student", description: "Allowance or fees", icon: StudentIcon },
+  { value: "freelancer", label: "Freelancer", description: "Paid per gig", icon: LaptopIcon },
+  { value: "other", label: "Other", description: "Something else", icon: MoreHorizontalCircle01Icon },
 ]
 
 // signup is split into short steps. savers end on how they earn, vendors on their business
@@ -42,8 +42,8 @@ export type SignupStep = {
 
 const accountStep: SignupStep = {
   id: "account",
-  title: "what brings you to sura?",
-  description: "you can't switch later, so pick the one that fits.",
+  title: "What brings you to Sura?",
+  description: "You can't switch later, so pick the one that fits.",
 }
 
 export const signupSteps: Record<SelfServiceRole, SignupStep[]> = {
@@ -51,26 +51,26 @@ export const signupSteps: Record<SelfServiceRole, SignupStep[]> = {
     accountStep,
     {
       id: "details",
-      title: "tell us who you are",
-      description: "we'll text a 6-digit code to this number to confirm it's yours.",
+      title: "Tell us who you are",
+      description: "We'll text a 6-digit code to this number to confirm it's yours.",
     },
     {
       id: "earning",
-      title: "how do you earn?",
-      description: "this helps us shape sura around your income. it never limits what you can do.",
+      title: "How do you earn?",
+      description: "This helps us shape Sura around your income. It never limits what you can do.",
     },
   ],
   vendor: [
     accountStep,
     {
       id: "details",
-      title: "who runs the shop?",
-      description: "we'll text a 6-digit code to this number to confirm it's yours.",
+      title: "Who runs the shop?",
+      description: "We'll text a 6-digit code to this number to confirm it's yours.",
     },
     {
       id: "business",
-      title: "about your business",
-      description: "we verify every vendor before they can accept vouchers.",
+      title: "About your business",
+      description: "We verify every vendor before they can accept vouchers.",
     },
   ],
 }

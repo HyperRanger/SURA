@@ -143,7 +143,6 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
-    text-transform: lowercase;
   }
   /* tailwind 4 leaves buttons on the default arrow; anything clickable shows a hand */
   button:not(:disabled),

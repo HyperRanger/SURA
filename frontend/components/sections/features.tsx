@@ -8,8 +8,8 @@ export function Features() {
     <section id="features" className="py-20 md:py-28">
       <div className="container-page">
         <SectionHeading
-          title="the rules of ajo, enforced by software"
-          description="sura gives a bank a ready-made savings circle product, and a fair way to lend to the people who use it."
+          title="The rules of ajo, enforced by software"
+          description="Sura gives a bank a ready-made savings circle product, and a fair way to lend to the people who use it."
         />
 
         <div className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -19,8 +19,8 @@ export function Features() {
         </div>
 
         <div className="mt-16 rounded-[2rem] bg-cloud p-6 sm:p-8">
-          <p className="text-center text-sm font-extrabold tracking-wide text-muted-foreground">
-            built for people paid in bursts, and the banks that serve them
+          <p className="text-center text-sm font-bold tracking-wide text-muted-foreground">
+            Built for people paid in bursts, and the banks that serve them
           </p>
           <ul className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {audiences.map((audience) => (
@@ -32,7 +32,7 @@ export function Features() {
                   <HugeiconsIcon icon={audience.icon} size={22} strokeWidth={2} />
                 </span>
                 <span>
-                  <span className="block text-sm font-black">{audience.title}</span>
+                  <span className="block text-sm font-bold">{audience.title}</span>
                   <span className="block text-xs leading-snug font-semibold text-muted-foreground">
                     {audience.description}
                   </span>

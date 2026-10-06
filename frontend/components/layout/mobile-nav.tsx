@@ -24,22 +24,22 @@ export function MobileNav() {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger
-        aria-label="open menu"
-        title="open menu"
+        aria-label="Open menu"
+        title="Open menu"
         className="flex size-10 items-center justify-center rounded-full border-2 border-hairline text-foreground transition-colors hover:border-link hover:text-link"
       >
         <HugeiconsIcon icon={Menu01Icon} size={20} strokeWidth={2} />
       </SheetTrigger>
 
-      <SheetContent side="right" className="w-full max-w-sm gap-0 lowercase">
+      <SheetContent side="right" className="w-full max-w-sm gap-0">
         <SheetHeader className="p-5">
           <SheetTitle render={<div />}>
             <Logo />
           </SheetTitle>
-          <SheetDescription className="sr-only">site navigation</SheetDescription>
+          <SheetDescription className="sr-only">Site navigation</SheetDescription>
         </SheetHeader>
 
-        <nav aria-label="mobile" className="flex flex-col gap-1 px-3">
+        <nav aria-label="Mobile" className="flex flex-col gap-1 px-3">
           {mainNav.map((link) => (
             <Link
               key={link.href}
@@ -56,10 +56,10 @@ export function MobileNav() {
           <Link
             href={routes.bank.login}
             onClick={close}
-            title="sign in to the bank console"
+            title="Sign in to the bank console"
             className={buttonVariants({ className: "w-full" })}
           >
-            bank login
+            Bank login
           </Link>
         </div>
       </SheetContent>

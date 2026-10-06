@@ -70,7 +70,7 @@ export function ChoiceCards<T extends string>({
               </span>
             )}
             <span className="min-w-0 flex-1">
-              <span className="block text-[15px] font-extrabold text-foreground">{option.label}</span>
+              <span className="block text-[15px] font-bold text-foreground">{option.label}</span>
               {option.description && (
                 <span className="block text-xs leading-snug font-semibold text-muted-foreground">
                   {option.description}

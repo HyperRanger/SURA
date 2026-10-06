@@ -6,7 +6,7 @@ import { CheckmarkCircle02Icon, Copy01Icon } from "@hugeicons/core-free-icons"
 import { Button } from "@/components/ui/button"
 
 // copies text and says so for a moment. stays quiet if the browser refuses
-export function CopyButton({ value, label = "copy" }: { value: string; label?: string }) {
+export function CopyButton({ value, label = "Copy" }: { value: string; label?: string }) {
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -27,7 +27,7 @@ export function CopyButton({ value, label = "copy" }: { value: string; label?: s
   return (
     <Button type="button" variant="outline" size="sm" onClick={handleCopy} aria-live="polite">
       <HugeiconsIcon icon={copied ? CheckmarkCircle02Icon : Copy01Icon} size={18} strokeWidth={2.2} />
-      {copied ? "copied" : label}
+      {copied ? "Copied" : label}
     </Button>
   )
 }

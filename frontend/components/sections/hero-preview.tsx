@@ -97,16 +97,16 @@ export function HeroPreview() {
       <div data-anim="card" className="card-raised rounded-[2rem] p-5 sm:p-7">
         <div data-anim="head" className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-extrabold tracking-wide text-muted-foreground">
-              rotating circle · {circlePreview.frequency}
+            <p className="text-xs font-bold tracking-wide text-muted-foreground">
+              Rotating circle · {circlePreview.frequency}
             </p>
-            <h3 className="mt-1 text-xl font-black">{circlePreview.title}</h3>
+            <h3 className="mt-1 text-xl font-bold">{circlePreview.title}</h3>
           </div>
           <span
             ref={cycleBadgeRef}
-            className="rounded-full bg-indigo-soft px-3 py-1 text-xs font-extrabold text-link tabular-nums"
+            className="rounded-full bg-indigo-soft px-3 py-1 text-xs font-bold text-link tabular-nums"
           >
-            cycle <span ref={cycleRef}>{cycle}</span> of {cycles}
+            Cycle <span ref={cycleRef}>{cycle}</span> of {cycles}
           </span>
         </div>
 
@@ -138,7 +138,7 @@ export function HeroPreview() {
             <li key={member.name} data-anim="member" className="flex items-center gap-3">
               <span
                 className={cn(
-                  "flex size-9 items-center justify-center rounded-full text-sm font-black",
+                  "flex size-9 items-center justify-center rounded-full text-sm font-bold",
                   avatarColors[i % avatarColors.length]
                 )}
               >
@@ -147,23 +147,23 @@ export function HeroPreview() {
               <span className="flex-1 text-sm font-bold">
                 {member.name}
                 {member.name === circlePreview.beneficiary && (
-                  <span className="ml-2 rounded-full bg-indigo-soft px-2 py-0.5 text-[11px] font-extrabold text-link">
-                    this cycle&apos;s payout
+                  <span className="ml-2 rounded-full bg-indigo-soft px-2 py-0.5 text-[11px] font-bold text-link">
+                    This cycle&apos;s payout
                   </span>
                 )}
               </span>
               {paid[i] ? (
                 <span
                   className={cn(
-                    "flex items-center gap-1 text-xs font-extrabold text-gold-deep",
+                    "flex items-center gap-1 text-xs font-bold text-gold-deep",
                     !member.paid && "animate-in duration-300 fade-in zoom-in-50"
                   )}
                 >
                   <HugeiconsIcon icon={Tick02Icon} size={16} strokeWidth={3} />
-                  paid
+                  Paid
                 </span>
               ) : (
-                <span className="text-xs font-extrabold text-muted-foreground">pending</span>
+                <span className="text-xs font-bold text-muted-foreground">Pending</span>
               )}
             </li>
           ))}
@@ -174,7 +174,7 @@ export function HeroPreview() {
             <HugeiconsIcon icon={Store01Icon} size={18} strokeWidth={2.2} />
           </span>
           <p className="text-xs leading-snug font-bold text-muted-foreground">
-            payout redeemable only at{" "}
+            Payout redeemable only at{" "}
             <span className="text-foreground">{circlePreview.vendor}</span>
           </p>
         </div>
@@ -185,7 +185,7 @@ export function HeroPreview() {
           <span className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
             <HugeiconsIcon icon={Ticket01Icon} size={16} strokeWidth={2.2} />
           </span>
-          <span className="text-xs font-extrabold whitespace-nowrap">cycle 1 redeemed by amaka</span>
+          <span className="text-xs font-bold whitespace-nowrap">Cycle 1 redeemed by Amaka</span>
         </div>
         <ScoreCard />
       </div>
@@ -197,10 +197,10 @@ function ScoreCard() {
   return (
     <div data-anim="float" className="card-raised w-full rounded-[1.75rem] p-5 sm:max-w-[16rem]">
       <div className="flex items-baseline justify-between">
-        <p className="text-xs font-extrabold tracking-wide text-muted-foreground">sura score</p>
+        <p className="text-xs font-bold tracking-wide text-muted-foreground">Sura score</p>
         <p className="text-xs font-bold text-muted-foreground">/ {scorePreview.max}</p>
       </div>
-      <p data-anim="score-total" className="mt-1 text-4xl font-black tracking-tight text-gold-deep tabular-nums">
+      <p data-anim="score-total" className="mt-1 text-4xl font-bold tracking-tight text-gold-deep tabular-nums">
         {scorePreview.total}
       </p>
       <ul className="mt-3 flex flex-col gap-2">

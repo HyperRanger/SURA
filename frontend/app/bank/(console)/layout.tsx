@@ -3,7 +3,7 @@ import type { ReactNode } from "react"
 import { BankShell } from "@/components/bank/bank-shell"
 
 export const metadata: Metadata = {
-  title: "bank console — sura",
+  title: "Bank console — Sura",
   robots: { index: false },
 }
 

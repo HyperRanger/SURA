@@ -29,7 +29,7 @@ export function OtpInput({
   invalid,
   autoFocus,
   describedBy,
-  label = "verification code",
+  label = "Verification code",
 }: OtpInputProps) {
   const refs = useRef<(HTMLInputElement | null)[]>([])
   const digits = Array.from({ length }, (_, i) => value[i] ?? "")
@@ -103,10 +103,10 @@ export function OtpInput({
           autoComplete={index === 0 ? "one-time-code" : "off"}
           autoFocus={autoFocus && index === 0}
           disabled={disabled}
-          aria-label={`digit ${index + 1} of ${length}`}
+          aria-label={`Digit ${index + 1} of ${length}`}
           aria-invalid={invalid || undefined}
           className={cn(
-            "h-14 w-full min-w-0 rounded-2xl border-2 border-b-4 border-hairline bg-card text-center text-2xl font-black text-foreground transition-colors outline-none sm:h-16",
+            "h-14 w-full min-w-0 rounded-2xl border-2 border-b-4 border-hairline bg-card text-center text-2xl font-bold text-foreground transition-colors outline-none sm:h-16",
             "focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/15",
             digit && "border-ring/40",
             invalid && "border-destructive",

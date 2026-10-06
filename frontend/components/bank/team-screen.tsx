@@ -37,8 +37,8 @@ const PASSWORD_MAX = 72
 const roleLabel = (role: BankStaffRole) => staffRoles.find((option) => option.value === role)?.label ?? role
 
 function passwordError(password: string) {
-  if (password.length < PASSWORD_MIN) return `use at least ${PASSWORD_MIN} characters`
-  if (password.length > PASSWORD_MAX) return `use at most ${PASSWORD_MAX} characters`
+  if (password.length < PASSWORD_MIN) return `Use at least ${PASSWORD_MIN} characters`
+  if (password.length > PASSWORD_MAX) return `Use at most ${PASSWORD_MAX} characters`
   return undefined
 }
 
@@ -53,19 +53,19 @@ export function TeamScreen() {
   return (
     <>
       <PageHeader
-        title="team"
-        description="who at your bank can use this console, and what each of them can do."
+        title="Team"
+        description="Who at your bank can use this console, and what each of them can do."
         actions={
           <Button
             type="button"
-            title="give a colleague access to this console"
+            title="Give a colleague access to this console"
             onClick={() => {
               setCreated(null)
               setAdding(true)
             }}
           >
             <HugeiconsIcon icon={UserAdd01Icon} size={18} strokeWidth={2.2} />
-            add colleague
+            Add colleague
           </Button>
         }
       />
@@ -73,17 +73,17 @@ export function TeamScreen() {
       <div className="flex flex-col gap-10">
         {created && (
           <Alert variant="info" title={`${created.name ?? created.email} can now sign in`}>
-            share the temporary password with them directly. it isn&apos;t shown again.
+            Share the temporary password with them directly. It isn&apos;t shown again.
           </Alert>
         )}
 
-        <Section title="staff">
+        <Section title="Staff">
           <QueryState
             query={team}
             noun="your team"
             skeleton={<TableSkeleton rows={3} />}
             isEmpty={(rows) => rows.length === 0}
-            empty={<EmptyState icon={UserMultiple02Icon} title="no staff yet" />}
+            empty={<EmptyState icon={UserMultiple02Icon} title="No staff yet" />}
           >
             {(rows) => (
               <ul className="flex flex-col gap-3">
@@ -105,8 +105,8 @@ export function TeamScreen() {
       <Dialog
         open={adding}
         onOpenChange={setAdding}
-        title="add a colleague"
-        description="they sign in with this temporary password and your mfa phone, then change it."
+        title="Add a colleague"
+        description="They sign in with this temporary password and your MFA phone, then change it."
         className="max-w-xl"
       >
         <CreateStaffForm
@@ -143,11 +143,11 @@ function CreateStaffForm({ onCreated, onCancel }: CreateStaffFormProps) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const nextErrors = {
-      name: values.name.trim() ? undefined : "enter their name",
-      email: /^[^\s@]+@[^\s@]+$/.test(values.email.trim()) ? undefined : "enter their work email",
-      mfa_phone: values.mfa_phone.trim().length >= 4 ? undefined : "enter the phone that receives their sign-in codes",
+      name: values.name.trim() ? undefined : "Enter their name",
+      email: /^[^\s@]+@[^\s@]+$/.test(values.email.trim()) ? undefined : "Enter their work email",
+      mfa_phone: values.mfa_phone.trim().length >= 4 ? undefined : "Enter the phone that receives their sign-in codes",
       temporary_password: passwordError(values.temporary_password),
-      role: role ? undefined : "choose a role",
+      role: role ? undefined : "Choose a role",
     }
     setErrors(nextErrors)
     if (Object.values(nextErrors).some(Boolean) || !role) return
@@ -163,10 +163,10 @@ function CreateStaffForm({ onCreated, onCancel }: CreateStaffFormProps) {
   }
 
   const fields: { key: keyof typeof emptyStaff; label: string; type?: string; placeholder: string }[] = [
-    { key: "name", label: "name", placeholder: "their full name" },
-    { key: "email", label: "work email", type: "email", placeholder: "name@yourbank.com" },
-    { key: "mfa_phone", label: "mfa phone", type: "tel", placeholder: "2348012345678" },
-    { key: "temporary_password", label: "temporary password", type: "password", placeholder: "at least 12 characters" },
+    { key: "name", label: "Name", placeholder: "Their full name" },
+    { key: "email", label: "Work email", type: "email", placeholder: "name@yourbank.com" },
+    { key: "mfa_phone", label: "MFA phone", type: "tel", placeholder: "2348012345678" },
+    { key: "temporary_password", label: "Temporary password", type: "password", placeholder: "At least 12 characters" },
   ]
 
   return (
@@ -194,11 +194,11 @@ function CreateStaffForm({ onCreated, onCancel }: CreateStaffFormProps) {
 
       <SelectFilter
         id="staff-role"
-        label="role"
+        label="Role"
         value={role}
         onChange={setRole}
         options={staffRoles}
-        allLabel="choose a role"
+        allLabel="Choose a role"
         className="sm:w-full"
       />
       {role && (
@@ -211,10 +211,10 @@ function CreateStaffForm({ onCreated, onCancel }: CreateStaffFormProps) {
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button type="button" variant="ghost" onClick={onCancel} disabled={create.isPending}>
-          cancel
+          Cancel
         </Button>
         <Button type="submit" loading={create.isPending}>
-          add colleague
+          Add colleague
         </Button>
       </div>
     </form>
@@ -241,16 +241,16 @@ function StaffCard({ staff, isSelf, onChanged }: StaffCardProps) {
     <div className="card-raised flex flex-col gap-4 rounded-2xl p-4 sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="text-base font-black">
+          <p className="text-base font-bold">
             {staff.name ?? staff.email}
             {isSelf && <span className="ml-2 text-xs font-bold text-muted-foreground">(you)</span>}
           </p>
-          <p className="font-mono text-xs font-semibold break-all text-muted-foreground normal-case">{staff.email}</p>
+          <p className="font-mono text-xs font-semibold break-all text-muted-foreground">{staff.email}</p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <StatusBadge status={staff.role} label={roleLabel(staff.role)} tone="indigo" />
             <StatusBadge status={staff.status} tone={active ? "gold" : "neutral"} />
             <span className="text-xs font-bold text-muted-foreground">
-              last sign in {formatDateTime(staff.last_login_at)}
+              Last sign in {formatDateTime(staff.last_login_at)}
             </span>
           </div>
         </div>
@@ -264,20 +264,20 @@ function StaffCard({ staff, isSelf, onChanged }: StaffCardProps) {
               title={open ? "close" : `manage ${staff.name ?? staff.email}'s role, permissions and password`}
               onClick={() => setOpen((value) => !value)}
             >
-              {open ? "close" : "manage"}
+              {open ? "Close" : "Manage"}
             </Button>
             {active ? (
               <ConfirmButton
-                confirmLabel="yes, revoke access"
+                confirmLabel="Yes, revoke access"
                 variant="ghost"
                 loading={update.isPending}
                 onConfirm={() => setStatus("revoked")}
               >
-                revoke access
+                Revoke access
               </ConfirmButton>
             ) : (
               <Button type="button" variant="ghost" size="sm" loading={update.isPending} onClick={() => setStatus("active")}>
-                restore access
+                Restore access
               </Button>
             )}
           </div>
@@ -314,11 +314,11 @@ function RoleEditor({ staff, onChanged }: { staff: BankStaff; onChanged: (staff:
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <SelectFilter
           id={`role-${staff.staff_id}`}
-          label="role"
+          label="Role"
           value={role}
           onChange={setRole}
           options={staffRoles}
-          allLabel="choose a role"
+          allLabel="Choose a role"
           className="sm:w-72"
         />
         <Button
@@ -329,10 +329,10 @@ function RoleEditor({ staff, onChanged }: { staff: BankStaff; onChanged: (staff:
           disabled={!role || role === staff.role}
           onClick={handleSave}
         >
-          change role
+          Change role
         </Button>
       </div>
-      <p className="text-xs font-semibold text-muted-foreground">changing the role resets permissions to its defaults.</p>
+      <p className="text-xs font-semibold text-muted-foreground">Changing the role resets permissions to its defaults.</p>
       <ActionError error={update.error} />
     </div>
   )
@@ -351,9 +351,9 @@ function PermissionsEditor({ staff, onChanged }: { staff: BankStaff; onChanged: 
 
   return (
     <fieldset className="flex flex-col gap-3">
-      <legend className="mb-2 text-sm font-extrabold">permissions</legend>
+      <legend className="mb-2 text-sm font-bold">Permissions</legend>
       <p className="-mt-1 text-xs font-semibold text-muted-foreground">
-        narrow what this person can do within their role. permissions outside the role can&apos;t be granted.
+        Narrow what this person can do within their role. Permissions outside the role can&apos;t be granted.
       </p>
       <div className="grid gap-3 sm:grid-cols-2">
         {bankPermissions
@@ -370,8 +370,8 @@ function PermissionsEditor({ staff, onChanged }: { staff: BankStaff; onChanged: 
               }
               label={
                 <>
-                  <span className="font-extrabold text-foreground">{permission.label}</span>
-                  <span className="block font-mono text-xs normal-case">{permission.value}</span>
+                  <span className="font-bold text-foreground">{permission.label}</span>
+                  <span className="block font-mono text-xs">{permission.value}</span>
                 </>
               }
             />
@@ -387,7 +387,7 @@ function PermissionsEditor({ staff, onChanged }: { staff: BankStaff; onChanged: 
         onClick={handleSave}
         className="sm:self-start"
       >
-        save permissions
+        Save permissions
       </Button>
     </fieldset>
   )
@@ -415,7 +415,7 @@ function PasswordReset({ staff }: { staff: BankStaff }) {
   return (
     <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <Field id={id} label="reset password" error={error} className="sm:w-72">
+        <Field id={id} label="Reset password" error={error} className="sm:w-72">
           <Input
             id={id}
             type="password"
@@ -428,18 +428,18 @@ function PasswordReset({ staff }: { staff: BankStaff }) {
             }}
             invalid={Boolean(error)}
             aria-describedby={error ? `${id}-error` : undefined}
-            placeholder="a new temporary password"
+            placeholder="A new temporary password"
             className="h-12 text-sm"
           />
         </Field>
         <Button type="submit" size="sm" variant="outline" loading={reset.isPending}>
-          reset password
+          Reset password
         </Button>
       </div>
       <ActionError error={reset.error} />
       {done && (
-        <Alert variant="info" title="password reset">
-          every session they held has ended. share the new password with them directly.
+        <Alert variant="info" title="Password reset">
+          Every session they held has ended. Share the new password with them directly.
         </Alert>
       )}
     </form>

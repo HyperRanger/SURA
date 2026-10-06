@@ -27,7 +27,7 @@ export function QueryState<T>({ query, skeleton, noun, isEmpty, empty, children 
 
   if (isLoading) {
     return (
-      <div role="status" aria-label={`loading ${noun}`}>
+      <div role="status" aria-label={`Loading ${noun}`}>
         {skeleton}
       </div>
     )
@@ -38,27 +38,27 @@ export function QueryState<T>({ query, skeleton, noun, isEmpty, empty, children 
       return (
         <Alert
           variant="error"
-          title="your session has expired"
+          title="Your session has expired"
           action={
             <Link href={withNext(routes.bank.login, pathname)} className={buttonVariants({ size: "sm" })}>
-              sign in again
+              Sign in again
             </Link>
           }
         >
-          sign in again and we&apos;ll bring you back here.
+          Sign in again and we&apos;ll bring you back here.
         </Alert>
       )
     }
     if (error.is(403)) {
       return (
-        <Alert variant="info" title={`your role can't view ${noun}`}>
-          ask a bank administrator to grant this permission to your account.
+        <Alert variant="info" title={`Your role can't view ${noun}`}>
+          Ask a bank administrator to grant this permission to your account.
         </Alert>
       )
     }
     if (error.is(404)) {
       return (
-        <Alert variant="info" title={`we couldn't find these ${noun}`}>
+        <Alert variant="info" title={`We couldn't find these ${noun}`}>
           {error.message}
         </Alert>
       )
@@ -66,10 +66,10 @@ export function QueryState<T>({ query, skeleton, noun, isEmpty, empty, children 
     return (
       <Alert
         variant="error"
-        title={`we couldn't load ${noun}`}
+        title={`We couldn't load ${noun}`}
         action={
           <Button type="button" variant="outline" size="sm" onClick={retry}>
-            retry
+            Retry
           </Button>
         }
       >

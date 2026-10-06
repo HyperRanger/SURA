@@ -35,9 +35,9 @@ export function DataTable<T>({ columns, rows, rowKey, rowHref, caption }: DataTa
           return (
             <li key={rowKey(row)} className="card-raised relative rounded-2xl p-4">
               <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 text-sm font-extrabold">
+                <div className="min-w-0 text-sm font-bold">
                   {href ? (
-                    <Link href={href} title="open details" className="after:absolute after:inset-0 after:rounded-2xl focus-visible:outline-none">
+                    <Link href={href} title="Open details" className="after:absolute after:inset-0 after:rounded-2xl focus-visible:outline-none">
                       {primary.cell(row)}
                     </Link>
                   ) : (
@@ -51,7 +51,7 @@ export function DataTable<T>({ columns, rows, rowKey, rowHref, caption }: DataTa
               <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5">
                 {rest.map((column) => (
                   <div key={column.header} className={cn("min-w-0", column.wide && "col-span-2")}>
-                    <dt className="text-[11px] font-extrabold tracking-wide text-muted-foreground">{column.header}</dt>
+                    <dt className="text-[11px] font-bold tracking-wide text-muted-foreground">{column.header}</dt>
                     <dd className={cn("mt-0.5 text-sm font-semibold", !column.wide && "truncate")}>{column.cell(row)}</dd>
                   </div>
                 ))}
@@ -71,7 +71,7 @@ export function DataTable<T>({ columns, rows, rowKey, rowHref, caption }: DataTa
                   key={column.header}
                   scope="col"
                   className={cn(
-                    "px-4 py-3 text-xs font-extrabold tracking-wide whitespace-nowrap text-muted-foreground",
+                    "px-4 py-3 text-xs font-bold tracking-wide whitespace-nowrap text-muted-foreground",
                     column.align === "right" && "text-right"
                   )}
                 >
@@ -96,12 +96,12 @@ export function DataTable<T>({ columns, rows, rowKey, rowHref, caption }: DataTa
                       key={column.header}
                       className={cn(
                         "px-4 py-3 align-middle font-semibold",
-                        index === 0 && "font-extrabold",
+                        index === 0 && "font-bold",
                         column.align === "right" && "text-right tabular-nums"
                       )}
                     >
                       {index === 0 && href ? (
-                        <Link href={href} title="open details" className="after:absolute after:inset-0 focus-visible:outline-none">
+                        <Link href={href} title="Open details" className="after:absolute after:inset-0 focus-visible:outline-none">
                           {column.cell(row)}
                         </Link>
                       ) : (

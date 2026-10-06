@@ -9,9 +9,9 @@ export function HowItWorks() {
     <section id="how-it-works" className="bg-cloud py-20 md:py-28">
       <div className="container-page">
         <SectionHeading
-          eyebrow="how it works"
-          title="from first contribution to first payout"
-          description="four steps for members. the bank's app handles the screens, sura handles the rules."
+          eyebrow="How it works"
+          title="From first contribution to first payout"
+          description="Four steps for members. The bank's app handles the screens, Sura handles the rules."
         />
 
         <ol className="relative mt-14 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
@@ -21,12 +21,12 @@ export function HowItWorks() {
           />
           {steps.map((step, i) => (
             <li key={step.title} className="relative flex flex-col items-center text-center">
-              <span className="relative z-10 flex h-14 w-14 items-center justify-center rounded-full border-b-4 border-primary-deep bg-primary text-xl font-black text-primary-foreground">
+              <span className="relative z-10 flex h-14 w-14 items-center justify-center rounded-full border-b-4 border-primary-deep bg-primary text-xl font-bold text-primary-foreground">
                 {i + 1}
               </span>
               <div className="card-raised mt-5 flex h-full w-full flex-col items-center rounded-[2rem] p-6">
                 <IconTile icon={step.icon} />
-                <h3 className="mt-4 text-lg font-black">{step.title}</h3>
+                <h3 className="mt-4 text-lg font-bold">{step.title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
                   {step.description}
                 </p>
@@ -37,11 +37,11 @@ export function HowItWorks() {
 
         <div className="mt-10 grid items-center gap-8 rounded-[2rem] border-b-8 border-primary-deep bg-primary p-7 text-primary-foreground md:grid-cols-[1fr_1.2fr] md:p-10">
           <div>
-            <p className="text-sm font-extrabold text-gold">
-              for banks and fintechs
+            <p className="text-sm font-bold text-gold">
+              For banks and fintechs
             </p>
-            <h3 className="mt-2 text-2xl font-black tracking-tight text-balance sm:text-3xl">
-              launch a savings and credit product without building underwriting from scratch
+            <h3 className="mt-2 text-2xl font-bold tracking-tight text-balance sm:text-3xl">
+              Launch a savings and credit product without building underwriting from scratch
             </h3>
           </div>
           <ul className="grid gap-3 sm:grid-cols-2">

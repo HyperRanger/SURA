@@ -39,32 +39,32 @@ type Shortcut = {
 
 const shortcuts: Shortcut[] = [
   {
-    title: "audit log",
-    description: "every score change and staff action, with the reason behind it.",
+    title: "Audit log",
+    description: "Every score change and staff action, with the reason behind it.",
     href: routes.bank.auditLog,
     icon: Audit01Icon,
     tone: "gold",
     permission: "bank:audit:read",
   },
   {
-    title: "risk flags",
-    description: "patterns the fraud rules caught, waiting for an analyst.",
+    title: "Risk flags",
+    description: "Patterns the fraud rules caught, waiting for an analyst.",
     href: routes.bank.flags,
     icon: Flag02Icon,
     tone: "indigo",
     permission: "bank:flags:read",
   },
   {
-    title: "commitments",
-    description: "every savings circle your customers belong to.",
+    title: "Commitments",
+    description: "Every savings circle your customers belong to.",
     href: routes.bank.commitments,
     icon: RepeatIcon,
     tone: "indigo",
     permission: "bank:commitments:read",
   },
   {
-    title: "customers",
-    description: "scores, tiers and contribution history per customer.",
+    title: "Customers",
+    description: "Scores, tiers and contribution history per customer.",
     href: routes.bank.users,
     icon: UserGroupIcon,
     tone: "gold",
@@ -109,7 +109,7 @@ function Overview({ overview, range, onRangeChange, refreshing }: OverviewProps)
     <>
       <PageHeader
         title={overview.bank_name}
-        description="how your customers' commitments are doing, read live from sura."
+        description="How your customers' commitments are doing, read live from Sura."
         meta={
           <>
             <StatusBadge status={overview.environment} tone={overview.environment === "live" ? "gold" : "indigo"} />
@@ -120,17 +120,17 @@ function Overview({ overview, range, onRangeChange, refreshing }: OverviewProps)
 
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end">
         <div className="grid grid-cols-2 gap-3 sm:flex">
-          <DateFilter id="overview-from" label="activity from" value={range.from} onChange={(from) => onRangeChange({ ...range, from })} />
-          <DateFilter id="overview-to" label="activity to" value={range.to} onChange={(to) => onRangeChange({ ...range, to })} />
+          <DateFilter id="overview-from" label="Activity from" value={range.from} onChange={(from) => onRangeChange({ ...range, from })} />
+          <DateFilter id="overview-to" label="Activity to" value={range.to} onChange={(to) => onRangeChange({ ...range, to })} />
         </div>
         {ranged && (
           <button
             type="button"
-            title="show activity from every day"
+            title="Show activity from every day"
             onClick={() => onRangeChange({ from: "", to: "" })}
-            className="h-12 cursor-pointer self-start rounded-full px-3 text-sm font-extrabold text-link underline-offset-4 hover:underline sm:self-auto"
+            className="h-12 cursor-pointer self-start rounded-full px-3 text-sm font-bold text-link underline-offset-4 hover:underline sm:self-auto"
           >
-            all time
+            All time
           </button>
         )}
       </div>
@@ -140,36 +140,36 @@ function Overview({ overview, range, onRangeChange, refreshing }: OverviewProps)
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-1">
           <StatCard
-            label="open fraud flags"
+            label="Open fraud flags"
             value={overview.open_flags}
             icon={overview.open_flags > 0 ? Alert02Icon : Flag02Icon}
-            hint={overview.open_flags > 0 ? "waiting for an analyst" : "nothing to review"}
+            hint={overview.open_flags > 0 ? "Waiting for an analyst" : "Nothing to review"}
             href={can("bank:flags:read") ? routes.bank.flags : undefined}
             alert={overview.open_flags > 0}
           />
           <StatCard
-            label="pending settlements"
+            label="Pending settlements"
             value={overview.pending_settlements}
             icon={MoneyExchange01Icon}
-            hint="vouchers not yet settled"
+            hint="Vouchers not yet settled"
             href={can("bank:settlements:read") ? routes.bank.settlements : undefined}
           />
         </div>
       </div>
 
       {visibleShortcuts.length > 0 && (
-        <Section title="jump to" className="mt-10">
+        <Section title="Jump to" className="mt-10">
           <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {visibleShortcuts.map((shortcut) => (
               <li key={shortcut.href}>
                 <Link
                   href={shortcut.href}
-                  title={`open ${shortcut.title}`}
+                  title={`Open ${shortcut.title.toLowerCase()}`}
                   className="card-raised group flex h-full items-center gap-4 rounded-2xl p-4 transition-all hover:-translate-y-0.5 hover:border-hairline-strong active:translate-y-0.5 active:border-b-2 lg:flex-col lg:items-start lg:gap-3"
                 >
                   <IconTile icon={shortcut.icon} tone={shortcut.tone} />
                   <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-1 text-base font-black">
+                    <span className="flex items-center gap-1 text-base font-bold">
                       {shortcut.title}
                       <HugeiconsIcon
                         icon={ArrowRight01Icon}
@@ -197,20 +197,20 @@ function Overview({ overview, range, onRangeChange, refreshing }: OverviewProps)
 
       <div className="mt-10 grid gap-8 lg:grid-cols-2">
         <Section
-          title="recent activity"
-          action={can("bank:audit:read") && <ViewAll href={routes.bank.auditLog} label="the audit log" />}
+          title="Recent activity"
+          action={can("bank:audit:read") && <ViewAll href={routes.bank.auditLog} label="The audit log" />}
         >
           {overview.recent_activity.length === 0 ? (
-            <EmptyLine>no staff activity yet.</EmptyLine>
+            <EmptyLine>No staff activity yet.</EmptyLine>
           ) : (
             <ul className="card-raised divide-y-2 divide-hairline overflow-hidden rounded-2xl">
               {overview.recent_activity.map((event) => (
                 <li key={event.event_id} className="flex items-center gap-3 px-4 py-3">
                   <RowIcon icon={Activity01Icon} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-extrabold">{humanize(event.event_type)}</span>
+                    <span className="block truncate text-sm font-bold">{humanize(event.event_type)}</span>
                     <span
-                      className="block truncate font-mono text-xs font-semibold text-muted-foreground normal-case"
+                      className="block truncate font-mono text-xs font-semibold text-muted-foreground"
                       title={event.subject_id}
                     >
                       {event.subject_id}
@@ -226,12 +226,12 @@ function Overview({ overview, range, onRangeChange, refreshing }: OverviewProps)
         </Section>
 
         <Section
-          title="recent settlements"
-          description="simulated. sura never holds or moves money."
-          action={can("bank:settlements:read") && <ViewAll href={routes.bank.settlements} label="settlements" />}
+          title="Recent settlements"
+          description="Simulated. Sura never holds or moves money."
+          action={can("bank:settlements:read") && <ViewAll href={routes.bank.settlements} label="Settlements" />}
         >
           {overview.recent_settlements.length === 0 ? (
-            <EmptyLine>no vouchers have been redeemed yet.</EmptyLine>
+            <EmptyLine>No vouchers have been redeemed yet.</EmptyLine>
           ) : (
             <ul className="card-raised divide-y-2 divide-hairline overflow-hidden rounded-2xl">
               {overview.recent_settlements.map((settlement) => (
@@ -243,8 +243,8 @@ function Overview({ overview, range, onRangeChange, refreshing }: OverviewProps)
                   <span className="min-w-0 flex-1">
                     <Link
                       href={routes.bank.commitment(settlement.commitment_id)}
-                      title="open the commitment this settlement belongs to"
-                      className="block text-sm font-extrabold tabular-nums after:absolute after:inset-0"
+                      title="Open the commitment this settlement belongs to"
+                      className="block text-sm font-bold tabular-nums after:absolute after:inset-0"
                     >
                       {formatNaira(settlement.amount)}
                     </Link>
@@ -270,30 +270,30 @@ function ContributionHero({ overview }: { overview: BankOverview }) {
   return (
     <div className="relative isolate overflow-hidden rounded-3xl border-b-4 border-primary-deep bg-primary p-5 text-primary-foreground sm:p-6 lg:col-span-2">
 
-      <p className="text-xs font-extrabold tracking-wide text-primary-foreground/70">total contributed</p>
-      <p className="mt-1 text-4xl font-black tracking-tight text-gold tabular-nums sm:text-5xl">
+      <p className="text-xs font-bold tracking-wide text-primary-foreground/70">Total contributed</p>
+      <p className="mt-1 text-4xl font-bold tracking-tight text-gold tabular-nums sm:text-5xl">
         {formatNaira(overview.total_contributed)}
       </p>
 
       <dl className="mt-6 grid grid-cols-2 gap-4 sm:max-w-md">
         <div>
-          <dt className="text-xs font-extrabold text-primary-foreground/70">active commitments</dt>
-          <dd className="mt-0.5 text-2xl font-black tabular-nums">{overview.active_commitments}</dd>
+          <dt className="text-xs font-bold text-primary-foreground/70">Active commitments</dt>
+          <dd className="mt-0.5 text-2xl font-bold tabular-nums">{overview.active_commitments}</dd>
         </div>
         <div>
-          <dt className="text-xs font-extrabold text-primary-foreground/70">customers</dt>
-          <dd className="mt-0.5 text-2xl font-black tabular-nums">{overview.customers}</dd>
+          <dt className="text-xs font-bold text-primary-foreground/70">Customers</dt>
+          <dd className="mt-0.5 text-2xl font-bold tabular-nums">{overview.customers}</dd>
         </div>
       </dl>
 
       <div className="mt-6">
         <div className="flex items-baseline justify-between gap-3">
-          <p className="text-xs font-extrabold text-primary-foreground/70">completion rate</p>
-          <p className="text-sm font-black tabular-nums">{formatPercent(overview.completion_rate)}</p>
+          <p className="text-xs font-bold text-primary-foreground/70">Completion rate</p>
+          <p className="text-sm font-bold tabular-nums">{formatPercent(overview.completion_rate)}</p>
         </div>
         <div
           role="meter"
-          aria-label="completion rate"
+          aria-label="Completion rate"
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={Math.round(completion * 100)}
@@ -320,7 +320,7 @@ function StatCard({ label, value, icon, hint, alert, href }: StatCardProps) {
   const body = (
     <>
       <span className="flex items-start justify-between gap-2">
-        <span className="text-xs font-extrabold tracking-wide text-muted-foreground">{label}</span>
+        <span className="text-xs font-bold tracking-wide text-muted-foreground">{label}</span>
         <span
           className={cn(
             "flex size-9 shrink-0 items-center justify-center rounded-full",
@@ -331,7 +331,7 @@ function StatCard({ label, value, icon, hint, alert, href }: StatCardProps) {
         </span>
       </span>
       <span>
-        <span className={cn("block text-3xl font-black tracking-tight tabular-nums", alert && "text-destructive")}>{value}</span>
+        <span className={cn("block text-3xl font-bold tracking-tight tabular-nums", alert && "text-destructive")}>{value}</span>
         {hint && (
           <span className="mt-0.5 flex items-center gap-1 text-xs font-bold text-muted-foreground">
             {hint}
@@ -384,9 +384,9 @@ function ViewAll({ href, label }: { href: string; label: string }) {
     <Link
       href={href}
       title={`open ${label}`}
-      className="shrink-0 text-sm font-extrabold text-link underline-offset-4 hover:underline"
+      className="shrink-0 text-sm font-bold text-link underline-offset-4 hover:underline"
     >
-      view all
+      View all
     </Link>
   )
 }

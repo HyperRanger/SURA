@@ -24,27 +24,27 @@ import type { BankUserCommitment, BankUserProfile, RiskFlag, ScoreHistoryEntry }
 import { formatDateTime, formatNaira, formatPercent, humanize } from "@/utils/format"
 
 const historyColumns: Column<ScoreHistoryEntry>[] = [
-  { header: "change", cell: (row) => row.reason ?? humanize(row.event_type) },
-  { header: "event", cell: (row) => humanize(row.event_type) },
-  { header: "points", cell: (row) => <ScoreDelta before={row.score_before} after={row.score} />, align: "right" },
-  { header: "score", cell: (row) => row.score, align: "right" },
-  { header: "when", cell: (row) => formatDateTime(row.computed_at) },
+  { header: "Change", cell: (row) => row.reason ?? humanize(row.event_type) },
+  { header: "Event", cell: (row) => humanize(row.event_type) },
+  { header: "Points", cell: (row) => <ScoreDelta before={row.score_before} after={row.score} />, align: "right" },
+  { header: "Score", cell: (row) => row.score, align: "right" },
+  { header: "When", cell: (row) => formatDateTime(row.computed_at) },
 ]
 
 const commitmentColumns: Column<BankUserCommitment>[] = [
-  { header: "commitment", cell: (row) => row.title },
-  { header: "status", cell: (row) => <StatusBadge status={row.status} /> },
-  { header: "payout slot", cell: (row) => (row.payout_cycle ? `cycle ${row.payout_cycle}` : "—") },
-  { header: "payout", cell: (row) => <StatusBadge status={row.payout_status} /> },
-  { header: "contributed", cell: (row) => formatNaira(row.contributed_amount), align: "right" },
-  { header: "voucher", cell: (row) => <StatusBadge status={row.voucher_status} /> },
+  { header: "Commitment", cell: (row) => row.title },
+  { header: "Status", cell: (row) => <StatusBadge status={row.status} /> },
+  { header: "Payout slot", cell: (row) => (row.payout_cycle ? `Cycle ${row.payout_cycle}` : "—") },
+  { header: "Payout", cell: (row) => <StatusBadge status={row.payout_status} /> },
+  { header: "Contributed", cell: (row) => formatNaira(row.contributed_amount), align: "right" },
+  { header: "Voucher", cell: (row) => <StatusBadge status={row.voucher_status} /> },
 ]
 
 const flagColumns: Column<RiskFlag>[] = [
-  { header: "rule", cell: (row) => humanize(row.rule) },
-  { header: "severity", cell: (row) => <StatusBadge status={row.severity} /> },
-  { header: "status", cell: (row) => <StatusBadge status={row.status} /> },
-  { header: "raised", cell: (row) => formatDateTime(row.created_at) },
+  { header: "Rule", cell: (row) => humanize(row.rule) },
+  { header: "Severity", cell: (row) => <StatusBadge status={row.severity} /> },
+  { header: "Status", cell: (row) => <StatusBadge status={row.status} /> },
+  { header: "Raised", cell: (row) => formatDateTime(row.created_at) },
 ]
 
 // B6. opening this screen is itself written to the bank's audit log. each part of
@@ -90,14 +90,14 @@ function UserDetail({ user, initialTab, onChanged }: UserDetailProps) {
       <PageHeader
         title={user.name}
         backHref={routes.bank.users}
-        backLabel="customers"
+        backLabel="Customers"
         actions={
           can("bank:settlements:read") && (
             <Link
               href={`${routes.bank.settlements}?user_id=${encodeURIComponent(user.user_id)}`}
               className={buttonVariants({ variant: "outline", size: "sm" })}
             >
-              settlements
+              Settlements
             </Link>
           )
         }
@@ -106,7 +106,7 @@ function UserDetail({ user, initialTab, onChanged }: UserDetailProps) {
             <StatusBadge status={user.verified ? "verified" : "unverified"} />
             {user.account_status !== "active" && <StatusBadge status={user.account_status} />}
             {user.context && <StatusBadge status={user.context} tone="neutral" />}
-            <span className="font-mono text-xs font-semibold text-muted-foreground normal-case">{user.user_id}</span>
+            <span className="font-mono text-xs font-semibold text-muted-foreground">{user.user_id}</span>
           </>
         }
       />
@@ -117,17 +117,17 @@ function UserDetail({ user, initialTab, onChanged }: UserDetailProps) {
           title={`${user.open_flags} open risk ${user.open_flags === 1 ? "flag" : "flags"}`}
           className="mb-6"
         >
-          this customer is under account review until an analyst resolves them
+          This customer is under account review until an analyst resolves them
           {canReadFlags && tab !== "flags" ? (
             <>
               {" "}in the{" "}
               <button
                 type="button"
-                title="open the flags tab"
+                title="Open the flags tab"
                 onClick={() => setTab("flags")}
-                className="cursor-pointer font-extrabold underline underline-offset-4"
+                className="cursor-pointer font-bold underline underline-offset-4"
               >
-                flags tab
+                Flags tab
               </button>
               .
             </>
@@ -138,11 +138,11 @@ function UserDetail({ user, initialTab, onChanged }: UserDetailProps) {
       )}
 
       <Tabs value={tab} onValueChange={(value) => isCustomerTab(value) && setTab(value)}>
-        <TabsList aria-label="customer sections">
+        <TabsList aria-label="Customer sections">
           {tabs.map((item) => {
             const count = counts[item.value]
             return (
-              <TabsTab key={item.value} value={item.value} title={`show ${item.label}`}>
+              <TabsTab key={item.value} value={item.value} title={`Show ${item.label.toLowerCase()}`}>
                 {item.label}
                 {count && <TabsCount alert={count.alert}>{count.value}</TabsCount>}
               </TabsTab>
@@ -154,40 +154,40 @@ function UserDetail({ user, initialTab, onChanged }: UserDetailProps) {
           <div className="flex flex-col gap-10">
             <div className="grid gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
               <div className="card-raised rounded-2xl p-5">
-                <p className="text-xs font-extrabold tracking-wide text-muted-foreground">sura score</p>
+                <p className="text-xs font-bold tracking-wide text-muted-foreground">Sura score</p>
                 <div className="mt-2">
                   <ScoreFigure report={report} />
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <StatusBadge status={report.tier} />
                   {report.score_version && (
-                    <span className="font-mono text-xs font-semibold text-muted-foreground normal-case">{report.score_version}</span>
+                    <span className="font-mono text-xs font-semibold text-muted-foreground">{report.score_version}</span>
                   )}
                 </div>
                 <p className="mt-3 text-xs font-bold text-muted-foreground">
-                  computed {formatDateTime(user.score_computed_at)}
+                  Computed {formatDateTime(user.score_computed_at)}
                 </p>
                 {!user.score_processing_consent && (
-                  <p className="mt-3 text-xs font-bold text-destructive">score processing consent not on record.</p>
+                  <p className="mt-3 text-xs font-bold text-destructive">Score processing consent not on record.</p>
                 )}
               </div>
               <div className="card-raised rounded-2xl p-5">
-                <p className="mb-4 text-xs font-extrabold tracking-wide text-muted-foreground">five pillars</p>
+                <p className="mb-4 text-xs font-bold tracking-wide text-muted-foreground">Five pillars</p>
                 <ScorePillars report={report} />
               </div>
             </div>
 
             <DetailList
               items={[
-                { label: "bank reference", value: <span className="font-mono normal-case">{user.bank_customer_id ?? "—"}</span> },
-                { label: "phone", value: <span className="font-mono normal-case">{user.phone ?? "—"}</span> },
-                { label: "banks with", value: user.source_institution?.name ?? "—" },
-                { label: "commitments joined", value: user.commitments_joined },
-                { label: "active commitments", value: user.active_commitments },
-                { label: "contributions", value: user.contribution_count },
-                { label: "on-time rate", value: formatPercent(user.on_time_contribution_rate) },
+                { label: "Bank reference", value: <span className="font-mono">{user.bank_customer_id ?? "—"}</span> },
+                { label: "Phone", value: <span className="font-mono">{user.phone ?? "—"}</span> },
+                { label: "Banks with", value: user.source_institution?.name ?? "—" },
+                { label: "Commitments joined", value: user.commitments_joined },
+                { label: "Active commitments", value: user.active_commitments },
+                { label: "Contributions", value: user.contribution_count },
+                { label: "On-time rate", value: formatPercent(user.on_time_contribution_rate) },
                 {
-                  label: "float eligibility",
+                  label: "Float eligibility",
                   value: (
                     <span className="flex flex-col gap-1">
                       <StatusBadge status={user.float_eligibility} />
@@ -201,17 +201,17 @@ function UserDetail({ user, initialTab, onChanged }: UserDetailProps) {
         </TabsPanel>
 
         <TabsPanel value="commitments">
-          <Section title="commitments">
+          <Section title="Commitments">
             <QueryState
               query={commitments}
               noun="commitments"
               skeleton={<TableSkeleton rows={2} />}
               isEmpty={(rows) => rows.length === 0}
-              empty={<EmptyState icon={RepeatIcon} title="no commitments yet" />}
+              empty={<EmptyState icon={RepeatIcon} title="No commitments yet" />}
             >
               {(rows) => (
                 <DataTable
-                  caption="customer commitments"
+                  caption="Customer commitments"
                   columns={commitmentColumns}
                   rows={rows}
                   rowKey={(row) => row.commitment_id}
@@ -223,16 +223,16 @@ function UserDetail({ user, initialTab, onChanged }: UserDetailProps) {
         </TabsPanel>
 
         <TabsPanel value="score-history">
-          <Section title="score audit log" description="every change to this score, newest first, with the event that caused it.">
+          <Section title="Score audit log" description="Every change to this score, newest first, with the event that caused it.">
             <QueryState
               query={score}
               noun="score history"
               skeleton={<TableSkeleton rows={4} />}
               isEmpty={(data) => data.history.length === 0}
-              empty={<EmptyState icon={Audit01Icon} title="no score changes yet" />}
+              empty={<EmptyState icon={Audit01Icon} title="No score changes yet" />}
             >
               {(data) => (
-                <DataTable caption="score history" columns={historyColumns} rows={data.history} rowKey={(row) => row.id} />
+                <DataTable caption="Score history" columns={historyColumns} rows={data.history} rowKey={(row) => row.id} />
               )}
             </QueryState>
           </Section>
@@ -240,17 +240,17 @@ function UserDetail({ user, initialTab, onChanged }: UserDetailProps) {
 
         {canReadFlags && (
           <TabsPanel value="flags">
-            <Section title="flags" description="fraud rules that fired for this customer.">
+            <Section title="Flags" description="Fraud rules that fired for this customer.">
               <QueryState
                 query={flags}
                 noun="flags"
                 skeleton={<TableSkeleton rows={2} />}
                 isEmpty={(rows) => rows.length === 0}
-                empty={<EmptyState icon={Flag02Icon} title="no flags" description="no fraud rule has fired for this customer." />}
+                empty={<EmptyState icon={Flag02Icon} title="No flags" description="No fraud rule has fired for this customer." />}
               >
                 {(rows) => (
                   <DataTable
-                    caption="risk flags"
+                    caption="Risk flags"
                     columns={flagColumns}
                     rows={rows}
                     rowKey={(row) => row.flag_id}

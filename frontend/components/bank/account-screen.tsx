@@ -30,37 +30,37 @@ export function AccountScreen() {
 
   return (
     <>
-      <PageHeader title="your account" description="how you're signed in to the bank console." />
+      <PageHeader title="Your account" description="How you're signed in to the bank console." />
 
       <div className="flex flex-col gap-10">
         {session && (
           <DetailList
             items={[
-              { label: "role", value: humanize(session.role) },
-              { label: "bank", value: <span className="font-mono text-xs normal-case">{session.institutionId ?? "—"}</span> },
-              { label: "user id", value: <span className="font-mono text-xs normal-case">{session.userId}</span> },
-              { label: "permissions", value: session.permissions?.length ?? "role defaults" },
+              { label: "Role", value: humanize(session.role) },
+              { label: "Bank", value: <span className="font-mono text-xs">{session.institutionId ?? "—"}</span> },
+              { label: "User ID", value: <span className="font-mono text-xs">{session.userId}</span> },
+              { label: "Permissions", value: session.permissions?.length ?? "Role defaults" },
             ]}
           />
         )}
 
-        <Section title="security">
+        <Section title="Security">
           <div className="card-raised flex flex-col gap-4 rounded-2xl p-4 sm:flex-row sm:items-center sm:p-5">
             <IconTile icon={LockPasswordIcon} tone="indigo" />
             <div className="min-w-0 flex-1">
-              <p className="text-base font-black">password</p>
+              <p className="text-base font-bold">Password</p>
               <p className="mt-0.5 text-sm leading-snug font-semibold text-muted-foreground">
-                changing it signs you out everywhere, including here. you then sign in with the new one.
+                Changing it signs you out everywhere, including here. You then sign in with the new one.
               </p>
             </div>
             <Button
               type="button"
               variant="outline"
-              title="choose a new password for your account"
+              title="Choose a new password for your account"
               onClick={() => setChangingPassword(true)}
               className="sm:self-center"
             >
-              change password
+              Change password
             </Button>
           </div>
         </Section>
@@ -69,8 +69,8 @@ export function AccountScreen() {
       <Dialog
         open={changingPassword}
         onOpenChange={setChangingPassword}
-        title="change password"
-        description="you'll be signed out everywhere, then sign in with the new one."
+        title="Change password"
+        description="You'll be signed out everywhere, then sign in with the new one."
       >
         <ChangePasswordForm onCancel={() => setChangingPassword(false)} />
       </Dialog>
@@ -89,16 +89,16 @@ function ChangePasswordForm({ onCancel }: { onCancel: () => void }) {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const nextErrors: Errors = {
-      current: current ? undefined : "enter your current password",
+      current: current ? undefined : "Enter your current password",
       next:
         next.length < PASSWORD_MIN
-          ? `use at least ${PASSWORD_MIN} characters`
+          ? `Use at least ${PASSWORD_MIN} characters`
           : next.length > PASSWORD_MAX
-          ? `use at most ${PASSWORD_MAX} characters`
+          ? `Use at most ${PASSWORD_MAX} characters`
           : next === current
-          ? "choose a password you haven't been using"
+          ? "Choose a password you haven't been using"
           : undefined,
-      confirm: confirm === next ? undefined : "the passwords don't match",
+      confirm: confirm === next ? undefined : "The passwords don't match",
     }
     setErrors(nextErrors)
     if (nextErrors.current || nextErrors.next || nextErrors.confirm) return
@@ -111,9 +111,9 @@ function ChangePasswordForm({ onCancel }: { onCancel: () => void }) {
   }
 
   const fields: { id: string; key: keyof Errors; label: string; value: string; set: (value: string) => void; autoComplete: string }[] = [
-    { id: "password-current", key: "current", label: "current password", value: current, set: setCurrent, autoComplete: "current-password" },
-    { id: "password-new", key: "next", label: "new password", value: next, set: setNext, autoComplete: "new-password" },
-    { id: "password-confirm", key: "confirm", label: "confirm new password", value: confirm, set: setConfirm, autoComplete: "new-password" },
+    { id: "password-current", key: "current", label: "Current password", value: current, set: setCurrent, autoComplete: "current-password" },
+    { id: "password-new", key: "next", label: "New password", value: next, set: setNext, autoComplete: "new-password" },
+    { id: "password-confirm", key: "confirm", label: "Confirm new password", value: confirm, set: setConfirm, autoComplete: "new-password" },
   ]
 
   return (
@@ -140,10 +140,10 @@ function ChangePasswordForm({ onCancel }: { onCancel: () => void }) {
 
       <div className="mt-1 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
         <Button type="button" variant="ghost" onClick={onCancel} disabled={change.isPending}>
-          cancel
+          Cancel
         </Button>
         <Button type="submit" loading={change.isPending}>
-          change password
+          Change password
         </Button>
       </div>
     </form>

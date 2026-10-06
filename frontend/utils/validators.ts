@@ -4,22 +4,22 @@ import { isValidNigerianMobile } from "@/utils/phone"
 export type Validator<T = string> = (value: T) => string | undefined
 
 export const required =
-  (message = "this field is required"): Validator<string> =>
+  (message = "This field is required"): Validator<string> =>
   (value) =>
     value.trim() ? undefined : message
 
 export const minLength =
   (min: number, message?: string): Validator<string> =>
   (value) =>
-    value.trim().length >= min ? undefined : (message ?? `use at least ${min} characters`)
+    value.trim().length >= min ? undefined : (message ?? `Use at least ${min} characters`)
 
 export const maxLength =
   (max: number, message?: string): Validator<string> =>
   (value) =>
-    value.trim().length <= max ? undefined : (message ?? `use at most ${max} characters`)
+    value.trim().length <= max ? undefined : (message ?? `Use at most ${max} characters`)
 
 export const nigerianMobile =
-  (message = "enter a nigerian mobile number, like 0803 000 0000"): Validator<string> =>
+  (message = "Enter a Nigerian mobile number, like 0803 000 0000"): Validator<string> =>
   (value) =>
     isValidNigerianMobile(value) ? undefined : message
 

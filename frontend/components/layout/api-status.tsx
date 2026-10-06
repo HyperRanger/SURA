@@ -5,9 +5,9 @@ import { useApiStatus } from "@/hooks/use-api-status"
 import { cn } from "@/lib/utils"
 
 const labels = {
-  checking: "checking api",
-  online: "api operational",
-  offline: "api unreachable",
+  checking: "Checking API",
+  online: "API operational",
+  offline: "API unreachable",
 } as const
 
 export function ApiStatus() {

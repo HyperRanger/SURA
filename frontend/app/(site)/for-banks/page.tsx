@@ -4,9 +4,9 @@ import { ApiCapabilities, ApiIntegration } from "@/components/for-banks/api-over
 import { BankContact } from "@/components/for-banks/bank-contact"
 
 export const metadata: Metadata = {
-  title: "sura for banks — savings circles and a credit signal in one api",
+  title: "Sura for banks — savings circles and a credit signal in one API",
   description:
-    "launch rotating savings circles under your brand and read an explainable score built from contribution history. sura never holds funds.",
+    "Launch rotating savings circles under your brand and read an explainable score built from contribution history. Sura never holds funds.",
 }
 
 export default function ForBanksPage() {

@@ -12,14 +12,14 @@ export function ActionError({ error, className }: { error: ApiError | null; clas
   if (!error || error.kind === "cancelled") return null
   if (error.is(403)) {
     return (
-      <Alert variant="info" title="your role can't do this" className={className}>
-        ask a bank administrator to grant the permission to your account.
+      <Alert variant="info" title="Your role can't do this" className={className}>
+        Ask a bank administrator to grant the permission to your account.
       </Alert>
     )
   }
   if (error.is(409)) {
     return (
-      <Alert variant="error" title="this changed since you opened it" className={className}>
+      <Alert variant="error" title="This changed since you opened it" className={className}>
         {error.message} refresh to see the current state.
       </Alert>
     )
@@ -33,7 +33,7 @@ export function ActionError({ error, className }: { error: ApiError | null; clas
 
 type ConfirmButtonProps = {
   children: ReactNode
-  // what the button says once armed, e.g. "yes, revoke"
+  // what the button says once armed, e.g. "Yes, revoke"
   confirmLabel: ReactNode
   onConfirm: () => void
   loading?: boolean
@@ -66,7 +66,7 @@ export function ConfirmButton({
       variant={armed ? "default" : variant}
       loading={loading}
       disabled={disabled}
-      title={armed ? "click again to confirm" : undefined}
+      title={armed ? "Click again to confirm" : undefined}
       className={armed ? "bg-destructive hover:bg-destructive/90 border-destructive" : undefined}
       onClick={() => {
         if (!armed) return setArmed(true)
@@ -91,16 +91,16 @@ type SecretViewProps = {
 export function SecretView({ secret, onDone, children }: SecretViewProps) {
   return (
     <div className="flex flex-col gap-4">
-      <Alert variant="gold" title="copy it now">
-        sura keeps only a hash and will never show this secret again.
+      <Alert variant="gold" title="Copy it now">
+        Sura keeps only a hash and will never show this secret again.
       </Alert>
       <div className="flex flex-col gap-2 rounded-2xl border-2 border-hairline bg-cloud p-3 sm:flex-row sm:items-center">
-        <code className="min-w-0 flex-1 font-mono text-xs break-all text-foreground normal-case select-all">{secret}</code>
+        <code className="min-w-0 flex-1 font-mono text-xs break-all text-foreground select-all">{secret}</code>
         <CopyButton value={secret} />
       </div>
       {children}
       <Button type="button" onClick={onDone} className="sm:self-end">
-        i&apos;ve stored it
+        I&apos;ve stored it
       </Button>
     </div>
   )
