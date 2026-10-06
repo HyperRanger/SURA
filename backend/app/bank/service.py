@@ -209,6 +209,29 @@ def get_user_commitments(db: Session, bank_id: str, user_id: str) -> list[dict]:
     return result
 
 
+def get_customer_commitment_detail(
+    db: Session,
+    bank_id: str,
+    actor_id: str,
+    user_id: str,
+    commitment_id: str,
+) -> dict:
+    """Return evidence for one commitment the scoped customer actually joined."""
+    _user_or_404(db, bank_id, user_id)
+    membership = (
+        db.query(CommitmentMember)
+        .filter(
+            CommitmentMember.user_id == user_id,
+            CommitmentMember.commitment_id == commitment_id,
+        )
+        .one_or_none()
+    )
+    if membership is None:
+        raise HTTPException(status_code=404, detail="Commitment not found for this customer.")
+    _audit(db, bank_id, actor_id, "customer_commitment_viewed", "commitment", commitment_id, {"user_id": user_id})
+    return get_commitment(db, bank_id, commitment_id)
+
+
 def get_user_activity(db: Session, bank_id: str, user_id: str) -> list[dict]:
     _user_or_404(db, bank_id, user_id)
     score_events = db.query(ScoreHistory).filter(ScoreHistory.user_id == user_id).all()
