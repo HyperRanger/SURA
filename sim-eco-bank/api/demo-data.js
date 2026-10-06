@@ -12,17 +12,34 @@ export default async function handler(request, response) {
 
   try {
     const headers = { "X-Sura-API-Key": apiKey, accept: "application/json" };
-    const [scoreResult, commitmentsResult] = await Promise.all([
+    const [profileResult, scoreResult, commitmentsResult] = await Promise.all([
+      fetch(BASE_URL + "/v1/integrations/customers/" + CUSTOMER_ID, { headers }),
       fetch(BASE_URL + "/v1/integrations/customers/" + CUSTOMER_ID + "/score", { headers }),
       fetch(BASE_URL + "/v1/integrations/customers/" + CUSTOMER_ID + "/commitments", { headers }),
     ]);
-    if (!scoreResult.ok || !commitmentsResult.ok) {
+    if (!profileResult.ok || !scoreResult.ok || !commitmentsResult.ok) {
       return response.status(502).json({ error: "Sura API request failed." });
     }
-    const [score, commitments] = await Promise.all([scoreResult.json(), commitmentsResult.json()]);
+    const [profile, score, commitments] = await Promise.all([
+      profileResult.json(),
+      scoreResult.json(),
+      commitmentsResult.json(),
+    ]);
+    const activeCommitment = commitments.find((commitment) => commitment.status === "active") || null;
+    const detailResult = activeCommitment
+      ? await fetch(
+        BASE_URL + "/v1/integrations/customers/" + CUSTOMER_ID + "/commitments/" + activeCommitment.commitment_id,
+        { headers },
+      )
+      : null;
+    const commitmentDetail = detailResult && detailResult.ok ? await detailResult.json() : null;
     return response.status(200).json({
+      profile,
       score,
-      active_commitment: commitments.find((commitment) => commitment.status === "active") || null,
+      commitments,
+      active_commitment: activeCommitment,
+      active_commitment_detail: commitmentDetail,
+      fetched_at: new Date().toISOString(),
     });
   } catch {
     return response.status(502).json({ error: "Sura API is unavailable." });
