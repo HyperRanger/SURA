@@ -3,10 +3,12 @@
 from calendar import monthrange
 from datetime import datetime, timedelta
 
-SUPPORTED_FREQUENCIES = frozenset({"weekly", "monthly"})
+SUPPORTED_FREQUENCIES = frozenset({"daily", "weekly", "monthly"})
 
 
 def default_first_due_at(frequency: str, now: datetime) -> datetime:
+    if frequency == "daily":
+        return now + timedelta(days=1)
     if frequency == "weekly":
         return now + timedelta(days=7)
     if frequency == "monthly":
@@ -15,6 +17,8 @@ def default_first_due_at(frequency: str, now: datetime) -> datetime:
 
 
 def advance_due_at(due_at: datetime, frequency: str) -> datetime:
+    if frequency == "daily":
+        return due_at + timedelta(days=1)
     if frequency == "weekly":
         return due_at + timedelta(days=7)
     if frequency != "monthly":
