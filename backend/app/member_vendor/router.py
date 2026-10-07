@@ -12,7 +12,7 @@ from app.member_vendor.contracts import (
     VendorRecommendationsResponse,
 )
 from app.member_vendor.service import get_member_home, get_vendor_overview
-from app.models import User
+from app.models import Commitment, CommitmentActivity, CommitmentMember, User
 from app.schemas import LockRequest, MemberLookupRequest
 from app.services.auth_service import normalize_phone
 from app.services.commitments import preview_lock
@@ -22,6 +22,7 @@ from app.services.matching import recommend_verified_vendors
 from app.services.vendor_accounts import get_authenticated_vendor_id
 
 router = APIRouter(prefix="/v1/app", tags=["member vendor app"])
+notifications_router = APIRouter(prefix="/v1", tags=["member vendor app"])
 
 
 def _require_individual(current_user: AuthPrincipal) -> None:
@@ -138,3 +139,35 @@ def vendor_overview(
 
     vendor_id = get_authenticated_vendor_id(current_user)
     return get_vendor_overview(db, vendor_id)
+
+
+@notifications_router.get("/notifications")
+def member_notifications(
+    current_user: AuthPrincipal = Depends(get_current_principal),
+    db: Session = Depends(get_db),
+):
+    """Recent commitment events for the signed-in member only."""
+    _require_individual(current_user)
+    rows = (
+        db.query(CommitmentActivity, Commitment.title)
+        .join(Commitment, Commitment.id == CommitmentActivity.commitment_id)
+        .join(CommitmentMember, CommitmentMember.commitment_id == Commitment.id)
+        .filter(
+            CommitmentMember.user_id == current_user.user_id,
+            CommitmentMember.declined_at.is_(None),
+        )
+        .order_by(CommitmentActivity.occurred_at.desc())
+        .limit(50)
+        .all()
+    )
+    return [
+        {
+            "id": activity.id,
+            "commitment_id": activity.commitment_id,
+            "commitment_title": title,
+            "event_type": activity.event_type,
+            "cycle_number": activity.cycle_number,
+            "occurred_at": activity.occurred_at.isoformat() if activity.occurred_at else None,
+        }
+        for activity, title in rows
+    ]

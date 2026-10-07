@@ -362,7 +362,7 @@ def preview_lock(
     if payload.cycles <= 0:
         raise HTTPException(status_code=400, detail="Cycles must be positive.")
     if payload.contribution_frequency not in SUPPORTED_FREQUENCIES:
-        raise HTTPException(status_code=400, detail="Contribution frequency must be weekly or monthly.")
+        raise HTTPException(status_code=400, detail="Contribution frequency must be daily, weekly, or monthly.")
     if payload.first_cycle_due_at is not None and payload.first_cycle_due_at <= datetime.utcnow():
         raise HTTPException(status_code=400, detail="first_cycle_due_at must be in the future.")
 
@@ -589,7 +589,7 @@ def create_commitment(
     if payload.cycles <= 0:
         raise HTTPException(status_code=400, detail="Cycles must be positive.")
     if payload.contribution_frequency not in SUPPORTED_FREQUENCIES:
-        raise HTTPException(status_code=400, detail="Contribution frequency must be weekly or monthly.")
+        raise HTTPException(status_code=400, detail="Contribution frequency must be daily, weekly, or monthly.")
     if payload.first_cycle_due_at is not None and payload.first_cycle_due_at <= datetime.utcnow():
         raise HTTPException(status_code=400, detail="first_cycle_due_at must be in the future.")
 

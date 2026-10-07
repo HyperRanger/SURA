@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.bank.integration_router import router as bank_integration_router
 from app.bank.router import router as bank_router
 from app.database import get_db
-from app.member_vendor.router import router as member_vendor_router
+from app.member_vendor.router import notifications_router, router as member_vendor_router
 from app.routers.auth import demo_router as demo_router
 from app.routers.auth import profile_router as profile_router
 from app.routers.auth import router as auth_router
@@ -63,6 +63,7 @@ app.include_router(bank_auth_router)
 app.include_router(profile_router)
 app.include_router(demo_router)
 app.include_router(member_vendor_router)
+app.include_router(notifications_router)
 
 
 def _check_database(db: Session) -> bool:
