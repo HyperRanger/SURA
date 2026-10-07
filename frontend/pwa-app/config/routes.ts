@@ -12,9 +12,17 @@ export const routes = {
   app: {
     home: "/app",
     welcome: "/app/welcome",
+    commitments: "/app/commitments",
+    createCommitment: "/app/commitments/new",
+    join: "/app/join",
+    score: "/app/score",
+    profile: "/app/profile",
+    notifications: "/app/notifications",
   },
   vendor: {
     home: "/vendor",
+    redeem: "/vendor/redeem",
+    history: "/vendor/history",
   },
 } as const
 
