@@ -3,9 +3,6 @@ import type { IncomeContext, SelfServiceRole, SignupPayload } from "@/types"
 import { normalizePhone } from "@/utils/phone"
 import { checked, compose, maxLength, nigerianMobile, oneOf, required } from "@/utils/validators"
 
-// form state and schemas for P2 and P3. kept out of the components so the rules
-// can be read, reused and tested on their own
-
 export type SignupValues = {
   role: SelfServiceRole
   name: string
@@ -28,7 +25,6 @@ export function initialSignupValues(role: SelfServiceRole = "individual"): Signu
   }
 }
 
-// the fields each signup step is responsible for, validated before moving on
 export const signupStepFields: Record<SignupStepId, readonly (keyof SignupValues)[]> = {
   account: ["role"],
   details: ["name", "phone"],
@@ -53,10 +49,7 @@ export function signupSchema(values: SignupValues) {
     }
   }
 
-  return {
-    ...shared,
-    context: oneOf(incomeContexts, "Pick the one closest to how you earn"),
-  }
+  return { ...shared, context: oneOf(incomeContexts, "Pick the one closest to how you earn") }
 }
 
 export function toSignupPayload(values: SignupValues): SignupPayload {
