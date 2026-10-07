@@ -48,7 +48,7 @@ export function LoginForm({ next }: { next?: string }) {
         value={values.phone}
         onChange={(event) => setValue("phone", event.target.value)}
         error={errors.phone}
-        hint="Members and vendors both sign in with the number they signed up with."
+        hint=""
       />
 
       {error && <Alert variant="error">{error.message}</Alert>}
