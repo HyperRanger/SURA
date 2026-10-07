@@ -87,7 +87,7 @@ export function ProductScreen({ role, segments }: { role: Role; segments: string
   }, [page, isVendor])
 
   useEffect(() => {
-    if (!session) { if (isVendor && segments[0] === "login") return; router.replace(isVendor ? "/vendor/login" : "/login"); return }
+    if (!session) { router.replace("/login"); return }
     if (session.role !== role) { router.replace(session.role === "vendor" ? "/vendor" : "/app"); return }
     let active = true
     const id = segments[1]
@@ -128,7 +128,7 @@ export function ProductScreen({ role, segments }: { role: Role; segments: string
     catch (reason) { setError(reason instanceof Error ? reason.message : "That did not go through. Please try again.") }
     finally { setBusy(false) }
   }
-  const signOut = async () => { try { await logout() } catch { /* local sign-out still clears this device */ } endSession(); router.replace(isVendor ? "/vendor/login" : "/login") }
+  const signOut = async () => { try { await logout() } catch { /* local sign-out still clears this device */ } endSession(); router.replace("/login") }
   const navLink = (item: string[]) => {
     const active = pathname === item[1] || (!(["/app", "/vendor"].includes(item[1])) && pathname.startsWith(`${item[1]}/`))
     return <Link key={item[1]} href={item[1]} aria-current={active ? "page" : undefined} className={`flex min-w-0 flex-col items-center gap-1 px-2 py-1 text-[11px] font-bold transition-colors ${active ? "text-primary" : "text-muted-foreground"}`}><span className="text-[21px] leading-5" aria-hidden>{item[2]}</span><span>{item[0]}</span></Link>
