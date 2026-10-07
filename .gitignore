@@ -1,5 +1,6 @@
 # Project docs and generated artifacts
 docs/
+PITCH_PACKAGE.md
 
 # Python
 __pycache__/
