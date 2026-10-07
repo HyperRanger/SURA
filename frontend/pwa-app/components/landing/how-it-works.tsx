@@ -11,7 +11,6 @@ export function HowItWorks() {
     <section id="how-it-works" className="bg-cloud py-16 md:py-24">
       <div className="container-app">
         <SectionHeading
-          eyebrow="How it works"
           title="How a Sura Lock works"
           description="A Lock is a savings circle with the rules agreed up front and enforced for everyone."
         />

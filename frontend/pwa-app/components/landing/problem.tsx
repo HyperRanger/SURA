@@ -7,7 +7,6 @@ export function Problem() {
     <section id="why" className="py-16 md:py-24">
       <div className="container-app">
         <SectionHeading
-          eyebrow="Why Sura"
           title="Saving on irregular income is hard enough"
           description="Ajo and esusu work because people keep each other accountable. They break when trust is all that holds them together."
         />
