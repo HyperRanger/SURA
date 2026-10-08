@@ -95,6 +95,12 @@ class TermiiSmsProvider:
 
 def get_sms_provider() -> SmsProvider:
     settings = get_settings()
+    # A dedicated hackathon/demo deployment deliberately shows the generated
+    # code in the challenge response. Do not also hand a real phone number to
+    # an SMS provider just because demo infrastructure inherited a provider
+    # key. This switch must only be used with seeded, non-customer data.
+    if settings.environment.strip().lower() == "demo":
+        return NullSmsProvider()
     if not settings.is_sms_configured:
         return NullSmsProvider()
     return TermiiSmsProvider(
