@@ -13,6 +13,8 @@ from app.schemas import (
     DemoLoginAsRequest,
     DemoTokenRequest,
     LoginRequest,
+    PasswordRecoveryConfirmRequest,
+    PasswordRecoveryRequest,
     ResendOtpRequest,
     SignupRequest,
     VerifyOtpRequest,
@@ -89,6 +91,27 @@ def verify_otp(payload: VerifyOtpRequest, db: Session = Depends(get_db)):
 @router.post("/resend-otp")
 def resend_otp(payload: ResendOtpRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     return auth_service.resend_otp(db, payload.challenge_id, background_tasks)
+
+
+@router.post("/password-recovery")
+def password_recovery(payload: PasswordRecoveryRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """Kick off self-service recovery with an SMS code to the member's phone.
+
+    Answers identically for an unknown identifier, so it never confirms who has
+    an account. The code is delivered by SMS because recovery must reach the
+    person who holds the phone, and that is the contact Sura can actually send to.
+    """
+    return auth_service.request_password_recovery(db, payload.identifier, background_tasks)
+
+
+@router.post("/password-recovery/confirm")
+def password_recovery_confirm(payload: PasswordRecoveryConfirmRequest, db: Session = Depends(get_db)):
+    """Verify the recovery code and set the new password.
+
+    Ends every session and every remembered device, so a stolen token minted
+    before the reset stops working immediately.
+    """
+    return auth_service.confirm_password_recovery(db, payload.challenge_id, payload.code, payload.new_password)
 
 
 @profile_router.get("/me")
