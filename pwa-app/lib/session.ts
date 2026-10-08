@@ -31,6 +31,7 @@ export function startSession(token: AuthTokenResponse) {
     accessToken: token.access_token,
     userId: token.user_id,
     role: token.role,
+    trustedDeviceToken: token.trusted_device_token ?? sessionStore.read()?.trustedDeviceToken,
   })
 }
 

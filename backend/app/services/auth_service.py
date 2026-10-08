@@ -6,18 +6,21 @@ the client, and the issued token carries the role so protected endpoints can
 re-check it. A challenge is single-use, time-limited and attempt-capped.
 """
 
+import hashlib
 import logging
+import secrets
 import uuid
 from datetime import datetime, timedelta
 from typing import Any
 
-from fastapi import HTTPException, status
-from sqlalchemy import select
+from fastapi import BackgroundTasks, HTTPException, status
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.models import AuthChallenge, SessionRevocation, User, Vendor
+from app.models import AuthChallenge, SessionRevocation, TrustedDevice, User, Vendor
 from app.services.sms import SmsDeliveryError, send_otp
 from core.config import get_settings
+from core.passwords import PasswordTooLong, hash_password, verify_password
 from core.security import (
     create_token,
     generate_otp,
@@ -38,6 +41,11 @@ ASSIGNABLE_ROLES = {INDIVIDUAL_ROLE, VENDOR_ROLE}
 PURPOSE_SIGNUP = "signup"
 PURPOSE_LOGIN = "login"
 PURPOSE_BANK_MFA = "bank_mfa"
+
+TRUSTED_DEVICE_DAYS = 5
+GENERIC_CREDENTIALS_ERROR = "Email, phone number, or password is incorrect."
+# Keeps an unknown identifier on the same bcrypt-cost path as a wrong password.
+_DECOY_PASSWORD_HASH = hash_password("sura-member-login-decoy")
 
 
 NIGERIA_COUNTRY_CODE = "234"
@@ -63,8 +71,75 @@ def _get_by_phone(db: Session, phone: str) -> User | None:
     return db.execute(select(User).where(User.phone == phone)).scalars().first()
 
 
+def _normalise_email(email: str) -> str:
+    candidate = email.strip().lower()
+    if "@" not in candidate or candidate.startswith("@") or candidate.endswith("@"):
+        raise HTTPException(status_code=400, detail="Enter a valid email address.")
+    return candidate
+
+
+def _get_by_identifier(db: Session, identifier: str) -> User | None:
+    candidate = identifier.strip()
+    if "@" in candidate:
+        return db.execute(select(User).where(func.lower(User.email) == candidate.lower())).scalars().first()
+    return _get_by_phone(db, normalize_phone(candidate))
+
+
+def _device_token_hash(token: str) -> str:
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _issue_trusted_device(db: Session, user: User) -> str:
+    """Replace any presented device credential with a fresh five-day secret."""
+    raw_token = secrets.token_urlsafe(32)
+    now = datetime.utcnow()
+    db.add(
+        TrustedDevice(
+            id=str(uuid.uuid4()),
+            user_id=user.id,
+            token_hash=_device_token_hash(raw_token),
+            created_at=now,
+            last_used_at=now,
+            expires_at=now + timedelta(days=TRUSTED_DEVICE_DAYS),
+        )
+    )
+    return raw_token
+
+
+def _has_valid_trusted_device(db: Session, user: User, token: str | None) -> bool:
+    if not token:
+        return False
+    device = (
+        db.execute(select(TrustedDevice).where(TrustedDevice.token_hash == _device_token_hash(token)))
+        .scalars()
+        .first()
+    )
+    now = datetime.utcnow()
+    if device is None or device.user_id != user.id or device.revoked_at is not None or device.expires_at <= now:
+        return False
+    device.last_used_at = now
+    # A use does not slide the expiry: OTP is required again after five days.
+    db.commit()
+    return True
+
+
+def revoke_trusted_devices(db: Session, user_id: str) -> int:
+    """Make every remembered browser step up with OTP on its next login."""
+    now = datetime.utcnow()
+    changed = (
+        db.query(TrustedDevice)
+        .filter(TrustedDevice.user_id == user_id, TrustedDevice.revoked_at.is_(None))
+        .update({TrustedDevice.revoked_at: now}, synchronize_session=False)
+    )
+    return int(changed)
+
+
 def _issue_challenge(
-    db: Session, user: User, purpose: str, deliver_to: str | None = None
+    db: Session,
+    user: User,
+    purpose: str,
+    deliver_to: str | None = None,
+    background_tasks: BackgroundTasks | None = None,
 ) -> tuple[AuthChallenge, str]:
     """Create a pending challenge, returning it with the plaintext code.
 
@@ -115,7 +190,14 @@ def _issue_challenge(
     )
     db.add(challenge)
     db.commit()
-    _deliver(db, challenge, deliver_to or user.phone, code)
+    destination = deliver_to or user.phone
+    if background_tasks is None:
+        _deliver(challenge.id, destination, code)
+    else:
+        # The challenge is committed before this task is queued.  The client
+        # can move to its verification screen without waiting for an SMS HTTP
+        # request, while the resend cooldown still protects the provider.
+        background_tasks.add_task(_deliver, challenge.id, destination, code)
     return challenge, code
 
 
@@ -130,7 +212,23 @@ def issue_otp_challenge(
     return _issue_challenge(db, user, purpose, deliver_to=deliver_to)
 
 
-def _deliver(db: Session, challenge: AuthChallenge, to: str, code: str) -> None:
+def resend_otp(db: Session, challenge_id: str, background_tasks: BackgroundTasks | None = None) -> dict[str, Any]:
+    """Replace one pending member-auth code without repeating credentials.
+
+    The existing challenge identifies a pending authentication attempt.  Its
+    normal cooldown and single-live-code rules still run in ``_issue_challenge``.
+    """
+    previous = db.get(AuthChallenge, challenge_id)
+    if previous is None or previous.consumed_at is not None or previous.purpose not in {PURPOSE_SIGNUP, PURPOSE_LOGIN}:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Request a new sign-in code.")
+    user = db.get(User, previous.user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Request a new sign-in code.")
+    challenge, code = _issue_challenge(db, user, previous.purpose, background_tasks=background_tasks)
+    return _challenge_response(challenge, code, get_settings().otp_ttl_seconds)
+
+
+def _deliver(challenge_id: str, to: str, code: str) -> None:
     """Hand the code to the SMS provider, absorbing any failure.
 
     A send that failed only for numbers we hold would be a way to learn who has
@@ -148,7 +246,7 @@ def _deliver(db: Session, challenge: AuthChallenge, to: str, code: str) -> None:
         send_otp(to=to, code=code)
     except SmsDeliveryError:
         logger.error(
-            "OTP delivery failed for challenge %s; code was not delivered.", challenge.id
+            "OTP delivery failed for challenge %s; code was not delivered.", challenge_id
         )
 
 
@@ -182,11 +280,14 @@ def signup(
     *,
     role: str,
     phone: str,
+    email: str | None,
+    password: str | None,
     name: str,
     context: str | None = None,
     terms_accepted: bool = False,
     business_name: str | None = None,
     business_category: str | None = None,
+    background_tasks: BackgroundTasks | None = None,
 ) -> dict[str, Any]:
     if role not in ASSIGNABLE_ROLES:
         # Bank and admin accounts are provisioned, never self-assigned at signup.
@@ -200,12 +301,28 @@ def signup(
     normalized = normalize_phone(phone)
     if _get_by_phone(db, normalized) is not None:
         raise HTTPException(status_code=409, detail="An account already exists for that phone number.")
+    if (email is None) != (password is None):
+        raise HTTPException(status_code=400, detail="Provide both email address and password.")
+    if email is None and get_settings().is_production:
+        raise HTTPException(status_code=400, detail="Email address and password are required.")
+
+    normalized_email = _normalise_email(email) if email is not None else None
+    if normalized_email is not None:
+        existing_email = db.execute(select(User).where(func.lower(User.email) == normalized_email)).scalars().first()
+        if existing_email is not None:
+            raise HTTPException(status_code=409, detail="An account already exists for that email address.")
+    try:
+        password_hash = hash_password(password) if password is not None else None
+    except PasswordTooLong as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     now = datetime.utcnow()
     user = User(
         id=str(uuid.uuid4()),
         name=name.strip(),
         phone=normalized,
+        email=normalized_email,
+        password_hash=password_hash,
         role=role,
         context=context if role == INDIVIDUAL_ROLE else None,
         terms_accepted_at=now if terms_accepted else None,
@@ -228,26 +345,48 @@ def signup(
         user.vendor_id = vendor.id
     db.commit()
 
-    challenge, code = _issue_challenge(db, user, PURPOSE_SIGNUP)
+    challenge, code = _issue_challenge(db, user, PURPOSE_SIGNUP, background_tasks=background_tasks)
     return _challenge_response(challenge, code, get_settings().otp_ttl_seconds)
 
 
-def login(db: Session, phone: str) -> dict[str, Any]:
-    """Always answers in the same shape, so this cannot be used to discover
-    who has an account.
+def login(
+    db: Session,
+    identifier: str,
+    password: str | None,
+    device_token: str | None = None,
+    background_tasks: BackgroundTasks | None = None,
+) -> dict[str, Any]:
+    """Password sign-in with five-day, device-bound OTP step-up.
 
-    An unknown number gets a syntactically valid but unverifiable challenge
-    rather than a 404. A distinguishable response is itself the leak, so the
-    caller cannot tell the two cases apart from the body, the status, or the
-    field set.
+    A password alone never suppresses OTP across every browser.  Only a random
+    device credential issued after a verified OTP does so, and it expires after
+    five days without sliding.  That fulfils the low-friction requirement
+    without turning another person's recent login into an MFA bypass.
     """
-    user = _get_by_phone(db, normalize_phone(phone))
+    if password is None:
+        # Kept only to avoid stranding locally seeded demo accounts while the
+        # password-enrolment screen rolls out. It is never available in a
+        # production deployment and the PWA no longer calls it.
+        if get_settings().is_production:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=GENERIC_CREDENTIALS_ERROR)
+        user = _get_by_identifier(db, identifier)
+        if user is None:
+            return _challenge_envelope(str(uuid.uuid4()), PURPOSE_LOGIN, generate_otp())
+        challenge, code = _issue_challenge(db, user, PURPOSE_LOGIN, background_tasks=background_tasks)
+        return _challenge_response(challenge, code, get_settings().otp_ttl_seconds)
 
-    if user is None:
-        return _challenge_envelope(str(uuid.uuid4()), PURPOSE_LOGIN, generate_otp())
+    user = _get_by_identifier(db, identifier)
+    password_hash = user.password_hash if user is not None and user.password_hash else _DECOY_PASSWORD_HASH
+    if user is None or user.password_hash is None or not verify_password(password, password_hash):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=GENERIC_CREDENTIALS_ERROR)
 
-    challenge, code = _issue_challenge(db, user, PURPOSE_LOGIN)
-    return _challenge_response(challenge, code, get_settings().otp_ttl_seconds)
+    if _has_valid_trusted_device(db, user, device_token):
+        return _token_response(user, trusted_device_token=None, otp_required=False)
+
+    challenge, code = _issue_challenge(db, user, PURPOSE_LOGIN, background_tasks=background_tasks)
+    payload = _challenge_response(challenge, code, get_settings().otp_ttl_seconds)
+    payload["otp_required"] = True
+    return payload
 
 
 def verify_otp(db: Session, challenge_id: str, code: str) -> dict[str, Any]:
@@ -285,14 +424,24 @@ def verify_otp(db: Session, challenge_id: str, code: str) -> dict[str, Any]:
     challenge.consumed_at = datetime.utcnow()
     if challenge.purpose == PURPOSE_SIGNUP and user.phone_verified_at is None:
         user.phone_verified_at = challenge.consumed_at
+    trusted_device_token = _issue_trusted_device(db, user) if challenge.purpose in {PURPOSE_SIGNUP, PURPOSE_LOGIN} else None
     db.commit()
 
-    return {
+    return _token_response(user, trusted_device_token=trusted_device_token, otp_required=False)
+
+
+def _token_response(user: User, *, trusted_device_token: str | None, otp_required: bool) -> dict[str, Any]:
+    response: dict[str, Any] = {
         "access_token": create_token(user.id, {"role": user.role}),
         "token_type": "bearer",
         "user_id": user.id,
         "role": user.role,
+        "otp_required": otp_required,
     }
+    if trusted_device_token is not None:
+        response["trusted_device_token"] = trusted_device_token
+        response["trusted_device_expires_in_seconds"] = TRUSTED_DEVICE_DAYS * 24 * 60 * 60
+    return response
 
 
 def issue_token_for(db: Session, user_id: str) -> dict[str, Any]:

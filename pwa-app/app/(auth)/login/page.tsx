@@ -16,7 +16,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   return (
     <AuthCard
       title="Welcome back"
-      description="Enter your phone number and we'll text you a code to log in."
+      description="Use your email address or phone number and password. We ask for an SMS code only on a new device or after five days."
       footer={
         <>
           New to Sura?{" "}

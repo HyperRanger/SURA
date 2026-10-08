@@ -3,7 +3,9 @@ import { endpoints } from "@/config/endpoints"
 import type {
   AuthChallengeResponse,
   AuthTokenResponse,
+  LoginResponse,
   LoginPayload,
+  ResendOtpPayload,
   SignupPayload,
   VerifyOtpPayload,
 } from "@/types"
@@ -16,7 +18,12 @@ export async function signup(payload: SignupPayload) {
 
 // P3. answers the same way for unknown numbers, so a wrong number only fails at /verify
 export async function requestLoginCode(payload: LoginPayload) {
-  const { data } = await api.post<AuthChallengeResponse>(endpoints.auth.login, payload)
+  const { data } = await api.post<LoginResponse>(endpoints.auth.login, payload)
+  return data
+}
+
+export async function resendOtp(payload: ResendOtpPayload) {
+  const { data } = await api.post<AuthChallengeResponse>(endpoints.auth.resendOtp, payload)
   return data
 }
 

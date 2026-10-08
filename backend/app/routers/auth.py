@@ -2,7 +2,7 @@ import secrets
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 
@@ -13,6 +13,7 @@ from app.schemas import (
     DemoLoginAsRequest,
     DemoTokenRequest,
     LoginRequest,
+    ResendOtpRequest,
     SignupRequest,
     VerifyOtpRequest,
 )
@@ -50,31 +51,44 @@ def create_demo_token(payload: DemoTokenRequest):
 
 
 @router.post("/signup", status_code=status.HTTP_201_CREATED)
-def signup(payload: SignupRequest, db: Session = Depends(get_db)):
-    """P2. Creates the account unverified and issues a code to prove the phone."""
+def signup(payload: SignupRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """Creates a password account, then proves the supplied phone by OTP."""
     return auth_service.signup(
         db,
         role=payload.role,
         phone=payload.phone,
+        email=payload.email,
+        password=payload.password,
         name=payload.business_name if payload.role == "vendor" and payload.business_name else payload.name,
         context=payload.context,
         terms_accepted=payload.terms_accepted,
         business_name=payload.business_name,
         business_category=payload.business_category,
+        background_tasks=background_tasks,
     )
 
 
 @router.post("/login")
-def login(payload: LoginRequest, db: Session = Depends(get_db)):
-    """P3. Always answers the same way for unknown numbers, so this cannot be
-    used to discover who has an account."""
-    return auth_service.login(db, payload.phone)
+def login(payload: LoginRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    """Signs in by password; a new or expired device receives OTP step-up."""
+    return auth_service.login(
+        db,
+        payload.identifier or payload.phone or "",
+        payload.password,
+        payload.device_token,
+        background_tasks,
+    )
 
 
 @router.post("/verify-otp")
 def verify_otp(payload: VerifyOtpRequest, db: Session = Depends(get_db)):
     """P4. Consumes the code and returns the session token carrying the role."""
     return auth_service.verify_otp(db, payload.challenge_id, payload.code)
+
+
+@router.post("/resend-otp")
+def resend_otp(payload: ResendOtpRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    return auth_service.resend_otp(db, payload.challenge_id, background_tasks)
 
 
 @profile_router.get("/me")
@@ -150,6 +164,7 @@ def logout_all(
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Account not found.")
     user.session_invalidated_at = datetime.utcnow()
+    trusted_devices_ended = auth_service.revoke_trusted_devices(db, user.id)
     audit.record(
         db,
         event_type=audit.LOGOUT_ALL,
@@ -157,10 +172,14 @@ def logout_all(
         subject_id=user.id,
         actor_id=user.id,
         actor_role=user.role,
-        detail={"sessions_ended": "all"},
+        detail={"sessions_ended": "all", "trusted_devices_ended": trusted_devices_ended},
     )
     db.commit()
-    return {"status": "signed_out", "sessions_ended": "all"}
+    return {
+        "status": "signed_out",
+        "sessions_ended": "all",
+        "trusted_devices_ended": trusted_devices_ended,
+    }
 
 
 DEMO_USER_IDS = {

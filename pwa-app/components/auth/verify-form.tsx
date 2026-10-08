@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { requestLoginCode, verifyOtp } from "@/actions/auth"
+import { resendOtp, verifyOtp } from "@/actions/auth"
 import { OTP_LENGTH } from "@/config/auth"
 import { routes } from "@/config/routes"
 import { useCountdown } from "@/hooks/use-countdown"
@@ -64,7 +64,7 @@ type VerifyChallengeProps = {
 function VerifyChallenge({ challenge, onVerified }: VerifyChallengeProps) {
   const [code, setCode] = useState("")
   const verify = useMutation(verifyOtp)
-  const resend = useMutation(requestLoginCode)
+  const resend = useMutation(resendOtp)
   const busy = verify.isPending || resend.isPending
   const error = verify.error ?? resend.error
   const changeNumberHref = withNext(challenge.isNewAccount ? routes.signup : routes.login, challenge.next)
@@ -87,7 +87,7 @@ function VerifyChallenge({ challenge, onVerified }: VerifyChallengeProps) {
 
   async function handleResend() {
     verify.reset()
-    const result = await resend.mutate({ phone: challenge.phone })
+    const result = await resend.mutate({ challenge_id: challenge.challengeId })
     if (!result.ok) return
 
     setCode("")

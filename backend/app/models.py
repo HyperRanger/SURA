@@ -13,6 +13,12 @@ class User(Base):
     name: Mapped[str] = mapped_column(String, nullable=False)
     institution_id: Mapped[str | None] = mapped_column(String, ForeignKey("institutions.id"), nullable=True)
     phone: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    # New self-service accounts supply these.  They remain nullable while
+    # existing demo records are migrated; a passwordless legacy account is not
+    # silently treated as a password account.
+    email: Mapped[str | None] = mapped_column(String, nullable=True, unique=True, index=True)
+    password_hash: Mapped[str | None] = mapped_column(String, nullable=True)
+    email_verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     bank_customer_id: Mapped[str | None] = mapped_column(String, nullable=True, index=True)
     bank_id: Mapped[str | None] = mapped_column(String, ForeignKey("bank_partners.id"), nullable=True, index=True)
@@ -47,6 +53,45 @@ class User(Base):
     # refused on sight, which is how every outstanding session ends at once
     # without the service having to keep a table of live tokens.
     session_invalidated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class LinkedAccount(Base):
+    """A member's display-only funding source for the regional demo.
+
+    This is deliberately *not* a payment account.  Sura never keeps the full
+    account number, credentials, balance, or bank connection token.  The row
+    exists so the member can see a consistent, masked source label before a
+    simulated contribution is recorded.
+    """
+
+    __tablename__ = "linked_accounts"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    # One current source per member in this release.  Re-linking replaces the
+    # label instead of leaving several ambiguous sources for a contribution.
+    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False, unique=True, index=True)
+    bank_name: Mapped[str] = mapped_column(String, nullable=False)
+    account_number_masked: Mapped[str] = mapped_column(String, nullable=False)
+    display_name: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class TrustedDevice(Base):
+    """A revocable, short-lived browser-device trust record.
+
+    Only a SHA-256 digest of the random device secret is persisted.  A stolen
+    database row cannot be used as the trusted-device credential itself.
+    """
+
+    __tablename__ = "trusted_devices"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), nullable=False, index=True)
+    token_hash: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    last_used_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class ContactLookupRateLimit(Base):
