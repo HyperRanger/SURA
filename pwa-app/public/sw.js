@@ -8,7 +8,7 @@
  */
 
 const CACHE_NAME = "sura-public-shell-v1"
-const PUBLIC_SHELL = ["/", "/offline.html", "/icon-192.png", "/icon-512.png", "/sura-mark.svg"]
+const PUBLIC_SHELL = ["/", "/offline.html", "/icon.png", "/sura-mark.svg"]
 const STATIC_DESTINATIONS = new Set(["script", "style", "image", "font"])
 
 self.addEventListener("install", (event) => {
