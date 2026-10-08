@@ -44,9 +44,9 @@ def test_there_is_exactly_one_migration_head():
     assert len(heads) == 1, f"expected a single head, found {heads}"
 
 
-def test_bank_migration_paths_merge_at_the_expected_head():
+def test_migration_paths_merge_at_the_expected_head():
     heads = _script_directory().get_heads()
-    assert heads == ["0021_vendor_catalogue"]
+    assert heads == ["0022_merge_catalogue_idle"]
 
 
 def test_release_readiness_documents_the_current_migration_head():
