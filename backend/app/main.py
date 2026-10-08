@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from starlette.middleware.gzip import GZipMiddleware
 
 from app.bank.integration_router import router as bank_integration_router
 from app.bank.router import router as bank_router
@@ -52,6 +53,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+# Commitment, score, and audit responses can contain structured evidence. Gzip
+# keeps those read-heavy payloads smaller over the mobile network without ever
+# altering API semantics. Tiny responses skip compression entirely.
+app.add_middleware(GZipMiddleware, minimum_size=1_000, compresslevel=5)
 
 app.include_router(commitments_router)
 app.include_router(consent_router)

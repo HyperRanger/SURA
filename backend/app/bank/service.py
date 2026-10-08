@@ -7,7 +7,7 @@ import uuid
 from datetime import datetime
 
 from fastapi import HTTPException
-from sqlalchemy import func, or_
+from sqlalchemy import case, func, or_
 from sqlalchemy.orm import Session
 
 from app.bank import risk_rules
@@ -96,6 +96,140 @@ def _user_summary(db: Session, user: User) -> dict:
     }
 
 
+def _user_summaries(db: Session, users: list[User]) -> list[dict]:
+    """Build Bank Portal search rows in a fixed number of database queries.
+
+    The customer directory used to call ``_user_summary`` once per customer.
+    Each call has its own score, membership, flag, contribution, and institution
+    queries, so a 70-customer portfolio became hundreds of database round trips.
+    Search reads immutable Score snapshots, then batches the remaining aggregates.
+    A legacy user with no snapshot falls back to the established score service.
+    """
+    if not users:
+        return []
+
+    user_ids = [user.id for user in users]
+    institution_ids = {user.institution_id for user in users if user.institution_id}
+    institutions_by_id = {
+        row.id: row
+        for row in db.query(Institution).filter(Institution.id.in_(institution_ids)).all()
+    } if institution_ids else {}
+
+    ranked_scores = (
+        db.query(
+            ScoreHistory.user_id.label("user_id"),
+            ScoreHistory.score.label("score"),
+            ScoreHistory.breakdown_json.label("breakdown_json"),
+            func.row_number().over(
+                partition_by=ScoreHistory.user_id,
+                order_by=(ScoreHistory.computed_at.desc(), ScoreHistory.id.desc()),
+            ).label("position"),
+        )
+        .filter(ScoreHistory.user_id.in_(user_ids))
+        .subquery()
+    )
+    snapshot_by_user = {
+        row.user_id: row
+        for row in db.query(ranked_scores).filter(ranked_scores.c.position == 1).all()
+    }
+
+    membership_counts = dict(
+        db.query(CommitmentMember.user_id, func.count(CommitmentMember.user_id))
+        .filter(
+            CommitmentMember.user_id.in_(user_ids),
+            CommitmentMember.role != "invited",
+        )
+        .group_by(CommitmentMember.user_id)
+        .all()
+    )
+    active_counts = dict(
+        db.query(CommitmentMember.user_id, func.count(CommitmentMember.user_id))
+        .join(Commitment, Commitment.id == CommitmentMember.commitment_id)
+        .filter(
+            CommitmentMember.user_id.in_(user_ids),
+            Commitment.status == "active",
+        )
+        .group_by(CommitmentMember.user_id)
+        .all()
+    )
+    bank_ids = {user.bank_id for user in users if user.bank_id}
+    open_flags = {
+        (row.bank_id, row.user_id): row.count
+        for row in (
+            db.query(
+                RiskFlag.bank_id,
+                RiskFlag.user_id,
+                func.count(RiskFlag.id).label("count"),
+            )
+            .filter(
+                RiskFlag.user_id.in_(user_ids),
+                RiskFlag.bank_id.in_(bank_ids),
+                RiskFlag.status == "open",
+            )
+            .group_by(RiskFlag.bank_id, RiskFlag.user_id)
+            .all()
+            if bank_ids
+            else []
+        )
+    }
+    contribution_stats = {
+        row.user_id: (int(row.total or 0), int(row.full or 0))
+        for row in (
+            db.query(
+                Contribution.user_id.label("user_id"),
+                func.count(Contribution.id).label("total"),
+                func.sum(case((Contribution.status == "full", 1), else_=0)).label("full"),
+            )
+            .filter(Contribution.user_id.in_(user_ids))
+            .group_by(Contribution.user_id)
+            .all()
+        )
+    }
+
+    summaries: list[dict] = []
+    for user in users:
+        snapshot = snapshot_by_user.get(user.id)
+        if snapshot is not None and snapshot.breakdown_json:
+            report = json.loads(snapshot.breakdown_json)
+            score = int(report.get("score", snapshot.score))
+            tier = report.get("tier", "unverified")
+        else:
+            # This is only for data predating Score history. Once it is viewed,
+            # the normal score lifecycle creates a snapshot for subsequent reads.
+            report = get_score_report(db, user.id)
+            score = report["score"]
+            tier = report["tier"]
+        total_contributions, full_contributions = contribution_stats.get(user.id, (0, 0))
+        source_institution = institutions_by_id.get(user.institution_id)
+        summaries.append({
+            "user_id": user.id,
+            "name": user.name,
+            "phone": _masked(user.phone),
+            "account_status": user.account_status,
+            "restriction_reason": user.restriction_reason,
+            "bank_customer_id": _masked(user.bank_customer_id),
+            "source_institution": (
+                {"institution_id": source_institution.id, "name": source_institution.name}
+                if source_institution is not None
+                else None
+            ),
+            "available_balance": user.available_balance,
+            "verified": user.verified_at is not None,
+            "score": score,
+            "tier": tier,
+            "commitments_joined": int(membership_counts.get(user.id, 0)),
+            "active_commitments": int(active_counts.get(user.id, 0)),
+            "open_flags": int(open_flags.get((user.bank_id, user.id), 0)),
+            "on_time_contribution_rate": (
+                round(full_contributions / total_contributions, 2)
+                if total_contributions
+                else None
+            ),
+            "float_eligibility": "eligible" if score > 120 else "locked",
+        })
+    return summaries
+
+
 def list_users(
     db: Session,
     bank_id: str,
@@ -129,7 +263,7 @@ def list_users(
         )).distinct()
     if verified is not None:
         users = users.filter(User.verified_at.is_not(None) if verified else User.verified_at.is_(None))
-    summaries = [_user_summary(db, user) for user in users.order_by(User.name.asc(), User.id.asc()).all()]
+    summaries = _user_summaries(db, users.order_by(User.name.asc(), User.id.asc()).all())
     if score_tier is not None:
         summaries = [summary for summary in summaries if summary["tier"] == score_tier]
     if flag_status is not None:

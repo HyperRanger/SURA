@@ -1,5 +1,6 @@
 import json
 import uuid
+from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any
 
@@ -168,6 +169,16 @@ def _refresh_lifecycle(db: Session, commitment: Commitment, *, now: datetime | N
     if commitment.status in {"pending_members", "cancelled", "completed", "under_review", "missed"}:
         return False
     now = now or datetime.utcnow()
+    # Most list/home reads happen before the deadline. The calculated state is
+    # already identical in that case, so looking up a beneficiary cannot change
+    # anything and only adds one query per active Lock.
+    next_state = deadline_state(
+        due_at=commitment.current_cycle_due_at,
+        grace_period_hours=commitment.grace_period_hours,
+        now=now,
+    )
+    if next_state == commitment.status:
+        return False
     beneficiary = (
         db.query(CommitmentBeneficiary)
         .filter(
@@ -177,13 +188,6 @@ def _refresh_lifecycle(db: Session, commitment: Commitment, *, now: datetime | N
         .one_or_none()
     )
     if beneficiary is None or beneficiary.status in {"paid", "redeemed"}:
-        return False
-    next_state = deadline_state(
-        due_at=commitment.current_cycle_due_at,
-        grace_period_hours=commitment.grace_period_hours,
-        now=now,
-    )
-    if next_state == commitment.status:
         return False
     previous = commitment.status
     commitment.status = next_state
@@ -408,37 +412,110 @@ def preview_lock(
 
 
 def _serialize_commitment(commitment: Commitment, db: Session) -> dict[str, Any]:
-    members = (
+    """Serialize one Lock through the same batch path used by list reads."""
+    return _serialize_commitments([commitment], db)[0]
+
+
+def _serialize_commitments(commitments: list[Commitment], db: Session) -> list[dict[str, Any]]:
+    """Serialize Locks without multiplying database round trips per Lock.
+
+    The member home and commitment-list APIs return complete Lock evidence. The
+    earlier implementation fetched members, beneficiaries, contributions,
+    vouchers, member users, and a vendor separately for every Lock. This helper
+    loads each relation once for the whole page, then feeds the unchanged
+    serializer. It keeps the API shape stable while making request cost grow
+    with relation types rather than commitment count.
+    """
+    if not commitments:
+        return []
+
+    commitment_ids = [commitment.id for commitment in commitments]
+    members_by_commitment: dict[str, list[CommitmentMember]] = defaultdict(list)
+    for row in (
         db.query(CommitmentMember)
-        .filter(CommitmentMember.commitment_id == commitment.id)
-        .order_by(CommitmentMember.joined_at.asc(), CommitmentMember.user_id.asc())
+        .filter(CommitmentMember.commitment_id.in_(commitment_ids))
+        .order_by(
+            CommitmentMember.commitment_id.asc(),
+            CommitmentMember.joined_at.asc(),
+            CommitmentMember.user_id.asc(),
+        )
         .all()
-    )
-    beneficiaries = (
+    ):
+        members_by_commitment[row.commitment_id].append(row)
+
+    beneficiaries_by_commitment: dict[str, list[CommitmentBeneficiary]] = defaultdict(list)
+    for row in (
         db.query(CommitmentBeneficiary)
-        .filter(CommitmentBeneficiary.commitment_id == commitment.id)
-        .order_by(CommitmentBeneficiary.cycle_number.asc())
+        .filter(CommitmentBeneficiary.commitment_id.in_(commitment_ids))
+        .order_by(CommitmentBeneficiary.commitment_id.asc(), CommitmentBeneficiary.cycle_number.asc())
         .all()
-    )
-    contributions = (
+    ):
+        beneficiaries_by_commitment[row.commitment_id].append(row)
+
+    contributions_by_commitment: dict[str, list[Contribution]] = defaultdict(list)
+    for row in (
         db.query(Contribution)
-        .filter(Contribution.commitment_id == commitment.id)
-        .order_by(Contribution.cycle_number.asc(), Contribution.paid_at.asc(), Contribution.user_id.asc())
+        .filter(Contribution.commitment_id.in_(commitment_ids))
+        .order_by(
+            Contribution.commitment_id.asc(),
+            Contribution.cycle_number.asc(),
+            Contribution.paid_at.asc(),
+            Contribution.user_id.asc(),
+        )
         .all()
-    )
-    vouchers = (
+    ):
+        contributions_by_commitment[row.commitment_id].append(row)
+
+    vouchers_by_commitment: dict[str, list[Voucher]] = defaultdict(list)
+    for row in (
         db.query(Voucher)
-        .filter(Voucher.commitment_id == commitment.id)
-        .order_by(Voucher.cycle_number.asc())
+        .filter(Voucher.commitment_id.in_(commitment_ids))
+        .order_by(Voucher.commitment_id.asc(), Voucher.cycle_number.asc())
         .all()
-    )
-    member_ids = [member.user_id for member in members]
-    economic_members = [member for member in members if member.role not in {"replaced", "declined"}]
+    ):
+        vouchers_by_commitment[row.commitment_id].append(row)
+
+    member_ids = {
+        member.user_id
+        for rows in members_by_commitment.values()
+        for member in rows
+    }
     users_by_id = {
         user.id: user
         for user in db.query(User).filter(User.id.in_(member_ids)).all()
     } if member_ids else {}
-    vendor = db.get(Vendor, commitment.vendor_id)
+    vendor_ids = {commitment.vendor_id for commitment in commitments}
+    vendors_by_id = {
+        vendor.id: vendor
+        for vendor in db.query(Vendor).filter(Vendor.id.in_(vendor_ids)).all()
+    } if vendor_ids else {}
+
+    return [
+        _serialize_commitment_with_relations(
+            commitment,
+            members=members_by_commitment[commitment.id],
+            beneficiaries=beneficiaries_by_commitment[commitment.id],
+            contributions=contributions_by_commitment[commitment.id],
+            vouchers=vouchers_by_commitment[commitment.id],
+            users_by_id=users_by_id,
+            vendor=vendors_by_id.get(commitment.vendor_id),
+        )
+        for commitment in commitments
+    ]
+
+
+def _serialize_commitment_with_relations(
+    commitment: Commitment,
+    *,
+    members: list[CommitmentMember],
+    beneficiaries: list[CommitmentBeneficiary],
+    contributions: list[Contribution],
+    vouchers: list[Voucher],
+    users_by_id: dict[str, User],
+    vendor: Vendor | None,
+) -> dict[str, Any]:
+    economic_members = [member for member in members if member.role not in {"replaced", "declined"}]
+    member_ids = [member.user_id for member in members]
 
     current_cycle_contributions = [
         contribution
@@ -970,7 +1047,7 @@ def list_member_commitments(db: Session, user_id: str) -> list[dict[str, Any]]:
     changed = any(_refresh_lifecycle(db, commitment) for commitment in commitments)
     if changed:
         db.commit()
-    return [_serialize_commitment(commitment, db) for commitment in commitments]
+    return _serialize_commitments(commitments, db)
 
 
 def preview_commitment_by_code(db: Session, invite_code: str, user_id: str) -> dict[str, Any]:
