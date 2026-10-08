@@ -1,0 +1,250 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* next-themes puts .dark on <html>, so dark: follows the toggle, not the os */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-nunito);
+  --font-heading: var(--font-nunito);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  /* brand tokens */
+  --color-primary-deep: var(--primary-deep);
+  --color-primary-bright: var(--primary-bright);
+  --color-primary-soft: var(--primary-soft);
+  --color-link: var(--link);
+  --color-cloud: var(--cloud);
+  --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+  --color-gold: var(--gold);
+  --color-gold-deep: var(--gold-deep);
+  --color-gold-edge: var(--gold-edge);
+  --color-gold-soft: var(--gold-soft);
+  --color-gold-foreground: var(--gold-foreground);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-mist: var(--mist);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+/*
+ * the member app's own palette. the website is deep indigo on warm ivory; here a
+ * brighter iris leads on a cool lilac mist, marigold marks money and payouts, and
+ * mint marks anything confirmed, paid or redeemed
+ */
+:root {
+  --radius: 1rem;
+
+  --background: #f5f4fb;
+  --foreground: #16142b;
+  --card: #ffffff;
+  --card-foreground: #16142b;
+  --popover: #ffffff;
+  --popover-foreground: #16142b;
+
+  --primary: #4c3fd6;
+  --primary-deep: #3227a3;
+  --primary-bright: #5d50ea;
+  --primary-soft: #ebe9fd;
+  --primary-foreground: #ffffff;
+  --link: #4c3fd6;
+
+  --secondary: #ebe9fd;
+  --secondary-foreground: #3227a3;
+  --muted: #efeef8;
+  --muted-foreground: #5d5a78;
+  --accent: #ebe9fd;
+  --accent-foreground: #3227a3;
+  --destructive: #d23b3b;
+
+  --cloud: #eceaf7;
+  --hairline: #e1dff0;
+  --hairline-strong: #c8c4e0;
+  --border: #e1dff0;
+  --input: #e1dff0;
+  --ring: #4c3fd6;
+
+  --mist: #fbfaff;
+  --gold: #f0a92e;
+  --gold-edge: #c4841a;
+  /* marigold is too light to read as text on mist, so text uses this */
+  --gold-deep: #8f5a06;
+  --gold-soft: #fdf0d3;
+  --gold-foreground: #1d1500;
+  --success: #12855a;
+  --success-soft: #dcf3e8;
+}
+
+.dark {
+  --background: #0d0c1a;
+  --foreground: #f3f2fb;
+  --card: #17152b;
+  --card-foreground: #f3f2fb;
+  --popover: #17152b;
+  --popover-foreground: #f3f2fb;
+
+  --primary: #5d50ea;
+  --primary-deep: #3227a3;
+  --primary-bright: #6e62f2;
+  --primary-soft: #241f4d;
+  --primary-foreground: #ffffff;
+  --link: #a9a1ff;
+
+  --secondary: #241f4d;
+  --secondary-foreground: #f3f2fb;
+  --muted: #17152b;
+  --muted-foreground: #aeabc6;
+  --accent: #241f4d;
+  --accent-foreground: #f3f2fb;
+  --destructive: #ef7a7a;
+
+  --cloud: #1f1c38;
+  --hairline: #2c2949;
+  --hairline-strong: #433f69;
+  --border: #2c2949;
+  --input: #2c2949;
+  --ring: #8b81ff;
+
+  --mist: #fbfaff;
+  --gold: #f0a92e;
+  --gold-edge: #b07415;
+  /* on the night background the real marigold reads, so text can use it */
+  --gold-deep: #f5b94f;
+  --gold-soft: #2e2410;
+  --gold-foreground: #1d1500;
+  --success: #4fd39b;
+  --success-soft: #10291f;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply scroll-smooth font-sans;
+    color-scheme: light;
+    scroll-padding-top: 5rem;
+    -webkit-tap-highlight-color: transparent;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  /* tailwind 4 leaves buttons on the default arrow; anything clickable shows a hand */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]),
+  [role="option"]:not([aria-disabled="true"]),
+  a[href],
+  summary,
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  label:has(> input[type="checkbox"], > input[type="radio"]) {
+    cursor: pointer;
+  }
+}
+
+/* scrollbars: a slim pill on the mist track, iris when grabbed */
+@layer base {
+  ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--background);
+  }
+  ::-webkit-scrollbar-thumb {
+    border: 3px solid var(--background);
+    border-radius: 999px;
+    background: var(--hairline-strong);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--primary) 55%, var(--hairline-strong));
+  }
+  ::-webkit-scrollbar-thumb:active {
+    background: var(--primary);
+  }
+  ::-webkit-scrollbar-corner {
+    background: var(--background);
+  }
+
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--hairline-strong) transparent;
+    }
+  }
+}
+
+/* designed for a 390px phone first; desktop gets a wider, two-column page */
+@utility container-app {
+  width: 100%;
+  max-width: 1080px;
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+}
+
+@utility glass {
+  --glass-tint: rgb(255 255 255 / 0.68);
+  --glass-edge: rgb(255 255 255 / 0.95);
+  --glass-shade: rgb(76 63 214 / 0.08);
+  --glass-drop: rgb(76 63 214 / 0.18);
+  background-color: var(--glass-tint);
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-edge),
+    inset 0 -1px 0 0 var(--glass-shade),
+    0 8px 28px -14px var(--glass-drop);
+
+  @variant dark {
+    --glass-tint: rgb(23 21 43 / 0.7);
+    --glass-edge: rgb(243 242 251 / 0.1);
+    --glass-shade: rgb(0 0 0 / 0.35);
+    --glass-drop: rgb(0 0 0 / 0.5);
+  }
+}
+
+/* duolingo-style raised surface: thick border with a heavier bottom edge */
+@utility card-raised {
+  border-width: 2px;
+  border-bottom-width: 5px;
+  border-color: var(--hairline);
+  background-color: var(--card);
+}
+
+/* the soft iris and marigold glow behind the landing hero */
+@utility hero-glow {
+  background-image:
+    radial-gradient(60% 50% at 85% 10%, color-mix(in srgb, var(--primary) 16%, transparent), transparent 70%),
+    radial-gradient(45% 40% at 10% 35%, color-mix(in srgb, var(--gold) 14%, transparent), transparent 70%);
+}

@@ -1,0 +1,13 @@
+{
+  "name": "sim-eco-bank",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Standalone simulated-bank demo for the Sura hackathon walkthrough",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Static site - no build needed'"
+  },
+  "dependencies": {
+    "@vercel/analytics": "^1.3.1"
+  }
+}

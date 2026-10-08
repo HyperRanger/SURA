@@ -1,0 +1,33 @@
+"use client"
+
+import { siteConfig } from "@/config/site"
+import { useApiStatus } from "@/hooks/use-api-status"
+import { cn } from "@/lib/utils"
+
+const labels = {
+  checking: "Checking API",
+  online: "API operational",
+  offline: "API unreachable",
+} as const
+
+export function ApiStatus() {
+  const enabled = Boolean(siteConfig.apiUrl)
+  const status = useApiStatus(enabled)
+
+  if (!enabled) return null
+
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span
+        aria-hidden="true"
+        className={cn(
+          "size-2 rounded-full",
+          status === "online" && "bg-gold",
+          status === "offline" && "bg-destructive",
+          status === "checking" && "animate-pulse bg-hairline-strong"
+        )}
+      />
+      {labels[status]}
+    </span>
+  )
+}

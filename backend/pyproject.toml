@@ -1,0 +1,43 @@
+# Editor and lint configuration.
+#
+# The rules below are off because each one produces a false positive against how
+# this codebase is actually built. They are silenced here rather than in the code,
+# so the intent stays visible and a future change to the design can re-enable them.
+
+[tool.ruff]
+# Not enforced on purpose. Long lines are the existing house style here (the
+# longest is over 470 characters in app/bank/service.py), and adopting a limit
+# nobody wrote would turn the whole tree yellow on day one. E501 stays off until
+# the team picks a width and rewraps deliberately.
+line-length = 1000
+target-version = "py313"
+
+[tool.ruff.lint]
+# F and I are correctness and import order. B and SIM catch real defects. E and UP
+# are style rewrites that would bury the signal, so they are left off.
+select = ["F", "I", "B", "SIM"]
+ignore = [
+    # FastAPI dependency injection *is* a call in the argument default. This is the
+    # documented pattern, not a mutable-default bug.
+    "B008",
+    # Loop variables named for readability rather than use. `for _ in` loses the
+    # meaning of what the collection is.
+    "B007",
+    # The datetime columns are naive UTC (see app/models.py: DateTime without
+    # timezone=True), and timestamps are written with datetime.utcnow() throughout
+    # for that reason. Making call sites timezone-aware while the columns stay naive
+    # would mix aware and naive values in one response. This has to move together,
+    # with a column-level migration, so it is not a lint-time change.
+    "UP017",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests reach into modules by name and build fixtures inline.
+"tests/*" = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "core"]
+
+# pytest configuration deliberately stays in pytest.ini. pytest gives that file
+# precedence over pyproject.toml, so declaring testpaths in both places would
+# create two sources of truth where one silently wins.

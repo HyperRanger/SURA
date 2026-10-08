@@ -1,0 +1,301 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* next-themes puts .dark on <html>, so dark: follows the toggle, not the os */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-nunito);
+  --font-heading: var(--font-nunito);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  /* brand tokens */
+  --color-primary-deep: var(--primary-deep);
+  --color-primary-bright: var(--primary-bright);
+  --color-link: var(--link);
+  --color-cloud: var(--cloud);
+  --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+  --color-indigo-soft: var(--indigo-soft);
+  --color-gold: var(--gold);
+  --color-gold-deep: var(--gold-deep);
+  --color-gold-soft: var(--gold-soft);
+  --color-gold-foreground: var(--gold-foreground);
+  --color-ivory: var(--ivory);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --radius: 1rem;
+
+  /* deep indigo leads, gold marks what's been earned, ivory keeps it warm */
+  --background: #f7f5ef;
+  --foreground: #171717;
+  --card: #fffefa;
+  --card-foreground: #171717;
+  --popover: #fffefa;
+  --popover-foreground: #171717;
+
+  --primary: #29235c;
+  --primary-deep: #1a1640;
+  --primary-bright: #383079;
+  --primary-foreground: #f7f5ef;
+  --link: #29235c;
+
+  --secondary: #ebe9f3;
+  --secondary-foreground: #29235c;
+  --muted: #efece3;
+  --muted-foreground: #5c5868;
+  --accent: #ebe9f3;
+  --accent-foreground: #29235c;
+  --destructive: #c4382f;
+
+  --cloud: #efebe1;
+  --hairline: #e4dfd1;
+  --hairline-strong: #cdc6b3;
+  --border: #e4dfd1;
+  --input: #e4dfd1;
+  --ring: #29235c;
+
+  --ivory: #f7f5ef;
+  --indigo-soft: #e7e5f2;
+  --gold: #d9a441;
+  --gold-deep: #8f6517;
+  --gold-soft: #f7ebcd;
+  --gold-foreground: #171717;
+}
+
+
+.dark {
+  --background: #121020; /* sura midnight */
+  --foreground: #f7f5ef; /* soft ivory */
+  --card: #1b1838; /* deep indigo dark */
+  --card-foreground: #f7f5ef;
+  --popover: #1b1838;
+  --popover-foreground: #f7f5ef;
+
+  --primary: #29235c; 
+  --primary-deep: #0c0a17;
+  --primary-bright: #393277; 
+  --primary-foreground: #f7f5ef;
+  --link: #b4aee8;
+
+  --secondary: #29235c;
+  --secondary-foreground: #f7f5ef;
+  --muted: #1b1838;
+  --muted-foreground: #bdb9ae; /* ivory gray */
+  --accent: #29235c;
+  --accent-foreground: #f7f5ef;
+  --destructive: #d96b6b; /* muted red */
+
+  --cloud: #221e44;
+  --hairline: #353052; /* indigo border */
+  --hairline-strong: #4a4470;
+  --border: #353052;
+  --input: #353052;
+  --ring: #8a82d6;
+
+  --ivory: #f7f5ef;
+  --indigo-soft: #29235c;
+  --gold: #d9a441; /* sura gold */
+  /* on light, gold text had to darken for contrast; on midnight the real gold reads */
+  --gold-deep: #d9a441;
+  --gold-soft: #33293a;
+  --gold-foreground: #171717;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply scroll-smooth font-sans;
+    color-scheme: light;
+    scroll-padding-top: 5rem;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  /* tailwind 4 leaves buttons on the default arrow; anything clickable shows a hand */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]),
+  [role="menuitem"]:not([aria-disabled="true"]),
+  [role="option"]:not([aria-disabled="true"]),
+  [role="combobox"]:not([aria-disabled="true"]),
+  a[href],
+  summary,
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  label:has(> input[type="checkbox"], > input[type="radio"]) {
+    cursor: pointer;
+  }
+}
+
+/*
+ * scrollbars: a slim pill on an ivory track, indigo when grabbed. chromium and
+ * safari use the ::-webkit-scrollbar rules; firefox has no pseudo-elements, so it
+ * gets the closest standard equivalent. the standard properties are kept away from
+ * chromium because setting them there switches off the rounded webkit styling
+ */
+@layer base {
+  ::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--background);
+  }
+  ::-webkit-scrollbar-thumb {
+    border: 3px solid var(--background);
+    border-radius: 999px;
+    background: var(--hairline-strong);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--primary) 55%, var(--hairline-strong));
+  }
+  ::-webkit-scrollbar-thumb:active {
+    background: var(--primary);
+  }
+  ::-webkit-scrollbar-corner {
+    background: var(--background);
+  }
+
+  @supports not selector(::-webkit-scrollbar) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--hairline-strong) transparent;
+    }
+  }
+}
+
+/* for indigo surfaces, e.g. code blocks: a pale thumb on a transparent track */
+@utility scrollbar-inverse {
+  &::-webkit-scrollbar-track,
+  &::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    border-color: transparent;
+    background-clip: padding-box;
+    background-color: rgb(247 245 239 / 0.25);
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(247 245 239 / 0.45);
+  }
+  @supports not selector(::-webkit-scrollbar) {
+    scrollbar-color: rgb(247 245 239 / 0.3) transparent;
+  }
+}
+
+@utility container-page {
+  width: 100%;
+  max-width: 1160px;
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+}
+
+@utility glass {
+  --glass-tint: rgb(255 254 250 / 0.6);
+  --glass-edge: rgb(255 255 255 / 0.9);
+  --glass-shade: rgb(41 35 92 / 0.08);
+  --glass-glare: rgb(255 255 255 / 0.7);
+  --glass-sheen: rgb(255 255 255 / 0.35);
+  --glass-inner: rgb(255 255 255 / 0.12);
+  --glass-drop: rgb(41 35 92 / 0.2);
+  --glass-brightness: 1.05;
+  position: relative;
+  isolation: isolate;
+  background-image:
+    linear-gradient(180deg, var(--glass-sheen) 0%, transparent 45%),
+    linear-gradient(var(--glass-tint), var(--glass-tint));
+  backdrop-filter: blur(18px) saturate(180%) brightness(var(--glass-brightness));
+  -webkit-backdrop-filter: blur(18px) saturate(180%) brightness(var(--glass-brightness));
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-edge),
+    inset 0 -1px 0 0 var(--glass-shade),
+    inset 0 0 12px 0 var(--glass-inner),
+    0 8px 32px -12px var(--glass-drop);
+
+  /* smoked indigo pane: a faint ivory top edge instead of a bright white one */
+  @variant dark {
+    --glass-tint: rgb(27 24 56 / 0.62);
+    --glass-edge: rgb(247 245 239 / 0.12);
+    --glass-shade: rgb(0 0 0 / 0.35);
+    --glass-glare: rgb(247 245 239 / 0.25);
+    --glass-sheen: rgb(247 245 239 / 0.06);
+    --glass-inner: rgb(247 245 239 / 0.03);
+    --glass-drop: rgb(0 0 0 / 0.5);
+    --glass-brightness: 0.9;
+  }
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    border-radius: inherit;
+    background: radial-gradient(
+      600px circle at var(--glass-x, 50%) var(--glass-y, -40%),
+      var(--glass-glare),
+      transparent 40%
+    );
+    opacity: 0.35;
+    mix-blend-mode: soft-light;
+    transition: opacity 0.4s ease;
+  }
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    border-radius: inherit;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.05;
+    mix-blend-mode: overlay;
+  }
+
+  &:hover::before {
+    opacity: 0.7;
+  }
+}
+
+/* duolingo-style raised surface: thick border with a heavier bottom edge */
+@utility card-raised {
+  border-width: 2px;
+  border-bottom-width: 5px;
+  border-color: var(--hairline);
+  background-color: var(--card);
+}

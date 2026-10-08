@@ -1,0 +1,206 @@
+from datetime import datetime
+from typing import Any, List, Literal, Optional
+
+from pydantic import BaseModel, Field
+
+
+class LockRequest(BaseModel):
+    type: str = "rotating"
+    title: str
+    vendor_id: str
+    contribution_amount: int
+    contribution_frequency: str
+    cycles: int
+    members: List[str]
+    payout_order: Optional[List[str]] = None
+    creator_id: Optional[str] = None
+    first_cycle_due_at: datetime | None = None
+    # This is a fixed, disclosed demo policy. Keeping the field in the request
+    # makes the agreement visible to clients while rejecting ad-hoc per-group
+    # grace windows that would make the rules harder to explain.
+    grace_period_hours: int = Field(default=72, ge=72, le=72)
+    # Clients should always send this explicitly. The default preserves the
+    # contract for an already-created invite or an older demo client.
+    missed_cycle_policy: Literal["cover_shortfall", "carry_forward", "cancel_and_refund"] = "carry_forward"
+
+
+class ContributionRequest(BaseModel):
+    amount: int
+    event_id: str = Field(min_length=1, max_length=128, description="Stable client ID reused for retries of this contribution.")
+
+
+class DemoTokenRequest(BaseModel):
+    user_id: str = Field(min_length=1, max_length=128)
+    otp_code: str = Field(min_length=1, max_length=32)
+
+
+INDIVIDUAL_CONTEXTS = {"student", "trader", "freelancer", "other"}
+
+
+class SignupRequest(BaseModel):
+    """P2. The role is one of the two a person may pick for themselves; bank and
+    admin accounts are provisioned and are rejected here."""
+
+    role: Literal["individual", "vendor"]
+    phone: str = Field(min_length=7, max_length=32)
+    # Optional only so non-production fixtures and old demo accounts can finish
+    # their historic OTP-only onboarding. The service rejects an absent pair in
+    # production; the PWA always collects both fields.
+    email: str | None = Field(default=None, min_length=3, max_length=320)
+    password: str | None = Field(default=None, min_length=12, max_length=72)
+    name: str = Field(min_length=1, max_length=200)
+
+    context: Optional[Literal["student", "trader", "freelancer", "other"]] = None
+    terms_accepted: bool = False
+
+    business_name: Optional[str] = Field(default=None, max_length=200)
+    business_category: Optional[str] = Field(default=None, max_length=120)
+    business_phone: Optional[str] = Field(default=None, max_length=32)
+
+
+class LoginRequest(BaseModel):
+    """Password sign-in, with OTP only for an untrusted browser device."""
+
+    identifier: str | None = Field(default=None, min_length=3, max_length=320, description="Registered email address or phone number.")
+    # Only non-production legacy clients can omit this and receive the former
+    # OTP-only path. New PWA sign-in always sends a password.
+    password: str | None = Field(default=None, min_length=1, max_length=72)
+    phone: str | None = Field(default=None, min_length=7, max_length=32, deprecated=True)
+    device_token: str | None = Field(default=None, min_length=20, max_length=256)
+
+
+class AccountResolveRequest(BaseModel):
+    bank_name: str = Field(min_length=2, max_length=120)
+    # The service normalises separators and returns one consistent 400 response
+    # for every invalid length; schema validation would reject short input
+    # before that contract can be applied.
+    account_number: str = Field(min_length=1, max_length=32)
+
+
+class LinkAccountRequest(AccountResolveRequest):
+    """The complete number is accepted only for this request and not persisted."""
+
+
+class VerifyOtpRequest(BaseModel):
+    """P4."""
+
+    challenge_id: str = Field(min_length=1, max_length=64)
+    code: str = Field(min_length=4, max_length=12)
+
+
+class ResendOtpRequest(BaseModel):
+    challenge_id: str = Field(min_length=1, max_length=64)
+
+
+class DemoLoginAsRequest(BaseModel):
+    """P8. Non-production only."""
+
+    role: Literal["individual", "vendor", "bank"] = "individual"
+
+
+class BankLoginRequest(BaseModel):
+    """B1. Email and password for a provisioned Bank Portal staff account."""
+
+    email: str = Field(min_length=3, max_length=320)
+    password: str = Field(min_length=1, max_length=128)
+
+
+class BankVerifyMfaRequest(BaseModel):
+    """B1. Second factor issued by the bank login step."""
+
+    challenge_id: str = Field(min_length=1, max_length=64)
+    code: str = Field(min_length=4, max_length=12)
+
+
+class BankChangePasswordRequest(BaseModel):
+    """B4. Self-service password change for a bank staff account."""
+
+    current_password: str = Field(min_length=1, max_length=200)
+    new_password: str = Field(min_length=12, max_length=72)
+
+
+class BankResetPasswordRequest(BaseModel):
+    """B4. Administrator-set password for a colleague who is locked out."""
+
+    staff_id: str = Field(min_length=1, max_length=64)
+    new_password: str = Field(min_length=12, max_length=72)
+
+
+class VendorVerificationRequest(BaseModel):
+    vendor_id: str
+    name: Optional[str] = None
+    category: Optional[str] = None
+
+
+class ConsentRequest(BaseModel):
+    granted: bool
+
+
+class JoinCommitmentRequest(BaseModel):
+    invite_code: str = Field(min_length=1, max_length=64)
+
+
+class ReplaceCommitmentMemberRequest(BaseModel):
+    replacement_user_id: str = Field(min_length=1, max_length=128)
+
+
+class MemberLookupRequest(BaseModel):
+    """Exact-contact lookup used while an authenticated member builds a group."""
+
+    phone: str = Field(min_length=7, max_length=32)
+
+
+class VendorRedeemRequest(BaseModel):
+    voucher_code: str = Field(min_length=1, max_length=64)
+
+
+class PayoutScheduleItem(BaseModel):
+    cycle: int
+    beneficiary_id: str
+    amount: int
+
+
+class LockResponse(BaseModel):
+    commitment_id: str
+    type: str
+    status: str
+    invite_code: str
+    payout_schedule: List[PayoutScheduleItem]
+
+
+class ScoreBreakdown(BaseModel):
+    commitment_behaviour: int
+    repayment_behaviour: int
+    transaction_stability: int
+    institutional_verification: int
+    social_reliability: int
+
+
+class ScoreResponse(BaseModel):
+    user_id: str
+    score: int
+    tier: str
+    breakdown: ScoreBreakdown
+    weights: dict[str, float]
+    score_version: str
+    last_updated: datetime
+
+
+class ScoreHistoryEntry(BaseModel):
+    id: str
+    score: int
+    score_before: Optional[int] = None
+    event_type: Optional[str] = None
+    source_id: Optional[str] = None
+    reason: Optional[str] = None
+    computed_at: datetime
+    breakdown: Optional[ScoreBreakdown] = None
+    weights: dict[str, float] = Field(default_factory=dict)
+    signals: dict[str, Any] = Field(default_factory=dict)
+    score_version: Optional[str] = None
+
+
+class ScoreHistoryResponse(BaseModel):
+    user_id: str
+    current_score: int
+    entries: List[ScoreHistoryEntry]
