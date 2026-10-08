@@ -15,6 +15,8 @@ export const endpoints = {
   logout: "/v1/logout",
   logoutAll: "/v1/logout-all",
   vendors: "/v1/vendors",
+  vendorProducts: (vendorId: string) => `/v1/vendors/${encodeURIComponent(vendorId)}/products`,
+  myVendorProducts: "/v1/vendors/me/products",
   commitments: "/v1/commitments",
   consent: "/v1/consent",
   notifications: "/v1/notifications",

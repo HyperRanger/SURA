@@ -146,7 +146,7 @@ One route, six steps, a progress bar at the top, back button on every step. The 
 |---|---|---|
 | M4a | Basics | Title. The three commitment types shown as cards. Rotating is selectable. Collective goal and individual goal are greyed with a "coming soon" label. |
 | M4b | Vendor | Pick from the seeded vendor list. Each has name, category and a verified badge. Choice is locked after creation. |
-| M4c | Contribution | Amount, frequency (daily or weekly), number of cycles. Live line showing pool per cycle. |
+| M4c | Contribution | Amount, frequency (daily, weekly or monthly), number of cycles. Live line showing pool per cycle. |
 | M4d | Members | Add members by phone number or share the invite code. Shows how many are still needed. |
 | M4e | Payout order | If the group is all new, the members choose the order themselves and a notice explains that the first payout is capped. If someone in the group has history, the order is suggested and shown. Drag to reorder where allowed. Includes a small sheet titled "Why is the first payout capped?" |
 | M4f | Review | Full summary, the payout schedule, the cap notice if it applies, confirm button |
@@ -186,6 +186,17 @@ A separate, very plain area. Big buttons, large text, built for someone standing
 | V6 | /vendor/redeem/rejected | Clear reason: wrong vendor, already redeemed, expired, or invalid code | V3, V2 | P0 |
 | V7 | /vendor/history | List of past redemptions | V8, V2 | P1 |
 | V8 | /vendor/history/:id | One redemption in detail | V7 | P2 |
+| V9 | /vendor/catalogue | Text-only item and price list for the authenticated merchant. Add, edit and remove controls are designed here. | V2 | P1 |
+
+### Vendor catalogue boundary
+
+V9 is a screen and interaction contract, not a claim that inventory is already
+persisted. The current backend has verified vendors and voucher redemption,
+but it does not yet have a product table or vendor inventory endpoints. Until
+that work lands, the PWA must label the catalogue as a preview and must not
+claim that add, edit or remove actions were saved. The follow-up backend
+contract needs to support a member selecting a vendor item before a Lock is
+created, while keeping vendor identity server-derived at redemption.
 
 V6 is a demo highlight. Trying a voucher at the wrong vendor and watching it get refused is the clearest live proof of vendor lock.
 
