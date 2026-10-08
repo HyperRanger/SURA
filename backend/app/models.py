@@ -76,7 +76,31 @@ class LinkedAccount(Base):
     bank_name: Mapped[str] = mapped_column(String, nullable=False)
     account_number_masked: Mapped[str] = mapped_column(String, nullable=False)
     display_name: Mapped[str] = mapped_column(String, nullable=False)
+    # This is an explicit, revocable demo consent to show this member inside a
+    # Sura partner's portal.  It is not implied merely because the source bank
+    # name happened to match a partner.
+    partner_bank_id: Mapped[str | None] = mapped_column(String, ForeignKey("bank_partners.id"), nullable=True, index=True)
+    shared_with_partner_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class VendorPayoutAccount(Base):
+    """A vendor's future settlement destination for the simulated MVP.
+
+    Just like a member funding source, this stores a display label and masked
+    number only. It is not a payment instruction, credential, or live bank
+    connection.
+    """
+
+    __tablename__ = "vendor_payout_accounts"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    vendor_id: Mapped[str] = mapped_column(String, ForeignKey("vendors.id"), nullable=False, unique=True, index=True)
+    bank_name: Mapped[str] = mapped_column(String, nullable=False)
+    account_number_masked: Mapped[str] = mapped_column(String, nullable=False)
+    display_name: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class TrustedDevice(Base):

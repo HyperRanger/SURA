@@ -22,14 +22,18 @@ def _require_individual(current_user: AuthPrincipal) -> None:
 
 
 @router.get("/banks")
-def list_nigerian_banks():
-    return linked_accounts.list_banks()
+def list_nigerian_banks(db: Session = Depends(get_db)):
+    return linked_accounts.list_banks(db)
 
 
 @router.post("/accounts/resolve")
-def resolve_account(payload: AccountResolveRequest, current_user: AuthPrincipal = Depends(get_current_principal)):
+def resolve_account(
+    payload: AccountResolveRequest,
+    current_user: AuthPrincipal = Depends(get_current_principal),
+    db: Session = Depends(get_db),
+):
     _require_individual(current_user)
-    return linked_accounts.resolve_account(payload.bank_name, payload.account_number)
+    return linked_accounts.resolve_account(db, payload.bank_name, payload.account_number, payload.partner_bank_id)
 
 
 @router.post("/accounts/link", status_code=status.HTTP_201_CREATED)
@@ -39,7 +43,14 @@ def link_account(
     db: Session = Depends(get_db),
 ):
     _require_individual(current_user)
-    return linked_accounts.link_account(db, current_user.user_id, payload.bank_name, payload.account_number)
+    return linked_accounts.link_account(
+        db,
+        current_user.user_id,
+        payload.bank_name,
+        payload.account_number,
+        partner_bank_id=payload.partner_bank_id,
+        share_with_partner=payload.share_with_partner,
+    )
 
 
 @router.get("/me/account")

@@ -17,6 +17,7 @@ export const endpoints = {
   vendors: "/v1/vendors",
   vendorProducts: (vendorId: string) => `/v1/vendors/${encodeURIComponent(vendorId)}/products`,
   myVendorProducts: "/v1/vendors/me/products",
+  myVendorPayoutAccount: "/v1/vendors/me/payout-account",
   commitments: "/v1/commitments",
   consent: "/v1/consent",
   notifications: "/v1/notifications",

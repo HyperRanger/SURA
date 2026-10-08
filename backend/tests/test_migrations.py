@@ -18,7 +18,7 @@ from alembic.script import ScriptDirectory
 
 from app.bank.models import AccountRestriction, BankApiKey, BankAuditEvent, BankPartner, BankStaff, RiskFlag, WebhookDelivery, WebhookSubscription
 from app.database import Base
-from app.models import LinkedAccount, PlatformAuditEvent, SessionRevocation, TrustedDevice
+from app.models import LinkedAccount, PlatformAuditEvent, SessionRevocation, TrustedDevice, VendorPayoutAccount
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 ALEMBIC_INI = BACKEND_DIR / "alembic.ini"
@@ -46,7 +46,7 @@ def test_there_is_exactly_one_migration_head():
 
 def test_migration_paths_merge_at_the_expected_head():
     heads = _script_directory().get_heads()
-    assert heads == ["0022_merge_catalogue_idle"]
+    assert heads == ["0023_partner_links_payouts"]
 
 
 def test_release_readiness_documents_the_current_migration_head():
@@ -89,6 +89,7 @@ def test_bank_tables_are_present_in_the_orm_metadata():
         SessionRevocation,
         PlatformAuditEvent,
         LinkedAccount,
+        VendorPayoutAccount,
         TrustedDevice,
     ):
         assert table.__tablename__ in Base.metadata.tables
