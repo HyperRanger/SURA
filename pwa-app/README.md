@@ -40,3 +40,16 @@ After verifying, members land on `/app` (or `/app/welcome` for a new account) an
 Same design language as the website (Nunito, raised cards, chunky buttons), with its own
 palette in `app/globals.css`: iris leads on a cool lilac mist, marigold marks money and
 payouts, and mint marks anything paid, confirmed or redeemed.
+
+## Offline and install behaviour
+
+The PWA registers a service worker after the first page load. It caches only the
+public landing shell and same-origin static assets, allowing the installed app to
+reopen to a safe offline screen when there is no connection.
+
+It deliberately does **not** cache API responses, authentication tokens, OTPs,
+vouchers, account data, scores, Locks, or any write request. Contributions,
+redemption, and every financial action require an active connection.
+
+On an HTTPS deployment, Android browsers can offer **Install app**. On iPhone,
+open the app in Safari, tap **Share**, then choose **Add to Home Screen**.
