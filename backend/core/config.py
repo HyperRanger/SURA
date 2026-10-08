@@ -20,6 +20,15 @@ class Settings(BaseSettings):
 
     environment: str = "development"
 
+    # A checked-out pooled connection avoids a new TLS/database handshake per
+    # request. Recycling it before provider idle limits does the stale-connection
+    # work off the request's critical path, so a health probe before every read
+    # is unnecessary in the normal case.
+    database_pool_size: int = 5
+    database_max_overflow: int = 5
+    database_pool_timeout_seconds: int = 10
+    database_pool_recycle_seconds: int = 1500
+
     # One-time codes are short-lived and single-use. The resend cooldown is what
     # P4's resend timer reflects, and it is also what stops this endpoint being
     # used to bill someone's phone with SMS.

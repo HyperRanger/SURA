@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -228,6 +228,11 @@ class Commitment(Base):
 
 class CommitmentMember(Base):
     __tablename__ = "commitment_members"
+    __table_args__ = (
+        # The primary key starts with commitment_id. Member home and Score reads
+        # begin with user_id, so they need their own lookup path.
+        Index("ix_commitment_members_user_commitment", "user_id", "commitment_id"),
+    )
 
     commitment_id: Mapped[str] = mapped_column(String, ForeignKey("commitments.id"), primary_key=True)
     user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"), primary_key=True)
@@ -238,6 +243,9 @@ class CommitmentMember(Base):
 
 class CommitmentBeneficiary(Base):
     __tablename__ = "commitment_beneficiaries"
+    __table_args__ = (
+        Index("ix_commitment_beneficiaries_commitment_cycle", "commitment_id", "cycle_number"),
+    )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     commitment_id: Mapped[str] = mapped_column(String, ForeignKey("commitments.id"), nullable=False)
@@ -251,6 +259,14 @@ class Contribution(Base):
     __tablename__ = "contributions"
     __table_args__ = (
         UniqueConstraint("commitment_id", "user_id", "event_id", name="uq_contributions_commitment_user_event"),
+        Index(
+            "ix_contributions_commitment_cycle_paid_user",
+            "commitment_id",
+            "cycle_number",
+            "paid_at",
+            "user_id",
+        ),
+        Index("ix_contributions_user_commitment", "user_id", "commitment_id"),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -268,6 +284,7 @@ class Redemption(Base):
     __tablename__ = "redemptions"
     __table_args__ = (
         UniqueConstraint("commitment_id", "cycle_number", name="uq_redemptions_commitment_cycle"),
+        Index("ix_redemptions_vendor_redeemed", "vendor_id", "redeemed_at"),
     )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
@@ -323,6 +340,9 @@ class UserConsent(Base):
 
 class CommitmentActivity(Base):
     __tablename__ = "commitment_activities"
+    __table_args__ = (
+        Index("ix_commitment_activities_commitment_occurred", "commitment_id", "occurred_at"),
+    )
 
     id: Mapped[str] = mapped_column(String, primary_key=True)
     commitment_id: Mapped[str] = mapped_column(String, ForeignKey("commitments.id"), nullable=False)
