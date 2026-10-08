@@ -8,23 +8,25 @@ type DemoCodeHintProps = {
   disabled?: boolean
 }
 
-// non-production only. the api returns the code in the response so the demo works
-// without a real sms provider
+// The API returns this code only from an explicitly configured demo backend.
+// It is never an alternative authentication path for a real deployment.
 export function DemoCodeHint({ code, onUse, disabled }: DemoCodeHintProps) {
   if (!isDemoEnabled || !code) return null
 
   return (
     <Alert
       variant="gold"
-      title="Demo code"
+      title="Demo OTP"
       action={
         <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={() => onUse(code)}>
-          Use it
+          Use demo OTP
         </Button>
       }
     >
       <span className="font-mono text-base font-bold tracking-[0.3em]">{code}</span>
-      <span className="block text-xs">Shown outside production only.</span>
+      <span className="block text-xs">
+        Demo-only access. Never enable this for real customer accounts.
+      </span>
     </Alert>
   )
 }

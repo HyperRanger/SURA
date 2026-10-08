@@ -6,6 +6,10 @@ const appEnv = (
 ).trim().toLowerCase()
 
 const isProductionEnvironment = appEnv === "production" || appEnv === "prod"
+// A dedicated, seeded hackathon deployment may opt into the visible demo OTP
+// journey even when it is hosted on a production Vercel URL. It must never be
+// enabled for a deployment containing real customer data.
+const isDemoDeployment = process.env.NEXT_PUBLIC_DEMO_MODE === "true"
 const productionSiteUrl = "https://sura-seven.vercel.app"
 
 // axios treats anything that isn't an absolute url as a path on the current page,
@@ -37,5 +41,6 @@ export const env = {
 
 export const isProduction = isProductionEnvironment
 
-// the demo switcher and demo code hints are off in production, matching the backend
-export const isDemoEnabled = !isProduction
+// A dedicated demo deployment may enable this explicitly. Normal production
+// deployments remain closed, matching the backend's ENVIRONMENT setting.
+export const isDemoEnabled = isDemoDeployment || !isProduction

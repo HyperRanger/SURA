@@ -17,8 +17,9 @@ Create a `.env.local` with:
 | Variable | Purpose |
 |---|---|
 | `NEXT_PUBLIC_API_URL` | The Sura API, e.g. `http://localhost:8000` |
-| `NEXT_PUBLIC_APP_ENV` | `development`, `staging` or `production`. Demo sign-ins and code hints are off in production |
+| `NEXT_PUBLIC_APP_ENV` | `development`, `staging` or `production`. Demo sign-ins and code hints are off in normal production deployments |
 | `NEXT_PUBLIC_DEMO_OTP_CODE` | The backend's `DEMO_OTP_CODE`, to sign in as the named seeded people on `/demo`. Never set in production |
+| `NEXT_PUBLIC_DEMO_MODE` | Set to `true` only on an isolated, seeded hackathon demo deployment. It enables the visible “Use demo OTP” action when the backend supplies a demo code. Never use it with real customer data. |
 | `NEXT_PUBLIC_SITE_URL` | The marketing website, e.g. `http://localhost:4321`, for the bank information page and the bank console |
 
 ## What's built
@@ -53,3 +54,14 @@ redemption, and every financial action require an active connection.
 
 On an HTTPS deployment, Android browsers can offer **Install app**. On iPhone,
 open the app in Safari, tap **Share**, then choose **Add to Home Screen**.
+
+## Demo OTP setup
+
+For a hackathon recording, use a dedicated demo API deployment with fake seeded
+records only. Set `ENVIRONMENT=demo` on that backend so it returns a demo OTP
+with an OTP challenge, and set `NEXT_PUBLIC_DEMO_MODE=true` on the matching PWA
+deployment. The verification screen then displays the returned code and its
+**Use demo OTP** action completes the normal verification request.
+
+Do not enable either setting for real customers. A production deployment must
+keep `ENVIRONMENT=production` and omit `NEXT_PUBLIC_DEMO_MODE`.

@@ -143,6 +143,18 @@ def test_no_provider_configured_means_no_network_call(client, termii):
         object.__setattr__(settings, "termii_api_key", None)
 
 
+def test_demo_environment_never_calls_sms_provider_even_when_configured(client, termii, configured):
+    """An isolated demo uses the visible demo code, never real SMS delivery."""
+    original_environment = configured.environment
+    try:
+        object.__setattr__(configured, "environment", "demo")
+        body = _signup(client, phone="+234 803 000 0051")
+        assert termii == []
+        assert body["demo_code"]
+    finally:
+        object.__setattr__(configured, "environment", original_environment)
+
+
 def test_a_failed_send_does_not_change_what_the_caller_sees(
     client, monkeypatch, configured
 ):
