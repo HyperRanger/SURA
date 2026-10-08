@@ -53,6 +53,9 @@ class User(Base):
     # refused on sight, which is how every outstanding session ends at once
     # without the service having to keep a table of live tokens.
     session_invalidated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Last authenticated request, stamped at most once a minute. Sessions that go
+    # quiet for longer than the idle timeout are refused on their next request.
+    last_active_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class LinkedAccount(Base):

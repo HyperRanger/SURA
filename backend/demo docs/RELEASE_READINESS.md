@@ -13,7 +13,7 @@ python -m pytest tests -q
 python -m alembic -c alembic.ini heads
 ```
 
-Expected migration result: exactly one head, `0020_hot_read_indexes`.
+Expected migration result: exactly one head, `0021_member_session_idle_timeout`.
 
 Confirm that `.env` is ignored and no secret appears in tracked files:
 
