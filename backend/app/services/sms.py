@@ -82,6 +82,10 @@ class TermiiSmsProvider:
                 timeout=self._timeout,
             )
             response.raise_for_status()
+            # This confirms only that Termii accepted the message request; it
+            # does not overclaim handset delivery, which requires a delivery
+            # report/webhook in a production integration.
+            logger.info("OTP message accepted by Termii (HTTP %s).", response.status_code)
         except Exception as exc:
             # The API key is never logged, and neither is the code inside the
             # message body.
