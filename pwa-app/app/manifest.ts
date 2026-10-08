@@ -14,8 +14,10 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#f5f4fb",
     theme_color: "#4c3fd6",
     icons: [
-      { src: "/icon-192.png", sizes: "192x192", type: "image/png" },
-      { src: "/icon-512.png", sizes: "512x512", type: "image/png" },
+      // `app/icon.png` is emitted by Next.js at this stable route. Keeping the
+      // manifest on the emitted asset avoids referring to duplicate public
+      // files that may not be present in a deployment.
+      { src: "/icon.png", sizes: "512x512", type: "image/png" },
     ],
   }
 }
