@@ -92,6 +92,24 @@ class ResendOtpRequest(BaseModel):
     challenge_id: str = Field(min_length=1, max_length=64)
 
 
+class PasswordRecoveryRequest(BaseModel):
+    """Ask for an SMS recovery code for a member account, by email or phone.
+
+    The service answers identically for an unknown identifier, so the response
+    itself never confirms whether an account exists.
+    """
+
+    identifier: str = Field(min_length=3, max_length=320)
+
+
+class PasswordRecoveryConfirmRequest(BaseModel):
+    """Finish recovery with the SMS code and the new password."""
+
+    challenge_id: str = Field(min_length=1, max_length=64)
+    code: str = Field(min_length=4, max_length=12)
+    new_password: str = Field(min_length=12, max_length=72)
+
+
 class DemoLoginAsRequest(BaseModel):
     """P8. Non-production only."""
 

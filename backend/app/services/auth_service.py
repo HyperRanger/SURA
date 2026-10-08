@@ -18,6 +18,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import AuthChallenge, SessionRevocation, TrustedDevice, User, Vendor
+from app.services import audit
 from app.services.sms import SmsDeliveryError, send_otp
 from core.config import get_settings
 from core.passwords import PasswordTooLong, hash_password, verify_password
@@ -41,8 +42,10 @@ ASSIGNABLE_ROLES = {INDIVIDUAL_ROLE, VENDOR_ROLE}
 PURPOSE_SIGNUP = "signup"
 PURPOSE_LOGIN = "login"
 PURPOSE_BANK_MFA = "bank_mfa"
+PURPOSE_PASSWORD_RESET = "password_reset"
 
 TRUSTED_DEVICE_DAYS = 5
+MIN_PASSWORD_LENGTH = 12
 GENERIC_CREDENTIALS_ERROR = "Email, phone number, or password is incorrect."
 # Keeps an unknown identifier on the same bcrypt-cost path as a wrong password.
 _DECOY_PASSWORD_HASH = hash_password("sura-member-login-decoy")
@@ -392,10 +395,12 @@ def login(
 def verify_otp(db: Session, challenge_id: str, code: str) -> dict[str, Any]:
     settings = get_settings()
     challenge = db.get(AuthChallenge, challenge_id)
-    if challenge is None:
+    if challenge is None or challenge.purpose not in {PURPOSE_SIGNUP, PURPOSE_LOGIN}:
         # login() hands back a well-formed challenge_id for numbers we do not
         # know, so a distinct 404 here would tell an attacker which numbers
-        # exist. Answer exactly as we do for a wrong code.
+        # exist. Answer exactly as we do for a wrong code. A challenge issued
+        # for another purpose (for example password recovery) must not be able
+        # to mint a member session through this endpoint either.
         raise HTTPException(status_code=401, detail="Incorrect code.")
 
     if challenge.consumed_at is not None:
@@ -428,6 +433,126 @@ def verify_otp(db: Session, challenge_id: str, code: str) -> dict[str, Any]:
     db.commit()
 
     return _token_response(user, trusted_device_token=trusted_device_token, otp_required=False)
+
+
+def request_password_recovery(
+    db: Session,
+    identifier: str,
+    background_tasks: BackgroundTasks | None = None,
+) -> dict[str, Any]:
+    """Start self-service password recovery with an SMS code to the phone.
+
+    Recovery is deliberately radio-silent about whether the identifier exists:
+    the response is the same envelope either way, exactly as login() behaves
+    for an unknown number, so this endpoint cannot be used to learn who has an
+    account. A passwordless legacy account has no password to recover, so it is
+    answered as an unknown one too.
+    """
+    user = _get_by_identifier(db, identifier)
+    if user is None or user.password_hash is None:
+        return _challenge_envelope(str(uuid.uuid4()), PURPOSE_PASSWORD_RESET, generate_otp())
+    challenge, code = _issue_challenge(db, user, PURPOSE_PASSWORD_RESET, background_tasks=background_tasks)
+    return _challenge_response(challenge, code, get_settings().otp_ttl_seconds)
+
+
+def _validate_new_password(user: User, new_password: str) -> None:
+    """Refuse a password we would not have accepted at signup.
+
+    Length and a check against the account's own identifiers are enforced before
+    hashing, so a rejected password costs nothing and the reason can be specific.
+    """
+    if len(new_password) < MIN_PASSWORD_LENGTH:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Password must be at least {MIN_PASSWORD_LENGTH} characters.",
+        )
+
+    try:
+        hash_password(new_password)
+    except PasswordTooLong:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password is too long.",
+        ) from None
+
+    if user.password_hash is not None and verify_password(new_password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="New password must be different from the current one.",
+        )
+
+    lowered = new_password.lower()
+    identifiers = [
+        part
+        for part in (user.email, user.email.split("@")[0] if user.email else None, user.phone, user.id)
+        if part
+    ]
+    if any(part.lower() in lowered for part in identifiers):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must not contain your email, phone number, or user ID.",
+        )
+
+
+def confirm_password_recovery(db: Session, challenge_id: str, code: str, new_password: str) -> dict[str, Any]:
+    """Verify the recovery code and set the new password.
+
+    Consumes the code first, then bears the same evidence a signup does for a
+    wrong code, so a friendly challenge cannot confirm which identifier is real.
+    A verified recovery ends every session and every remembered device: anything
+    proved by the old password is no longer trustworthy.
+    """
+    settings = get_settings()
+    challenge = db.get(AuthChallenge, challenge_id)
+    if challenge is None or challenge.purpose != PURPOSE_PASSWORD_RESET:
+        raise HTTPException(status_code=401, detail="Incorrect code.")
+
+    if challenge.consumed_at is not None:
+        raise HTTPException(status_code=400, detail="This code has already been used.")
+
+    if challenge.expires_at is not None and datetime.utcnow() > challenge.expires_at:
+        raise HTTPException(status_code=400, detail="This code has expired. Request a new one.")
+
+    if challenge.attempts >= settings.otp_max_attempts:
+        raise HTTPException(status_code=429, detail="Too many incorrect attempts. Request a new code.")
+
+    if not otp_matches(code, challenge.salt, challenge.code_hash):
+        challenge.attempts += 1
+        db.commit()
+        raise HTTPException(status_code=401, detail="Incorrect code.")
+
+    user = db.get(User, challenge.user_id)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Incorrect code.")
+
+    _validate_new_password(user, new_password)
+
+    now = datetime.utcnow()
+    user.password_hash = hash_password(new_password)
+    user.session_invalidated_at = now
+    trusted_devices_ended = revoke_trusted_devices(db, user.id)
+    challenge.consumed_at = now
+
+    audit.record(
+        db,
+        event_type=audit.PASSWORD_RESET,
+        subject_type="user",
+        subject_id=user.id,
+        actor_id=user.id,
+        actor_role=user.role,
+        detail={
+            "via": "otp",
+            "sessions_revoked": "all",
+            "trusted_devices_revoked": trusted_devices_ended,
+        },
+    )
+    db.commit()
+    return {
+        "status": "password_reset",
+        "sessions_revoked": True,
+        "trusted_devices_revoked": trusted_devices_ended,
+        "changed_at": now.isoformat(),
+    }
 
 
 def _token_response(user: User, *, trusted_device_token: str | None, otp_required: bool) -> dict[str, Any]:
