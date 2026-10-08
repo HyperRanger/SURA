@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { resendOtp, verifyOtp } from "@/actions/auth"
 import { OTP_LENGTH } from "@/config/auth"
+import { isDemoEnabled } from "@/config/env"
 import { routes } from "@/config/routes"
 import { useCountdown } from "@/hooks/use-countdown"
 import { useHydrated } from "@/hooks/use-hydrated"
@@ -68,6 +69,9 @@ function VerifyChallenge({ challenge, onVerified }: VerifyChallengeProps) {
   const busy = verify.isPending || resend.isPending
   const error = verify.error ?? resend.error
   const changeNumberHref = withNext(challenge.isNewAccount ? routes.signup : routes.login, challenge.next)
+  // A demo challenge carries a code only from a deliberately configured demo
+  // backend. Do not claim an SMS was sent when the app can show that code.
+  const demoOtpAvailable = isDemoEnabled && Boolean(challenge.demoCode)
 
   async function submit(value: string) {
     if (value.length !== OTP_LENGTH) return
@@ -107,13 +111,22 @@ function VerifyChallenge({ challenge, onVerified }: VerifyChallengeProps) {
     <AuthCard
       title="Enter your code"
       description={
-        <>
-          We sent a {OTP_LENGTH}-digit code to{" "}
-          <span className="font-bold whitespace-nowrap text-foreground">{maskPhone(challenge.phone)}</span>.{" "}
-          <Link href={changeNumberHref} className="font-bold text-link underline-offset-4 hover:underline">
-            Change number
-          </Link>
-        </>
+        demoOtpAvailable ? (
+          <>
+            This is the isolated Sura demo. Use the visible demo code below; no SMS is sent. {" "}
+            <Link href={changeNumberHref} className="font-bold text-link underline-offset-4 hover:underline">
+              Change number
+            </Link>
+          </>
+        ) : (
+          <>
+            We sent a {OTP_LENGTH}-digit code to{" "}
+            <span className="font-bold whitespace-nowrap text-foreground">{maskPhone(challenge.phone)}</span>.{" "}
+            <Link href={changeNumberHref} className="font-bold text-link underline-offset-4 hover:underline">
+              Change number
+            </Link>
+          </>
+        )
       }
     >
       <form noValidate onSubmit={handleSubmit} className="flex flex-col gap-6">
@@ -155,14 +168,16 @@ function VerifyChallenge({ challenge, onVerified }: VerifyChallengeProps) {
           {verify.isPending ? "Checking" : "Verify"}
         </Button>
 
-        <div className="text-center">
-          <ResendCode
-            key={challenge.resendAvailableAt}
-            availableAt={challenge.resendAvailableAt}
-            onResend={handleResend}
-            loading={resend.isPending}
-          />
-        </div>
+        {!demoOtpAvailable && (
+          <div className="text-center">
+            <ResendCode
+              key={challenge.resendAvailableAt}
+              availableAt={challenge.resendAvailableAt}
+              onResend={handleResend}
+              loading={resend.isPending}
+            />
+          </div>
+        )}
       </form>
     </AuthCard>
   )
