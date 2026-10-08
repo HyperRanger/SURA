@@ -8,16 +8,14 @@ import { Select } from "@base-ui/react/select"
 import { sessionStore, endSession } from "@/lib/session"
 import { useStoredValue } from "@/hooks/use-stored-value"
 import { createStoredValue } from "@/lib/storage"
-import { requestLoginCode } from "@/actions/auth"
-import { rememberChallenge } from "@/lib/session"
 import { Button } from "@/components/ui/button"
 import { Logo } from "@/components/layout/logo"
 import { ThemeToggle } from "@/components/layout/theme-toggle"
 import { formatDate, formatNaira } from "@/utils/format"
 import {
-  cancelCommitment, contribute, createLock, getCommitment, getCommitmentActivity, getCommitments, getInvitePreview, getRedemption, getScoreEntry,
+  cancelCommitment, contribute, createLock, getBanks, getCommitment, getCommitmentActivity, getCommitments, getInvitePreview, getLinkedAccount, getRedemption, getScoreEntry,
   getMemberHome, getMe, getNotifications, getRedemptions, getScore, getScoreHistory, getVoucher,
-  getVendorHome, getVendors, joinCommitment, logout, previewLock, recordConsent, resolveMember,
+  getVendorHome, getVendors, joinCommitment, linkAccount, logout, previewLock, recordConsent, resolveLinkedAccount, resolveMember,
   redeemVoucher, validateVoucher,
 } from "@/actions/app"
 
@@ -27,6 +25,7 @@ type Role = "individual" | "vendor"
 type Row = Record<string, any>
 type LockDraft = { form: Row; members: Row[]; step: number; consentAccepted: boolean; lockPreview: Row | null }
 const lockDraftStore = createStoredValue<LockDraft>("session", "sura.lock-draft")
+const fundingReturnStore = createStoredValue<string>("session", "sura.funding-return")
 const emptyLockDraft: LockDraft = { form: { title: "", vendor_id: "", contribution_amount: "", contribution_frequency: "weekly", cycles: 2 }, members: [], step: 0, consentAccepted: false, lockPreview: null }
 
 const memberNav = [
@@ -72,10 +71,13 @@ export function ProductScreen({ role, segments }: { role: Role; segments: string
     updateDraft(draftState)
   }, [draftState])
   const [code, setCode] = useState("")
-  const [phone, setPhone] = useState("")
   const [vendorList, setVendorList] = useState<Row[]>([])
   const [listTab, setListTab] = useState("active")
   const [memberPhone, setMemberPhone] = useState("")
+  const [fundingBank, setFundingBank] = useState("")
+  const [fundingNumber, setFundingNumber] = useState("")
+  const [fundingBanks, setFundingBanks] = useState<string[]>([])
+  const [fundingPreview, setFundingPreview] = useState<Row | null>(null)
   const [loadedPath, setLoadedPath] = useState("")
   const page = segments.join("/")
   const isVendor = role === "vendor"
@@ -104,13 +106,18 @@ export function ProductScreen({ role, segments }: { role: Role; segments: string
         return getVendorHome()
       }
       if (!segments.length || segments[0] === "welcome") return getMemberHome()
+      if (segments[0] === "account" && segments[1] === "link") return getBanks()
+      if (segments[0] === "account" && segments[1] === "linked") return getLinkedAccount()
       if (segments[0] === "commitments" && segments.includes("voucher")) return getVoucher(segments[1], segments.at(-2) || "1")
       if (segments[0] === "commitments" && segments[1] && segments[1] !== "new") {
-        const [lock, activity] = await Promise.all([getCommitment(id), getCommitmentActivity(id)])
+        const [lock, activity, linkedAccount] = await Promise.all([getCommitment(id), getCommitmentActivity(id), getLinkedAccount()])
+        if (segments.at(-1) === "contribute" && !(linkedAccount as Row).account) {
+          return { needs_funding_source: true, funding_return: pathname }
+        }
         const events = Array.isArray(activity) ? activity : (activity as Row).activities ?? []
         const commitment = lock as Row
         const cycle = commitment.current_cycle ?? {}
-        return { ...commitment, activity: events, progress_percent: cycle.progress_percent ?? 0, paid_count: cycle.paid_member_count ?? 0, paid_percent: cycle.progress_percent ?? 0, member_count: cycle.member_count ?? commitment.members?.length ?? 0, next_payout: { beneficiary_name: cycle.beneficiary_first_name } }
+        return { ...commitment, linked_account: (linkedAccount as Row).account, activity: events, progress_percent: cycle.progress_percent ?? 0, paid_count: cycle.paid_member_count ?? 0, paid_percent: cycle.progress_percent ?? 0, member_count: cycle.member_count ?? commitment.members?.length ?? 0, next_payout: { beneficiary_name: cycle.beneficiary_first_name } }
       }
       if (segments[0] === "commitments") return getCommitments()
       if (segments[0] === "join" && segments[1]) return getInvitePreview(segments[1])
@@ -120,7 +127,21 @@ export function ProductScreen({ role, segments }: { role: Role; segments: string
       if (segments[0] === "consent") return null
       return null
     }
-    load().then((result) => { if (active && result !== null) { setData(result as Row | Row[]); setError("") } }).catch((reason) => {
+    load().then((result) => {
+      if (active && result !== null) {
+        const loaded = result as Row | Row[]
+        if (!isVendor && (loaded as Row).needs_funding_source) {
+          fundingReturnStore.write((loaded as Row).funding_return as string)
+          router.replace("/app/account/link")
+          return
+        }
+        setData(loaded)
+        if (!isVendor && segments[0] === "account" && segments[1] === "link") {
+          setFundingBanks(((result as Row).banks ?? []) as string[])
+        }
+        setError("")
+      }
+    }).catch((reason) => {
       if (active) setError(reason instanceof Error ? reason.message : "We could not load this screen.")
     }).finally(() => { if (active) { setLoading(false); setLoadedPath(pathname) } })
     if (!isVendor && segments[0] === "commitments" && segments[1] === "new") getVendors().then((items) => active && setVendorList(items as Row[])).catch(() => active && setVendorList([]))
@@ -169,7 +190,7 @@ export function ProductScreen({ role, segments }: { role: Role; segments: string
 
   function renderVendor(): React.ReactNode {
     const rows = (Array.isArray(data) ? data : (data as Row)?.recent_redemptions ?? []) as Row[]
-    if (segments[0] === "login") return <Panel><p className="text-xs font-extrabold uppercase tracking-wider text-primary">Merchant access</p><h2 className="mt-2 text-xl font-extrabold">Sign in to your terminal</h2><p className="mt-2 text-sm text-muted-foreground">Use the verified business account phone number.</p><label className="mt-5 block text-sm font-bold" htmlFor="vendor-phone">Phone number</label><input id="vendor-phone" type="tel" autoComplete="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="mt-2 h-12 w-full rounded-lg border border-hairline bg-background px-3 outline-none focus:ring-4 focus:ring-primary/15" placeholder="080 0000 0000"/><Button className="mt-4 w-full" loading={busy} disabled={phone.trim().length < 7} onClick={() => run(async () => { const challenge = await requestLoginCode({ phone }); rememberChallenge(challenge, { phone, next: "/vendor", isNewAccount: false }); router.push("/verify") })}>Continue</Button><p className="mt-3 text-center text-xs text-muted-foreground">Access is granted by the role on your Sura account.</p></Panel>
+    if (segments[0] === "login") return <Panel><p className="text-xs font-extrabold uppercase tracking-wider text-primary">Merchant access</p><h2 className="mt-2 text-xl font-extrabold">Sign in to your terminal</h2><p className="mt-2 text-sm text-muted-foreground">Use the email address or phone number and password on your verified Sura vendor account.</p><Button className="mt-5 w-full" onClick={() => router.push("/login?next=/vendor")}>Go to sign in</Button></Panel>
     if (segments[0] === "redeem" && segments[1] === "review") return <VendorReview />
     if (segments[0] === "redeem" && segments[1] === "success") return <Panel><p className="text-4xl text-success">✓</p><h2 className="mt-3 text-xl font-extrabold">Handover confirmed</h2><p className="mt-2 text-sm text-muted-foreground">{(data as Row)?.commitment_title || "Voucher redemption"}</p><p className="mt-4 text-2xl font-extrabold">{money((data as Row)?.amount)}</p><p className="mt-2 text-xs text-muted-foreground">{(data as Row)?.redeemed_at ? formatDate((data as Row).redeemed_at) : "Just now"} · Ref {(data as Row)?.redemption_id || "Recorded"}</p><p className="mt-4 rounded-lg bg-gold-soft p-3 text-xs text-gold-deep">Settlement is simulated in this MVP.</p><Link className="mt-5 inline-flex font-bold text-primary" href="/vendor/history">View settlement history →</Link></Panel>
     if (segments[0] === "redeem" && segments[1] === "rejected") return <Panel><h2 className="text-xl font-extrabold">Voucher not accepted</h2><p className="mt-2 text-sm text-muted-foreground">{message || "This voucher could not be redeemed. Check the code and try again."}</p><Button className="mt-5" onClick={() => router.replace("/vendor/redeem")}>Try another code</Button></Panel>
@@ -191,6 +212,8 @@ export function ProductScreen({ role, segments }: { role: Role; segments: string
     const rows = (Array.isArray(data) ? data : obj?.commitments ?? obj?.entries ?? obj?.notifications ?? []) as Row[]
     if (page === "welcome") return <Welcome />
     if (!page) return <MemberHome value={obj}/>
+    if (page === "account/link") return <LinkFundingAccount />
+    if (page === "account/linked") return <AccountLinked value={obj}/>
     if (page === "commitments") return <Commitments rows={rows}/>
     if (page === "commitments/new") return NewCommitment()
     if (page === "join") return <Join />
@@ -301,12 +324,13 @@ export function ProductScreen({ role, segments }: { role: Role; segments: string
     const [tab, setTab] = useState("Overview")
     const status = lock.status ?? "active"
     const tabs = ["Overview", "Schedule", "Members", "Activity"]
-    return <div className="space-y-4"><Panel><div className="flex items-start justify-between gap-3"><div><span className="rounded-full bg-primary-soft px-2.5 py-1 text-[10px] font-extrabold uppercase text-primary">{titleCase(status)}</span><h2 className="mt-3 text-xl font-extrabold">{lock.title || "Your Sura Lock"}</h2><p className="mt-1 text-sm text-muted-foreground">{money(lock.contribution_amount)} · {lock.contribution_frequency || "weekly"}</p></div><span className="grid size-11 place-items-center rounded-full bg-gold-soft text-lg text-gold-deep">↻</span></div><div className="mt-5 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, Number(lock.progress_percent ?? 22))}%` }}/></div><div className="mt-2 flex justify-between text-xs text-muted-foreground"><span>Cycle {lock.current_cycle_number ?? 1} of {lock.cycles ?? "—"}</span><span>{lock.completed_cycle_count ?? 0} completed</span></div><Button className="mt-5 w-full" onClick={() => router.push(`/app/commitments/${segments[1]}/contribute`)}>{status === "pending_members" ? "Share invite" : "Contribute"}</Button></Panel><div className="grid grid-cols-4 rounded-lg bg-muted p-1">{tabs.map((name) => <button key={name} onClick={() => setTab(name)} className={`rounded-md py-2 text-[10px] font-extrabold ${tab === name ? "bg-card text-primary shadow-sm" : "text-muted-foreground"}`}>{name}</button>)}</div><Panel><SectionTitle title={tab}/>{tab === "Overview" ? <dl className="divide-y divide-hairline">{[["Members", lock.member_count ?? lock.members?.length ?? "—"], ["Next payout", lock.next_payout?.beneficiary_name || "See schedule"], ["Vendor", lock.vendor_name || "Verified vendor"], ["Invite code", lock.invite_code || "—"]].map(([label, value]) => <div key={label} className="flex justify-between gap-3 py-3 text-sm"><span className="text-muted-foreground">{label}</span><strong>{value}</strong></div>)}</dl> : <Rows rows={tab === "Members" ? lock.members ?? [] : tab === "Schedule" ? lock.cycle_states ?? lock.payout_schedule ?? [] : lock.activity ?? []} empty={`No ${tab.toLowerCase()} details yet.`}/>}</Panel>{status === "pending_members" && <Button variant="outline" className="w-full" onClick={() => run(() => cancelCommitment(segments[1]), () => router.push("/app/commitments"))}>Cancel pending Lock</Button>}</div>
+    return <div className="space-y-4"><Panel><div className="flex items-start justify-between gap-3"><div><span className="rounded-full bg-primary-soft px-2.5 py-1 text-[10px] font-extrabold uppercase text-primary">{titleCase(status)}</span><h2 className="mt-3 text-xl font-extrabold">{lock.title || "Your Sura Lock"}</h2><p className="mt-1 text-sm text-muted-foreground">{money(lock.contribution_amount)} · {lock.contribution_frequency || "weekly"}</p></div><span className="grid size-11 place-items-center rounded-full bg-gold-soft text-lg text-gold-deep">↻</span></div><div className="mt-5 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${Math.min(100, Number(lock.progress_percent ?? 22))}%` }}/></div><div className="mt-2 flex justify-between text-xs text-muted-foreground"><span>Cycle {lock.current_cycle_number ?? 1} of {lock.cycles ?? "—"}</span><span>{lock.completed_cycle_count ?? 0} completed</span></div><Button className="mt-5 w-full" onClick={() => router.push(`/app/commitments/${segments[1]}/contribute`)}>{status === "pending_members" ? "Share invite" : "Contribute"}</Button></Panel><div className="grid grid-cols-4 rounded-lg bg-muted p-1">{tabs.map((name) => <button key={name} onClick={() => setTab(name)} className={`rounded-md py-2 text-[10px] font-extrabold ${tab === name ? "bg-card text-primary shadow-sm" : "text-muted-foreground"}`}>{name}</button>)}</div><Panel><SectionTitle title={tab}/>{tab === "Overview" ? <dl className="divide-y divide-hairline">{[["Members", lock.member_count ?? lock.members?.length ?? "—"], ["Next payout", lock.next_payout?.beneficiary_name || "See schedule"], ["Vendor", lock.vendor_name || "Verified vendor"], ["Funding source", lock.linked_account ? `${lock.linked_account.bank_name} · ${lock.linked_account.account_number_masked}` : "Link an account to contribute"], ["Invite code", lock.invite_code || "—"]].map(([label, value]) => <div key={label} className="flex justify-between gap-3 py-3 text-sm"><span className="text-muted-foreground">{label}</span><strong>{value}</strong></div>)}</dl> : <Rows rows={tab === "Members" ? lock.members ?? [] : tab === "Schedule" ? lock.cycle_states ?? lock.payout_schedule ?? [] : lock.activity ?? []} empty={`No ${tab.toLowerCase()} details yet.`}/>}</Panel>{status === "pending_members" && <Button variant="outline" className="w-full" onClick={() => run(() => cancelCommitment(segments[1]), () => router.push("/app/commitments"))}>Cancel pending Lock</Button>}</div>
   }
   function Contribute({ value }: { value: Row | null }) {
     const lock = value ?? {}
     const id = segments[1]
     const amount = Number(lock.contribution_due ?? lock.contribution_amount ?? 0)
+    const account = lock.linked_account ?? {}
     const submit = () => {
       const eventId = `sura-${id}-${session?.userId}-${lock.current_cycle_number ?? 1}`
       run(() => contribute(id, amount, eventId), (result) => {
@@ -315,8 +339,21 @@ export function ProductScreen({ role, segments }: { role: Role; segments: string
         router.push(`/app/commitments/${id}/contribute/receipt`)
       })
     }
-    return <div className="space-y-4"><Panel><p className="text-xs font-bold uppercase tracking-wider text-primary">Current cycle · {lock.current_cycle_number ?? 1}</p><h2 className="mt-3 text-3xl font-extrabold">{money(amount)}</h2><p className="mt-1 text-sm text-muted-foreground">Locked contribution due for {lock.title || "this Lock"}</p><div className="mt-5 border-t border-hairline pt-4"><div className="flex justify-between text-sm"><span className="text-muted-foreground">Cycle progress</span><strong>{lock.paid_count ?? 0} of {lock.member_count ?? lock.cycles ?? "—"} paid</strong></div><div className="mt-2 h-2 rounded-full bg-muted"><div className="h-full rounded-full bg-success" style={{ width: `${Math.min(100, Number(lock.paid_percent ?? 0))}%` }}/></div></div></Panel><Button className="w-full" loading={busy} disabled={!amount} onClick={submit}>Confirm contribution</Button><p className="text-center text-xs text-muted-foreground">A retry uses the same reference and will never create a second contribution.</p></div>
+    return <div className="space-y-4"><Panel><p className="text-xs font-bold uppercase tracking-wider text-primary">Current cycle · {lock.current_cycle_number ?? 1}</p><h2 className="mt-3 text-3xl font-extrabold">{money(amount)}</h2><p className="mt-1 text-sm text-muted-foreground">Locked contribution due for {lock.title || "this Lock"}</p><div className="mt-5 rounded-lg bg-muted p-3 text-sm"><p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Funding source</p><p className="mt-1 font-extrabold">{account.bank_name} · {account.account_number_masked}</p><p className="mt-1 text-xs text-muted-foreground">Simulated only. No money leaves this account.</p></div><div className="mt-5 border-t border-hairline pt-4"><div className="flex justify-between text-sm"><span className="text-muted-foreground">Cycle progress</span><strong>{lock.paid_count ?? 0} of {lock.member_count ?? lock.cycles ?? "—"} paid</strong></div><div className="mt-2 h-2 rounded-full bg-muted"><div className="h-full rounded-full bg-success" style={{ width: `${Math.min(100, Number(lock.paid_percent ?? 0))}%` }}/></div></div></Panel><Button className="w-full" loading={busy} disabled={!amount} onClick={submit}>Confirm contribution</Button><p className="text-center text-xs text-muted-foreground">A retry uses the same reference and will never create a second contribution.</p></div>
   }
+
+  function LinkFundingAccount() {
+    const resolve = () => void run(() => resolveLinkedAccount(fundingBank, fundingNumber), (result) => setFundingPreview(result))
+    const confirm = () => void run(() => linkAccount(fundingBank, fundingNumber), () => router.push("/app/account/linked"))
+    return <div className="space-y-4"><Panel><p className="text-xs font-bold uppercase tracking-wider text-primary">Funding source</p><h2 className="mt-2 text-xl font-extrabold">Link a bank account</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Choose the label shown before a simulated contribution. Sura does not connect to this bank, access its balance, or move money.</p><label className="mt-5 block text-sm font-bold" htmlFor="funding-bank">Bank</label><select id="funding-bank" value={fundingBank} onChange={(event) => { setFundingBank(event.target.value); setFundingPreview(null) }} className="mt-2 h-12 w-full rounded-lg border border-hairline bg-background px-3"><option value="">Choose your bank</option>{fundingBanks.map((bank) => <option key={bank} value={bank}>{bank}</option>)}</select><label className="mt-4 block text-sm font-bold" htmlFor="funding-account-number">Account number</label><input id="funding-account-number" value={fundingNumber} inputMode="numeric" autoComplete="off" onChange={(event) => { setFundingNumber(event.target.value.replace(/\D/g, "").slice(0, 10)); setFundingPreview(null) }} className="mt-2 h-12 w-full rounded-lg border border-hairline bg-background px-3" placeholder="10-digit account number"/><Button className="mt-4 w-full" variant="outline" loading={busy} disabled={!fundingBank || fundingNumber.length !== 10} onClick={resolve}>Resolve account</Button></Panel>{fundingPreview && <Panel><p className="text-xs font-bold uppercase tracking-wider text-success">Simulated lookup</p><h3 className="mt-2 text-lg font-extrabold">{fundingPreview.display_name}</h3><p className="mt-1 text-sm text-muted-foreground">{fundingPreview.bank_name} · {fundingPreview.account_number_masked}</p><Button className="mt-5 w-full" loading={busy} onClick={confirm}>Confirm and link account</Button></Panel>}</div>
+  }
+
+  function AccountLinked({ value }: { value: Row | null }) {
+    const account = value?.account ?? {}
+    const returnTo = fundingReturnStore.read() ?? "/app/commitments"
+    return <Panel><p className="text-4xl text-success">✓</p><p className="mt-4 text-xs font-bold uppercase tracking-wider text-primary">Funding source linked</p><h2 className="mt-2 text-xl font-extrabold">{account.bank_name || "Bank account"} · {account.account_number_masked || "ending ••••"}</h2><p className="mt-2 text-sm text-muted-foreground">{account.display_name || "Your account"}. This is a display-only label for the simulated settlement demo.</p><Button className="mt-5 w-full" onClick={() => { fundingReturnStore.clear(); router.push(returnTo) }}>Continue to contribution</Button></Panel>
+  }
+
   function Voucher({ value }: { value: Row | null }) {
     const voucher = value ?? {}
     return <Panel className="text-center"><p className="text-xs font-extrabold uppercase tracking-wider text-primary">{titleCase(voucher.status || "voucher")}</p><h2 className="mt-3 text-xl font-extrabold">{voucher.vendor_name || "Your locked vendor"}</h2><p className="mt-1 text-sm text-muted-foreground">Cycle {segments.at(-2)} · {money(voucher.amount)}</p><div className="mx-auto my-6 grid size-48 place-items-center border-4 border-dashed border-hairline bg-muted text-center"><div><span className="text-3xl">▦</span><p className="mt-2 text-xs text-muted-foreground">Show this code<br/>at the counter</p></div></div><p className="text-xl font-extrabold tracking-[.15em]">{voucher.code || voucher.voucher_code || "••••••"}</p><p className="mt-3 text-xs text-muted-foreground">Expires {voucher.expires_at ? formatDate(voucher.expires_at) : "as shown in your Lock terms"}</p><p className="mt-5 rounded-lg bg-success-soft p-3 text-sm font-bold text-success">After vendor confirmation, this voucher will show as redeemed.</p></Panel>

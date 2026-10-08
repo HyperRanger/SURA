@@ -186,6 +186,36 @@ function DetailsStep({ values, errors, setValue }: StepProps) {
         onChange={(event) => setValue("phone", event.target.value)}
         error={errors.phone}
       />
+      <TextField
+        id="email"
+        type="email"
+        autoComplete="email"
+        label="Email address"
+        placeholder="you@example.com"
+        value={values.email}
+        onChange={(event) => setValue("email", event.target.value)}
+        error={errors.email}
+        hint="We will ask you to verify this address in a later security step."
+      />
+      <TextField
+        id="password"
+        type="password"
+        autoComplete="new-password"
+        label="Create a password"
+        hint="Use at least 12 characters."
+        value={values.password}
+        onChange={(event) => setValue("password", event.target.value)}
+        error={errors.password}
+      />
+      <TextField
+        id="password-confirmation"
+        type="password"
+        autoComplete="new-password"
+        label="Confirm password"
+        value={values.passwordConfirmation}
+        onChange={(event) => setValue("passwordConfirmation", event.target.value)}
+        error={errors.passwordConfirmation}
+      />
     </>
   )
 }

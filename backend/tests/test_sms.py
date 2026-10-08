@@ -109,7 +109,8 @@ def test_the_payload_uses_exactly_the_fields_termii_binds(client, termii, config
     """
     _signup(client)
 
-    assert set(termii[0]["payload"]) == {"api_key", "to", "from", "channel", "sms"}
+    assert set(termii[0]["payload"]) == {"api_key", "to", "from", "type", "channel", "sms"}
+    assert termii[0]["payload"]["type"] == "plain"
 
 
 def test_the_recipient_is_sent_in_dialable_international_form(client, termii, configured):

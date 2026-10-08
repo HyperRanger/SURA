@@ -10,6 +10,7 @@ from app.bank.integration_router import router as bank_integration_router
 from app.bank.router import router as bank_router
 from app.database import get_db
 from app.member_vendor.router import notifications_router, router as member_vendor_router
+from app.routers.accounts import router as accounts_router
 from app.routers.auth import demo_router as demo_router
 from app.routers.auth import profile_router as profile_router
 from app.routers.auth import router as auth_router
@@ -55,6 +56,7 @@ app.add_middleware(
 app.include_router(commitments_router)
 app.include_router(consent_router)
 app.include_router(auth_router)
+app.include_router(accounts_router)
 app.include_router(vendors_router)
 app.include_router(score_router)
 app.include_router(bank_router)

@@ -3,6 +3,14 @@ import { endpoints } from "@/config/endpoints"
 
 export async function getMemberHome() { return (await api.get(endpoints.app.home)).data }
 export async function getMe() { return (await api.get(endpoints.me)).data }
+export async function getLinkedAccount() { return (await api.get(endpoints.account)).data }
+export async function getBanks() { return (await api.get(endpoints.banks)).data }
+export async function resolveLinkedAccount(bank_name: string, account_number: string) {
+  return (await api.post(endpoints.accountResolve, { bank_name, account_number })).data
+}
+export async function linkAccount(bank_name: string, account_number: string) {
+  return (await api.post(endpoints.accountLink, { bank_name, account_number })).data
+}
 export async function getCommitments() { return (await api.get(endpoints.commitments)).data }
 export async function getCommitment(id: string) { return (await api.get(`${endpoints.commitments}/${encodeURIComponent(id)}`)).data }
 export async function getCommitmentActivity(id: string) { return (await api.get(`${endpoints.commitments}/${encodeURIComponent(id)}/activity`)).data }

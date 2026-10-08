@@ -61,6 +61,9 @@ There are four areas, each with its own ID letter.
     /settings
   /help
   /account-review
+  /account
+    /link                  Link display-only funding source
+    /linked                Linked-account confirmation
 
 /vendor                    Vendor terminal
   /login
@@ -89,8 +92,8 @@ There are four areas, each with its own ID letter.
 | ID | Route | Contains | Links to | Pri |
 |---|---|---|---|---|
 | P1 | / (exists) | Hero, how it works, tagline. Needs working buttons only. | P2 Get started, P3 Log in, P8 Try the demo, P7 For banks, P5 Terms, P6 Privacy in the footer | P0 |
-| P2 | /signup | Full name, phone number, "how do you earn" choice (trader, student, freelancer, other), terms checkbox | P4 after submit, P3 if already registered | P0 |
-| P3 | /login | Phone number field, continue button | P4 after submit, P2 for new users | P0 |
+| P2 | /signup | Full name, phone number, email address, password and confirmation, "how do you earn" choice (trader, student, freelancer, other), terms checkbox | P4 after submit, P3 if already registered | P0 |
+| P3 | /login | Email address or phone number, password, continue button | P4 only on a new or expired trusted device; otherwise M1 or V2. P2 for new users | P0 |
 | P4 | /verify | 6 digit code boxes, resend timer, a small labelled "demo code" hint that only shows in non production | New user goes to M2, returning user goes to M1 | P0 |
 | P5 | /terms | Plain static text | Back to wherever the user came from | P2 |
 | P6 | /privacy | Plain static text including the data protection notice about score processing | Back | P2 |
@@ -132,6 +135,8 @@ Bottom navigation on every M screen except the wizard and the voucher: Home, Com
 | M25 | /app/profile/settings | Notification switches, log out | M22 | P2 |
 | M26 | /app/help | Short FAQ and how it works | M22 | P2 |
 | M27 | /app/account-review | Shown when a fraud flag restricts the account. Explains what is limited, what is still allowed, how to get help. | M1 | P1 |
+| M28 | /app/account/link | First contribution with no source linked: Nigerian bank picker, 10-digit account number, simulated lookup and confirm action. No real bank call or transfer. | M29 | P0 |
+| M29 | /app/account/linked | Confirmation card with bank name, resolved display name and masked number, for example GTBank, ending 4821. | Returns to M10 | P0 |
 
 ### M4, the create wizard
 
@@ -161,6 +166,11 @@ One route with four tabs. A pinned action button at the bottom changes with the 
 | M9d Activity | Timeline for this commitment: created, member joined, contributed, cycle completed, voucher issued, redeemed |
 
 A pending commitment is the same route showing the waiting state: invite code, share button, member count, cancel option.
+
+M9a and M10 show the member's masked funding source. If no source is linked,
+the PWA routes the member through M28 before contribution. This is a
+display-only demo step: it does not validate a real account, request bank
+credentials, fetch a balance or move money.
 
 ## V. Vendor terminal
 
@@ -236,8 +246,9 @@ Several screens need endpoints that are not in TRD.md yet. Tell Backend now so n
 
 | Endpoint | In TRD.md | Used by |
 |---|---|---|
-| POST /v1/auth/signup, /v1/auth/login, /v1/auth/verify-otp | new | P2, P3, P4 |
+| POST /v1/auth/signup, /v1/auth/login, /v1/auth/verify-otp, /v1/auth/resend-otp | new | P2, P3, P4 |
 | GET /v1/me | new | M1, M22 |
+| GET /v1/banks, POST /v1/accounts/resolve, POST /v1/accounts/link, GET /v1/me/account | new | M28, M29, M9a, M10 |
 | POST /v1/demo/login-as (demo only, off in production) | new | P8 |
 | GET /v1/vendors | new | M4b |
 | GET /v1/commitments (mine) | new | M1, M3 |

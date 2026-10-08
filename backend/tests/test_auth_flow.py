@@ -18,10 +18,15 @@ def _signup(client: TestClient, **overrides) -> dict:
         "role": "individual",
         "phone": "+234 803 000 0001",
         "name": "Amara Bello",
+        "email": "amara.bello@example.test",
+        "password": "correct-horse-battery-staple",
         "context": "trader",
         "terms_accepted": True,
     }
     payload.update(overrides)
+    if "email" not in overrides:
+        suffix = "".join(character for character in payload["phone"] if character.isdigit())
+        payload["email"] = f"member-{suffix}@example.test"
     response = client.post("/v1/auth/signup", json=payload)
     assert response.status_code == 201, response.text
     return response.json()
@@ -205,11 +210,51 @@ def test_login_issues_a_code_for_an_existing_account(client):
     original = settings.environment
     object.__setattr__(settings, "environment", "production")
     try:
-        response = client.post("/v1/auth/login", json={"phone": "+234 803 000 0014"})
+        response = client.post(
+            "/v1/auth/login",
+            json={"identifier": "+234 803 000 0014", "password": "correct-horse-battery-staple"},
+        )
         assert response.status_code == 200
         assert "demo_code" not in response.json()
+        assert response.json()["otp_required"] is True
     finally:
         object.__setattr__(settings, "environment", original)
+
+
+def test_password_login_skips_otp_only_for_the_recently_verified_device(client):
+    challenge = _signup(client, phone="+234 803 000 0041")
+    verified = _verify(client, challenge["challenge_id"], challenge["demo_code"])
+    trusted_token = verified.json()["trusted_device_token"]
+
+    trusted = client.post(
+        "/v1/auth/login",
+        json={
+            "identifier": "+234 803 000 0041",
+            "password": "correct-horse-battery-staple",
+            "device_token": trusted_token,
+        },
+    )
+    assert trusted.status_code == 200, trusted.text
+    assert trusted.json()["otp_required"] is False
+    assert trusted.json()["access_token"]
+
+    another_device = client.post(
+        "/v1/auth/login",
+        json={"identifier": "member-2348030000041@example.test", "password": "correct-horse-battery-staple"},
+    )
+    assert another_device.status_code == 200, another_device.text
+    assert another_device.json()["otp_required"] is True
+    assert "challenge_id" in another_device.json()
+
+
+def test_new_password_login_rejects_wrong_credentials(client):
+    challenge = _signup(client, phone="+234 803 000 0042")
+    _verify(client, challenge["challenge_id"], challenge["demo_code"])
+    rejected = client.post(
+        "/v1/auth/login",
+        json={"identifier": "+234 803 000 0042", "password": "wrong-password"},
+    )
+    assert rejected.status_code == 401
 
 
 def test_login_for_an_unknown_number_looks_identical_to_a_known_one(client):

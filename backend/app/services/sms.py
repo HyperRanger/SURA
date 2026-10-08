@@ -68,6 +68,10 @@ class TermiiSmsProvider:
             "api_key": self._api_key,
             "to": to,
             "from": self._sender_id,
+            # Termii's messaging endpoint requires the message class.  Without
+            # it some accounts reject the request even though every other field
+            # is valid.
+            "type": "plain",
             "channel": self._channel,
             "sms": message,
         }
@@ -78,6 +82,10 @@ class TermiiSmsProvider:
                 timeout=self._timeout,
             )
             response.raise_for_status()
+            # This confirms only that Termii accepted the message request; it
+            # does not overclaim handset delivery, which requires a delivery
+            # report/webhook in a production integration.
+            logger.info("OTP message accepted by Termii (HTTP %s).", response.status_code)
         except Exception as exc:
             # The API key is never logged, and neither is the code inside the
             # message body.

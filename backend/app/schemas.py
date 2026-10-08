@@ -43,6 +43,11 @@ class SignupRequest(BaseModel):
 
     role: Literal["individual", "vendor"]
     phone: str = Field(min_length=7, max_length=32)
+    # Optional only so non-production fixtures and old demo accounts can finish
+    # their historic OTP-only onboarding. The service rejects an absent pair in
+    # production; the PWA always collects both fields.
+    email: str | None = Field(default=None, min_length=3, max_length=320)
+    password: str | None = Field(default=None, min_length=12, max_length=72)
     name: str = Field(min_length=1, max_length=200)
 
     context: Optional[Literal["student", "trader", "freelancer", "other"]] = None
@@ -54,9 +59,26 @@ class SignupRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    """P3."""
+    """Password sign-in, with OTP only for an untrusted browser device."""
 
-    phone: str = Field(min_length=7, max_length=32)
+    identifier: str | None = Field(default=None, min_length=3, max_length=320, description="Registered email address or phone number.")
+    # Only non-production legacy clients can omit this and receive the former
+    # OTP-only path. New PWA sign-in always sends a password.
+    password: str | None = Field(default=None, min_length=1, max_length=72)
+    phone: str | None = Field(default=None, min_length=7, max_length=32, deprecated=True)
+    device_token: str | None = Field(default=None, min_length=20, max_length=256)
+
+
+class AccountResolveRequest(BaseModel):
+    bank_name: str = Field(min_length=2, max_length=120)
+    # The service normalises separators and returns one consistent 400 response
+    # for every invalid length; schema validation would reject short input
+    # before that contract can be applied.
+    account_number: str = Field(min_length=1, max_length=32)
+
+
+class LinkAccountRequest(AccountResolveRequest):
+    """The complete number is accepted only for this request and not persisted."""
 
 
 class VerifyOtpRequest(BaseModel):
@@ -64,6 +86,10 @@ class VerifyOtpRequest(BaseModel):
 
     challenge_id: str = Field(min_length=1, max_length=64)
     code: str = Field(min_length=4, max_length=12)
+
+
+class ResendOtpRequest(BaseModel):
+    challenge_id: str = Field(min_length=1, max_length=64)
 
 
 class DemoLoginAsRequest(BaseModel):

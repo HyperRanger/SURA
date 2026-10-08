@@ -148,6 +148,25 @@ returned here must already reflect the anchor and cap rule in section 5.1, not
 a naive order-of-invitation assignment. The demo supports weekly and monthly
 frequencies and a fixed 72-hour grace window.
 
+### Funding-source display contract (M28 and M29)
+
+Before a member reaches the contribution screen for the first time, the PWA
+collects one display-only funding source. `linked_accounts` stores the bank
+name, a deterministic simulated display name and a masked number such as
+`ending 4821`; it never stores a complete account number, credentials, balance,
+bank token or bank connection.
+
+- `GET /v1/banks` returns a fixed Nigerian-bank list for the picker.
+- `POST /v1/accounts/resolve` accepts `bank_name` and a 10-digit
+  `account_number`, then returns a deterministic **simulated** display name and
+  masked reference. It never contacts a bank.
+- `POST /v1/accounts/link` accepts the same fields, persists only the masked
+  reference, and replaces the member's previous source when one exists.
+- `GET /v1/me/account` returns the current member's linked source or `null`.
+
+Linking is not a payment instruction and does not alter the existing simulated
+settlement behaviour of contribution recording.
+
 ### POST /v1/commitments/{id}/contribute
 
 Records one member's contribution against the current cycle.
@@ -237,7 +256,21 @@ vendor has passed verification.
 ## 6. Authentication and Security
 
 - JWT for session tokens. A shared secret is fine for the regional build, stored in an environment variable, never committed to the repo.
-- Simulated OTP for identity verification. A hardcoded code accepted in non-production environments is acceptable for October 8. Label this clearly in the code as a demo shortcut, so it is not mistaken for a real security control later.
+- Member signup collects a phone number, email address and password. Phone
+  ownership is proved by a short-lived, single-use OTP. Email is collected now
+  but remains explicitly unverified until an email-delivery integration is
+  added; it is not treated as a verified identity signal.
+- A password login returns a session immediately only on a browser holding a
+  revocable trusted-device credential less than five days old. A new or expired
+  browser receives OTP, so one device's recent login never disables step-up on
+  another.
+- OTP delivery is scheduled after its challenge has been persisted, so a slow
+  SMS provider does not keep the PWA on its loading state. Cooldowns and the
+  one-live-code rule still apply.
+- Simulated OTP codes are returned only outside production. A hardcoded code
+  accepted in non-production environments is acceptable for October 8. Label
+  this clearly in the code as a demo shortcut, so it is not mistaken for a real
+  security control later.
 - No real personal data of actual people beyond the four team members' own test accounts. Use clearly fictional names and numbers for all other demo data.
 
 ---

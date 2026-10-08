@@ -13,7 +13,7 @@ python -m pytest tests -q
 python -m alembic -c alembic.ini heads
 ```
 
-Expected migration result: exactly one head, `0017_lock_group_policy`.
+Expected migration result: exactly one head, `0019_member_auth`.
 
 Confirm that `.env` is ignored and no secret appears in tracked files:
 
