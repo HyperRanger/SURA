@@ -1,5 +1,6 @@
 import json
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -8,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.bank.models import BankStaff
 from app.database import get_db
 from app.models import SessionRevocation, User
+from core.config import get_settings
 from core.security import is_local_session, token_issued_before, verify_token
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -100,6 +102,28 @@ def get_current_principal(
             if stale:
                 _finish_authorization_read(db)
                 raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session has been signed out.")
+
+        # A session that goes quiet too long stops being a session. The client
+        # gets the same 401 as a signed-out token, so "idle" and "logged out"
+        # look identical and the PWA can just send the user back to sign-in.
+        # Activity slides the window rather than resetting a fixed deadline:
+        # that is the difference between "log out after inactivity" and a hard
+        # session cap. The stamp is throttled so an active member writes at most
+        # once a minute instead of on every request.
+        settings = get_settings()
+        last_activity = user.last_active_at
+        now = datetime.utcnow()
+        if last_activity is not None and (now - last_activity) > timedelta(
+            seconds=settings.session_idle_timeout_seconds
+        ):
+            _finish_authorization_read(db)
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired. Sign in again.")
+
+        if last_activity is None or (now - last_activity) >= timedelta(
+            seconds=settings.last_activity_stamp_interval_seconds
+        ):
+            user.last_active_at = now
+            db.commit()
 
         # A Bank Portal sign-in stores its role and permissions on the staff
         # record, not on the user row, so revoking or re-roling staff takes
