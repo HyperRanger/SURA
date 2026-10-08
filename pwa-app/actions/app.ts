@@ -17,6 +17,13 @@ export async function getCommitmentActivity(id: string) { return (await api.get(
 export async function getVoucher(id: string, cycle: string) { return (await api.get(`${endpoints.commitments}/${encodeURIComponent(id)}/cycles/${encodeURIComponent(cycle)}/voucher`)).data }
 export async function getInvitePreview(code: string) { return (await api.get(`${endpoints.commitments}/preview`, { params: { code } })).data }
 export async function getVendors() { return (await api.get(endpoints.vendors)).data }
+export async function getVendorProducts(vendorId: string) { return (await api.get(endpoints.vendorProducts(vendorId))).data }
+export async function getMyVendorProducts() { return (await api.get(endpoints.myVendorProducts)).data }
+export async function addVendorProduct(name: string, price: number) { return (await api.post(endpoints.myVendorProducts, { name, price })).data }
+export async function updateVendorProduct(productId: string, name?: string, price?: number) {
+  return (await api.patch(`${endpoints.myVendorProducts}/${encodeURIComponent(productId)}`, { ...(name === undefined ? {} : { name }), ...(price === undefined ? {} : { price }) })).data
+}
+export async function removeVendorProduct(productId: string) { return (await api.delete(`${endpoints.myVendorProducts}/${encodeURIComponent(productId)}`)).data }
 export async function resolveMember(phone: string) { return (await api.post(endpoints.app.resolveMember, { phone })).data }
 export async function getVendorRecommendations(category?: string, target_amount?: number) {
   return (await api.get(endpoints.app.vendorRecommendations, { params: { category, target_amount } })).data

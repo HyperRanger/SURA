@@ -8,6 +8,7 @@ class LockRequest(BaseModel):
     type: str = "rotating"
     title: str
     vendor_id: str
+    product_id: str | None = Field(default=None, min_length=1, max_length=128)
     contribution_amount: int
     contribution_frequency: str
     cycles: int
@@ -170,6 +171,19 @@ class MemberLookupRequest(BaseModel):
 
 class VendorRedeemRequest(BaseModel):
     voucher_code: str = Field(min_length=1, max_length=64)
+
+
+class VendorProductCreateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    price: int = Field(gt=0, le=100_000_000)
+
+
+class VendorProductUpdateRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    price: int | None = Field(default=None, gt=0, le=100_000_000)
+
+    def has_changes(self) -> bool:
+        return self.name is not None or self.price is not None
 
 
 class PayoutScheduleItem(BaseModel):
