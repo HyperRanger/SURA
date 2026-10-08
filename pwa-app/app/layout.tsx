@@ -3,6 +3,7 @@ import { Nunito } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { ThemeProvider } from "next-themes"
 import { siteConfig } from "@/config/site"
+import { PwaRuntime } from "@/components/pwa/pwa-runtime"
 import "./globals.css"
 
 const nunito = Nunito({
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           {children}
         </ThemeProvider>
+        <PwaRuntime />
         <Analytics />
       </body>
     </html>
