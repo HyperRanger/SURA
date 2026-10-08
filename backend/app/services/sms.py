@@ -68,6 +68,10 @@ class TermiiSmsProvider:
             "api_key": self._api_key,
             "to": to,
             "from": self._sender_id,
+            # Termii's messaging endpoint requires the message class.  Without
+            # it some accounts reject the request even though every other field
+            # is valid.
+            "type": "plain",
             "channel": self._channel,
             "sms": message,
         }
