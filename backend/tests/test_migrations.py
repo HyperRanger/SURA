@@ -46,13 +46,27 @@ def test_there_is_exactly_one_migration_head():
 
 def test_bank_migration_paths_merge_at_the_expected_head():
     heads = _script_directory().get_heads()
-    assert heads == ["0021_member_session_idle_timeout"]
+    assert heads == ["0021_vendor_catalogue"]
 
 
 def test_release_readiness_documents_the_current_migration_head():
     """The deployment runbook must not direct a release to an old revision."""
     head = _script_directory().get_heads()[0]
     assert head in RELEASE_READINESS.read_text(encoding="utf-8")
+
+
+def test_catalogue_migration_matches_the_product_agreement_schema():
+    """The product fields must reach deployed databases, not only test ORM tables."""
+    revision = _script_directory().get_revision("0021_vendor_catalogue")
+    assert revision is not None
+    source = Path(revision.path).read_text(encoding="utf-8")
+    expected = [
+        "vendor_products",
+        "vendor_product_id",
+        "product_name_snapshot",
+        "product_price_snapshot",
+    ]
+    assert not [name for name in expected if name not in source]
 
 
 def test_migration_identifiers_fit_the_existing_version_column():

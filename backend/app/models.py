@@ -203,6 +203,25 @@ class Vendor(Base):
     verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
+class VendorProduct(Base):
+    """A text-only item a verified vendor makes available for future Locks.
+
+    Products are deactivated rather than deleted. A Lock copies the product
+    name and price into its own agreement fields, so later catalogue changes
+    can never rewrite a commitment that members have already accepted.
+    """
+
+    __tablename__ = "vendor_products"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    vendor_id: Mapped[str] = mapped_column(String, ForeignKey("vendors.id"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    price: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="active", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class Commitment(Base):
     __tablename__ = "commitments"
 
@@ -211,6 +230,9 @@ class Commitment(Base):
     type: Mapped[str] = mapped_column(String, nullable=False, default="rotating")
     title: Mapped[str] = mapped_column(String, nullable=False)
     vendor_id: Mapped[str] = mapped_column(String, ForeignKey("vendors.id"), nullable=False)
+    vendor_product_id: Mapped[str | None] = mapped_column(String, ForeignKey("vendor_products.id"), nullable=True)
+    product_name_snapshot: Mapped[str | None] = mapped_column(String, nullable=True)
+    product_price_snapshot: Mapped[int | None] = mapped_column(Integer, nullable=True)
     contribution_amount: Mapped[int] = mapped_column(Integer, nullable=False)
     frequency: Mapped[str] = mapped_column(String, nullable=False)
     cycles: Mapped[int] = mapped_column(Integer, nullable=False)

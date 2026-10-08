@@ -30,6 +30,7 @@ from app.services.lock_lifecycle import SUPPORTED_FREQUENCIES, advance_due_at, d
 from app.services.payout_rules import apply_anchor_and_cap_rule, build_payout_schedule
 from app.services.score_service import public_score_report, record_score_snapshot, refresh_commitment_member_scores
 from app.services.scoring import ENTRY_TIER_BASELINE
+from app.services.vendor_catalogue import active_product_for_vendor
 from core.config import get_settings
 
 ENTRY_TIER_SCORE = ENTRY_TIER_BASELINE
@@ -92,6 +93,16 @@ def _serialize_voucher_state(voucher: Voucher) -> dict[str, Any]:
         "status": voucher.status,
         "issued_at": voucher.issued_at.isoformat() if voucher.issued_at else None,
         "redeemed_at": voucher.redeemed_at.isoformat() if voucher.redeemed_at else None,
+    }
+
+
+def _product_snapshot(commitment: Commitment) -> dict[str, Any] | None:
+    if commitment.vendor_product_id is None:
+        return None
+    return {
+        "product_id": commitment.vendor_product_id,
+        "name": commitment.product_name_snapshot,
+        "price": commitment.product_price_snapshot,
     }
 
 
@@ -382,6 +393,8 @@ def preview_lock(
     vendor = db.get(Vendor, payload.vendor_id)
     if vendor is None or vendor.verified_at is None:
         raise HTTPException(status_code=400, detail="Commitment vendor must be verified before it can be selected.")
+    if payload.product_id is not None:
+        active_product_for_vendor(db, product_id=payload.product_id, vendor_id=vendor.id)
     members = [db.get(User, member_id) for member_id in member_ids]
     if any(member is None for member in members):
         raise HTTPException(status_code=400, detail="Every commitment member must have a Sura account.")
@@ -548,6 +561,7 @@ def _serialize_commitment_with_relations(
             "category": vendor.category if vendor is not None else None,
             "verified": bool(vendor and vendor.verified_at),
         },
+        "product": _product_snapshot(commitment),
         "contribution_amount": commitment.contribution_amount,
         "contribution_frequency": commitment.frequency,
         "first_cycle_due_at": commitment.first_cycle_due_at.isoformat() if commitment.first_cycle_due_at else None,
@@ -691,6 +705,11 @@ def create_commitment(
             vendor = db.get(Vendor, payload.vendor_id)
             if vendor is None or vendor.verified_at is None:
                 raise HTTPException(status_code=400, detail="Commitment vendor must be verified before it can be locked.")
+            product = (
+                active_product_for_vendor(db, product_id=payload.product_id, vendor_id=vendor.id)
+                if payload.product_id is not None
+                else None
+            )
             db.flush()
 
             payout_order, genesis_group = _build_payout_order(db, member_ids, payload.payout_order)
@@ -709,6 +728,9 @@ def create_commitment(
                 type=payload.type,
                 title=payload.title,
                 vendor_id=payload.vendor_id,
+                vendor_product_id=product.id if product is not None else None,
+                product_name_snapshot=product.name if product is not None else None,
+                product_price_snapshot=product.price if product is not None else None,
                 contribution_amount=payload.contribution_amount,
                 frequency=payload.contribution_frequency,
                 cycles=payload.cycles,
@@ -758,6 +780,9 @@ def create_commitment(
                 details={
                     "title": commitment.title,
                     "vendor_id": commitment.vendor_id,
+                    "product_id": commitment.vendor_product_id,
+                    "product_name": commitment.product_name_snapshot,
+                    "product_price": commitment.product_price_snapshot,
                     "member_count": len(member_ids),
                     "missed_cycle_policy": commitment.missed_cycle_policy,
                 },
@@ -1335,6 +1360,7 @@ def get_cycle_voucher(
         if voucher is not None:
             response = _serialize_voucher(voucher)
             response["vendor_name"] = vendor.name if vendor is not None else None
+            response["product"] = _product_snapshot(commitment)
             # Sura Lock does not currently model voucher expiry. An explicit null
             # prevents clients from inventing a deadline that the backend cannot enforce.
             response["expires_at"] = None
@@ -1344,6 +1370,7 @@ def get_cycle_voucher(
             db.flush()
             response = _serialize_voucher(voucher)
             response["vendor_name"] = vendor.name if vendor is not None else None
+            response["product"] = _product_snapshot(commitment)
             response["expires_at"] = None
             return response
         if beneficiary.status == "redeemed":
@@ -1365,6 +1392,7 @@ def get_cycle_voucher(
                     "issued_at": None,
                     "redeemed_at": redemption.redeemed_at.isoformat() if redemption.redeemed_at else None,
                     "expires_at": None,
+                    "product": _product_snapshot(commitment),
                 }
         return {
             "commitment_id": commitment_id,
@@ -1378,6 +1406,7 @@ def get_cycle_voucher(
             "issued_at": None,
             "redeemed_at": None,
             "expires_at": None,
+            "product": _product_snapshot(commitment),
         }
 
 
@@ -1473,6 +1502,7 @@ def redeem_vendor_voucher(db: Session, voucher_code: str, vendor_id: str) -> dic
             "redeemed_at": redemption.redeemed_at.isoformat() if redemption.redeemed_at else None,
             "commitment_title": commitment.title if commitment is not None else None,
             "beneficiary_first_name": _first_name(beneficiary_user),
+            "product": _product_snapshot(commitment) if commitment is not None else None,
         }
 
 
@@ -1489,6 +1519,7 @@ def _serialize_vendor_redemption(
         "commitment_title": commitment.title if commitment is not None else None,
         "beneficiary_id": redemption.beneficiary_id,
         "beneficiary_first_name": _first_name(beneficiary),
+        "product": _product_snapshot(commitment) if commitment is not None else None,
         "cycle_number": redemption.cycle_number,
         "amount": redemption.amount,
         "voucher_code": redemption.voucher_code,
