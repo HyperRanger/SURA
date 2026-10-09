@@ -15,7 +15,7 @@ import { formatDate, formatNaira } from "@/utils/format"
 import {
   cancelCommitment, contribute, createLock, getBanks, getCommitment, getCommitmentActivity, getCommitments, getInvitePreview, getLinkedAccount, getRedemption, getScoreEntry,
   getMemberHome, getMe, getNotifications, getRedemptions, getScore, getScoreHistory, getVoucher,
-  addVendorProduct, getMyVendorProducts, getVendorHome, getVendorProducts, getVendors, joinCommitment, linkAccount, logout, previewLock, recordConsent, removeVendorProduct, resolveLinkedAccount, resolveMember, updateVendorProduct,
+  addVendorProduct, getMyVendorProducts, getVendorHome, getVendorPayoutAccount, getVendorProducts, getVendors, joinCommitment, linkAccount, logout, previewLock, recordConsent, removeVendorProduct, resolveLinkedAccount, resolveMember, resolveVendorPayoutAccount, saveVendorPayoutAccount, updateVendorProduct,
   redeemVoucher, validateVoucher,
 } from "@/actions/app"
 
@@ -32,7 +32,7 @@ const memberNav = [
   ["Home", "/app", "⌂"], ["Locks", "/app/commitments", "▤"], ["Score", "/app/score", "◉"], ["Profile", "/app/profile", "○"],
 ]
 const vendorNav = [
-  ["Terminal", "/vendor", "⌂"], ["Catalogue", "/vendor/catalogue", "▤"], ["Redeem", "/vendor/redeem", "▣"], ["History", "/vendor/history", "↻"],
+  ["Terminal", "/vendor", "⌂"], ["Catalogue", "/vendor/catalogue", "▤"], ["Redeem", "/vendor/redeem", "▣"], ["Payout", "/vendor/payout", "₦"], ["History", "/vendor/history", "↻"],
 ]
 
 function money(value: unknown) { return formatNaira(Number(value ?? 0)) }
@@ -78,6 +78,9 @@ export function ProductScreen({ role, segments }: { role: Role; segments: string
   const [fundingBank, setFundingBank] = useState("")
   const [fundingNumber, setFundingNumber] = useState("")
   const [fundingBanks, setFundingBanks] = useState<string[]>([])
+  const [fundingPartners, setFundingPartners] = useState<Row[]>([])
+  const [fundingPartnerId, setFundingPartnerId] = useState("")
+  const [shareWithPartner, setShareWithPartner] = useState(false)
   const [fundingPreview, setFundingPreview] = useState<Row | null>(null)
   const [loadedPath, setLoadedPath] = useState("")
   const page = segments.join("/")
@@ -86,7 +89,7 @@ export function ProductScreen({ role, segments }: { role: Role; segments: string
   const nav = isVendor ? vendorNav : memberNav
   const focused = ["commitments/new", "join", "consent"].includes(page) || page.startsWith("join/") || (isVendor && segments[0] === "login") || page.includes("/contribute") || page.includes("/voucher") || page.startsWith("redeem")
   const screenTitle = useMemo(() => {
-    if (isVendor) return page === "" ? "Merchant terminal" : page.startsWith("catalogue") ? "Product catalogue" : page.startsWith("redeem") ? "Redeem voucher" : page.startsWith("history") ? "Settlement history" : titleCase(page)
+    if (isVendor) return page === "" ? "Merchant terminal" : page.startsWith("catalogue") ? "Product catalogue" : page.startsWith("payout") ? "Settlement account" : page.startsWith("redeem") ? "Redeem voucher" : page.startsWith("history") ? "Settlement history" : titleCase(page)
     if (!page) return "Home"
     if (page.startsWith("commitments/new")) return "Create a Lock"
     if (page.startsWith("commitments/")) return page.includes("contribute") ? "Contribution" : page.includes("voucher") ? "Your voucher" : "Lock details"
@@ -104,6 +107,10 @@ export function ProductScreen({ role, segments }: { role: Role; segments: string
         if (segments[0] === "login") return null
         if (segments[0] === "history") return segments[1] ? getRedemption(segments[1]) : getRedemptions()
         if (segments[0] === "catalogue") return getVendorHome()
+        if (segments[0] === "payout") {
+          const [payout, banks] = await Promise.all([getVendorPayoutAccount(), getBanks()])
+          return { ...(payout as Row), ...(banks as Row) }
+        }
         if (segments[0] === "redeem") return null
         return getVendorHome()
       }
@@ -144,6 +151,7 @@ export function ProductScreen({ role, segments }: { role: Role; segments: string
         setData(loaded)
         if (!isVendor && segments[0] === "account" && segments[1] === "link") {
           setFundingBanks(((result as Row).banks ?? []) as string[])
+          setFundingPartners(((result as Row).sura_supported_banks ?? []) as Row[])
         }
         setError("")
       }
@@ -198,6 +206,7 @@ export function ProductScreen({ role, segments }: { role: Role; segments: string
     const rows = (Array.isArray(data) ? data : (data as Row)?.recent_redemptions ?? []) as Row[]
     if (segments[0] === "login") return <Panel><p className="text-xs font-extrabold uppercase tracking-wider text-primary">Merchant access</p><h2 className="mt-2 text-xl font-extrabold">Sign in to your terminal</h2><p className="mt-2 text-sm text-muted-foreground">Use the email address or phone number and password on your verified Sura vendor account.</p><Button className="mt-5 w-full" onClick={() => router.push("/login?next=/vendor")}>Go to sign in</Button></Panel>
     if (segments[0] === "catalogue") return <VendorCatalogue merchant={(data as Row)?.merchant}/>
+    if (segments[0] === "payout") return <VendorPayout value={data as Row}/>
     if (segments[0] === "redeem" && segments[1] === "review") return <VendorReview />
     if (segments[0] === "redeem" && segments[1] === "success") return <Panel><p className="text-4xl text-success">✓</p><h2 className="mt-3 text-xl font-extrabold">Handover confirmed</h2><p className="mt-2 text-sm text-muted-foreground">{(data as Row)?.commitment_title || "Voucher redemption"}</p><p className="mt-4 text-2xl font-extrabold">{money((data as Row)?.amount)}</p><p className="mt-2 text-xs text-muted-foreground">{(data as Row)?.redeemed_at ? formatDate((data as Row).redeemed_at) : "Just now"} · Ref {(data as Row)?.redemption_id || "Recorded"}</p><p className="mt-4 rounded-lg bg-gold-soft p-3 text-xs text-gold-deep">Settlement is simulated in this MVP.</p><Link className="mt-5 inline-flex font-bold text-primary" href="/vendor/history">View settlement history →</Link></Panel>
     if (segments[0] === "redeem" && segments[1] === "rejected") return <Panel><h2 className="text-xl font-extrabold">Voucher not accepted</h2><p className="mt-2 text-sm text-muted-foreground">{message || "This voucher could not be redeemed. Check the code and try again."}</p><Button className="mt-5" onClick={() => router.replace("/vendor/redeem")}>Try another code</Button></Panel>
@@ -245,6 +254,35 @@ export function ProductScreen({ role, segments }: { role: Role; segments: string
       finally { setCatalogueBusy(false) }
     }
     return <div className="space-y-4"><Panel><p className="text-xs font-extrabold uppercase tracking-wider text-primary">{merchant?.verified ? "Verified merchant" : "Merchant"}</p><h2 className="mt-2 text-xl font-extrabold">What do you sell?</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Members can choose an active item while creating a Lock. Existing Lock terms keep their original item and price.</p></Panel><Panel><h3 className="text-base font-extrabold">Add product</h3><div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_140px_auto]"><input value={name} onChange={(event) => setName(event.target.value)} className="h-11 rounded-lg border border-hairline bg-background px-3" placeholder="Product name" maxLength={200}/><input value={price} onChange={(event) => setPrice(event.target.value.replace(/\D/g, ""))} inputMode="numeric" className="h-11 rounded-lg border border-hairline bg-background px-3" placeholder="Price"/><Button loading={catalogueBusy} disabled={!name.trim() || !Number(price)} onClick={add}>Add</Button></div></Panel>{editingProduct && <Panel><h3 className="text-base font-extrabold">Edit product</h3><div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_140px_auto]"><input value={editingName} onChange={(event) => setEditingName(event.target.value)} className="h-11 rounded-lg border border-hairline bg-background px-3" maxLength={200}/><input value={editingPrice} onChange={(event) => setEditingPrice(event.target.value.replace(/\D/g, ""))} inputMode="numeric" className="h-11 rounded-lg border border-hairline bg-background px-3"/><Button loading={catalogueBusy} disabled={!editingName.trim() || !Number(editingPrice)} onClick={saveEdit}>Save</Button></div><button type="button" className="mt-3 text-sm font-bold text-muted-foreground" onClick={() => setEditingProduct(null)}>Cancel</button></Panel>}<div><SectionTitle title="Your products"/><div className="divide-y divide-hairline overflow-hidden rounded-xl border border-hairline bg-card">{products.filter((product) => product.status === "active").map((product) => <div key={product.product_id} className="flex items-center justify-between gap-3 px-4 py-4"><div className="min-w-0"><p className="truncate text-sm font-extrabold">{product.name}</p><p className="mt-1 text-xs text-muted-foreground">{merchant?.category || "Vendor item"}</p></div><div className="shrink-0 text-right"><p className="text-sm font-extrabold">{money(product.price)}</p><div className="mt-1 flex justify-end gap-3"><button type="button" disabled={catalogueBusy} onClick={() => { setEditingProduct(product); setEditingName(product.name); setEditingPrice(String(product.price)) }} className="text-xs font-bold text-primary disabled:opacity-50">Edit</button><button type="button" disabled={catalogueBusy} onClick={() => void remove(product.product_id)} className="text-xs font-bold text-destructive disabled:opacity-50">Remove</button></div></div></div>)}{!products.some((product) => product.status === "active") && <p className="p-4 text-sm text-muted-foreground">Add an active product for members to choose from.</p>}</div></div>{notice && <p role="status" className="rounded-lg bg-gold-soft p-3 text-sm text-gold-deep">{notice}</p>}</div>
+  }
+
+  function VendorPayout({ value }: { value: Row | null }) {
+    const current = value?.account as Row | undefined
+    const [banks, setBanks] = useState<string[]>((value?.banks ?? []) as string[])
+    const [bank, setBank] = useState(current?.bank_name ?? "")
+    const [number, setNumber] = useState("")
+    const [preview, setPreview] = useState<Row | null>(null)
+    const [saved, setSaved] = useState<Row | null>(current ?? null)
+
+    useEffect(() => {
+      setBanks((value?.banks ?? []) as string[])
+      setSaved((value?.account ?? null) as Row | null)
+    }, [value])
+
+    const resolve = () => void run(() => resolveVendorPayoutAccount(bank, number), (result) => setPreview(result))
+    const save = () => void run(() => saveVendorPayoutAccount(bank, number), (result) => {
+      setSaved(result)
+      setPreview(null)
+      setNumber("")
+      setMessage("Settlement account saved.")
+    })
+
+    return <div className="space-y-4">
+      <Panel><p className="text-xs font-extrabold uppercase tracking-wider text-primary">Vendor settlement</p><h2 className="mt-2 text-xl font-extrabold">Settlement account</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Save the masked bank label for a future payout. This demo does not connect to a bank or transfer money.</p></Panel>
+      {saved && <Panel><p className="text-xs font-extrabold uppercase tracking-wider text-success">Current settlement label</p><h3 className="mt-2 text-lg font-extrabold">{saved.bank_name} · {saved.account_number_masked}</h3><p className="mt-1 text-sm text-muted-foreground">{saved.display_name}</p></Panel>}
+      <Panel><label className="block text-sm font-bold" htmlFor="vendor-payout-bank">Bank</label><select id="vendor-payout-bank" value={bank} onChange={(event) => { setBank(event.target.value); setPreview(null) }} className="mt-2 h-12 w-full rounded-lg border border-hairline bg-background px-3"><option value="">Choose your bank</option>{banks.map((item) => <option key={item} value={item}>{item}</option>)}</select><label className="mt-4 block text-sm font-bold" htmlFor="vendor-payout-number">Account number</label><input id="vendor-payout-number" value={number} inputMode="numeric" autoComplete="off" onChange={(event) => { setNumber(event.target.value.replace(/\D/g, "").slice(0, 10)); setPreview(null) }} className="mt-2 h-12 w-full rounded-lg border border-hairline bg-background px-3" placeholder="10-digit account number"/><Button className="mt-4 w-full" variant="outline" loading={busy} disabled={!bank || number.length !== 10} onClick={resolve}>Resolve account</Button></Panel>
+      {preview && <Panel><p className="text-xs font-extrabold uppercase tracking-wider text-success">Simulated lookup</p><h3 className="mt-2 text-lg font-extrabold">{preview.display_name}</h3><p className="mt-1 text-sm text-muted-foreground">{preview.bank_name} · {preview.account_number_masked}</p><Button className="mt-5 w-full" loading={busy} onClick={save}>Save settlement account</Button></Panel>}
+    </div>
   }
 
   function renderMember(): React.ReactNode {
@@ -392,15 +430,20 @@ export function ProductScreen({ role, segments }: { role: Role; segments: string
   }
 
   function LinkFundingAccount() {
-    const resolve = () => void run(() => resolveLinkedAccount(fundingBank, fundingNumber), (result) => setFundingPreview(result))
-    const confirm = () => void run(() => linkAccount(fundingBank, fundingNumber), () => router.push("/app/account/linked"))
-    return <div className="space-y-4"><Panel><p className="text-xs font-bold uppercase tracking-wider text-primary">Funding source</p><h2 className="mt-2 text-xl font-extrabold">Link a bank account</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Choose the label shown before a simulated contribution. Sura does not connect to this bank, access its balance, or move money.</p><label className="mt-5 block text-sm font-bold" htmlFor="funding-bank">Bank</label><select id="funding-bank" value={fundingBank} onChange={(event) => { setFundingBank(event.target.value); setFundingPreview(null) }} className="mt-2 h-12 w-full rounded-lg border border-hairline bg-background px-3"><option value="">Choose your bank</option>{fundingBanks.map((bank) => <option key={bank} value={bank}>{bank}</option>)}</select><label className="mt-4 block text-sm font-bold" htmlFor="funding-account-number">Account number</label><input id="funding-account-number" value={fundingNumber} inputMode="numeric" autoComplete="off" onChange={(event) => { setFundingNumber(event.target.value.replace(/\D/g, "").slice(0, 10)); setFundingPreview(null) }} className="mt-2 h-12 w-full rounded-lg border border-hairline bg-background px-3" placeholder="10-digit account number"/><Button className="mt-4 w-full" variant="outline" loading={busy} disabled={!fundingBank || fundingNumber.length !== 10} onClick={resolve}>Resolve account</Button></Panel>{fundingPreview && <Panel><p className="text-xs font-bold uppercase tracking-wider text-success">Simulated lookup</p><h3 className="mt-2 text-lg font-extrabold">{fundingPreview.display_name}</h3><p className="mt-1 text-sm text-muted-foreground">{fundingPreview.bank_name} · {fundingPreview.account_number_masked}</p><Button className="mt-5 w-full" loading={busy} onClick={confirm}>Confirm and link account</Button></Panel>}</div>
+    const selectedPartner = fundingPartners.find((partner) => partner.bank_id === fundingPartnerId)
+    const resolve = () => void run(() => resolveLinkedAccount(fundingBank, fundingNumber, fundingPartnerId || undefined), (result) => setFundingPreview(result))
+    const confirm = () => void run(() => linkAccount(fundingBank, fundingNumber, fundingPartnerId || undefined, shareWithPartner), () => router.push("/app/account/linked"))
+    return <div className="space-y-4">
+      <Panel><p className="text-xs font-bold uppercase tracking-wider text-primary">Funding source</p><h2 className="mt-2 text-xl font-extrabold">Link a bank account</h2><p className="mt-2 text-sm leading-6 text-muted-foreground">Choose the label shown before a simulated contribution. Sura does not connect to this bank, access its balance, or move money.</p><label className="mt-5 block text-sm font-bold" htmlFor="funding-bank">Bank</label><select id="funding-bank" value={fundingBank} onChange={(event) => { setFundingBank(event.target.value); setFundingPreview(null) }} className="mt-2 h-12 w-full rounded-lg border border-hairline bg-background px-3"><option value="">Choose your bank</option>{fundingBanks.map((bank) => <option key={bank} value={bank}>{bank}</option>)}</select><label className="mt-4 block text-sm font-bold" htmlFor="funding-account-number">Account number</label><input id="funding-account-number" value={fundingNumber} inputMode="numeric" autoComplete="off" onChange={(event) => { setFundingNumber(event.target.value.replace(/\D/g, "").slice(0, 10)); setFundingPreview(null) }} className="mt-2 h-12 w-full rounded-lg border border-hairline bg-background px-3" placeholder="10-digit account number"/><Button className="mt-4 w-full" variant="outline" loading={busy} disabled={!fundingBank || fundingNumber.length !== 10} onClick={resolve}>Resolve account</Button></Panel>
+      {fundingPartners.length > 0 && <Panel><p className="text-xs font-bold uppercase tracking-wider text-primary">Optional Sura partner link</p><h3 className="mt-2 text-lg font-extrabold">Banks Sura supports</h3><p className="mt-1 text-sm text-muted-foreground">Choose only if you want this simulated account linked to that bank’s Sura portal.</p><select value={fundingPartnerId} onChange={(event) => { const id = event.target.value; setFundingPartnerId(id); const partner = fundingPartners.find((item) => item.bank_id === id); if (partner) setFundingBank(partner.name); setShareWithPartner(Boolean(id)); setFundingPreview(null) }} className="mt-4 h-12 w-full rounded-lg border border-hairline bg-background px-3"><option value="">Do not share with a partner bank</option>{fundingPartners.map((partner) => <option key={partner.bank_id} value={partner.bank_id}>{partner.name}</option>)}</select>{selectedPartner && <label className="mt-4 flex gap-3 text-sm leading-5"><input type="checkbox" checked={shareWithPartner} onChange={(event) => setShareWithPartner(event.target.checked)} className="mt-1 size-4 accent-primary"/><span>I agree that <strong>{selectedPartner.name}</strong> may see my Sura profile and Lock evidence in this simulated partner portal. It does not access my bank account or move money.</span></label>}</Panel>}
+      {fundingPreview && <Panel><p className="text-xs font-bold uppercase tracking-wider text-success">Simulated lookup</p><h3 className="mt-2 text-lg font-extrabold">{fundingPreview.display_name}</h3><p className="mt-1 text-sm text-muted-foreground">{fundingPreview.bank_name} · {fundingPreview.account_number_masked}</p><Button className="mt-5 w-full" loading={busy} onClick={confirm}>Confirm and link account</Button></Panel>}
+    </div>
   }
 
   function AccountLinked({ value }: { value: Row | null }) {
     const account = value?.account ?? {}
     const returnTo = fundingReturnStore.read() ?? "/app/commitments"
-    return <Panel><p className="text-4xl text-success">✓</p><p className="mt-4 text-xs font-bold uppercase tracking-wider text-primary">Funding source linked</p><h2 className="mt-2 text-xl font-extrabold">{account.bank_name || "Bank account"} · {account.account_number_masked || "ending ••••"}</h2><p className="mt-2 text-sm text-muted-foreground">{account.display_name || "Your account"}. This is a display-only label for the simulated settlement demo.</p><Button className="mt-5 w-full" onClick={() => { fundingReturnStore.clear(); router.push(returnTo) }}>Continue to contribution</Button></Panel>
+    return <Panel><p className="text-4xl text-success">✓</p><p className="mt-4 text-xs font-bold uppercase tracking-wider text-primary">Funding source linked</p><h2 className="mt-2 text-xl font-extrabold">{account.bank_name || "Bank account"} · {account.account_number_masked || "ending ••••"}</h2><p className="mt-2 text-sm text-muted-foreground">{account.display_name || "Your account"}. This is a display-only label for the simulated settlement demo.</p>{account.sura_partner && <p className="mt-4 rounded-lg bg-primary-soft p-3 text-sm text-primary">Shared with your selected Sura partner for this demo. You can change or remove this link at any time.</p>}<Button className="mt-5 w-full" onClick={() => { fundingReturnStore.clear(); router.push(returnTo) }}>Continue to contribution</Button></Panel>
   }
 
   function Voucher({ value }: { value: Row | null }) {

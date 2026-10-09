@@ -169,6 +169,32 @@ belongs to a vendor from its display name; it must use the vendor-scoped list
 and send the returned `product_id`. A vendor cannot read or mutate another
 vendor's catalogue. Removing an item only removes it from future choices.
 
+## Funding sources and partner-bank visibility
+
+| Screen | Endpoint | Notes |
+|---|---|---|
+| M28 bank picker | `GET /v1/banks` | returns ordinary Nigerian source-bank labels and `sura_supported_banks` from registered partner banks |
+| M28 simulated lookup | `POST /v1/accounts/resolve` | `{ "bank_name", "account_number", "partner_bank_id?" }`; no real bank lookup occurs |
+| M29 link source | `POST /v1/accounts/link` | saves only a masked number; optional partner visibility requires both `partner_bank_id` and `share_with_partner: true` |
+| M29 current source | `GET /v1/me/account` | includes optional `sura_partner` when the member explicitly opted in |
+
+Selecting a bank name alone never gives that bank portal access to the member.
+Only the explicit `share_with_partner: true` action assigns the existing
+tenant-scoped `bank_id` relationship used by the Bank Portal. The account number
+is never retained; the service stores and returns only `ending 1234` plus a
+simulated display name. Re-linking without consent removes the partner link.
+
+## Vendor settlement account
+
+| Screen | Endpoint | Notes |
+|---|---|---|
+| V10 current label | `GET /v1/vendors/me/payout-account` | vendor-scoped; returns `null` until saved |
+| V10 simulated lookup | `POST /v1/vendors/me/payout-account/resolve` | validates the format and returns a fictional display name |
+| V10 save label | `PUT /v1/vendors/me/payout-account` | `{ "bank_name", "account_number" }`; stores only masked data |
+
+This is preparation for a future bank-confirmed settlement integration. It
+does not connect to a bank, verify ownership, or send money in the MVP.
+
 ## Vendor matching v1
 
 `GET /v1/app/recommendations/vendors` offers optional, deterministic vendor

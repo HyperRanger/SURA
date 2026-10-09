@@ -7,8 +7,10 @@ from app.auth import AuthPrincipal, get_current_principal
 from app.database import get_db
 from app.models import Vendor
 from app.schemas import (
+    AccountResolveRequest,
     VendorProductCreateRequest,
     VendorProductUpdateRequest,
+    VendorPayoutAccountRequest,
     VendorRedeemRequest,
     VendorVerificationRequest,
 )
@@ -20,6 +22,7 @@ from app.services.commitments import (
 )
 from app.services.vendor_accounts import get_authenticated_vendor_id
 from app.services.vendor_catalogue import create_product, deactivate_product, list_products, update_product
+from app.services import linked_accounts, vendor_payout_accounts
 
 router = APIRouter(prefix="/v1/vendors", tags=["vendors"])
 
@@ -53,6 +56,40 @@ def list_my_products(
 ):
     _require_vendor_principal(current_user)
     return {"products": list_products(db, get_authenticated_vendor_id(current_user), include_inactive=True)}
+
+
+@router.get("/me/payout-account")
+def get_my_payout_account(
+    current_user: AuthPrincipal = Depends(get_current_principal),
+    db: Session = Depends(get_db),
+):
+    _require_vendor_principal(current_user)
+    return {"account": vendor_payout_accounts.get_payout_account(db, get_authenticated_vendor_id(current_user))}
+
+
+@router.post("/me/payout-account/resolve")
+def resolve_my_payout_account(
+    payload: AccountResolveRequest,
+    current_user: AuthPrincipal = Depends(get_current_principal),
+    db: Session = Depends(get_db),
+):
+    _require_vendor_principal(current_user)
+    return linked_accounts.resolve_account(db, payload.bank_name, payload.account_number, payload.partner_bank_id)
+
+
+@router.put("/me/payout-account")
+def save_my_payout_account(
+    payload: VendorPayoutAccountRequest,
+    current_user: AuthPrincipal = Depends(get_current_principal),
+    db: Session = Depends(get_db),
+):
+    _require_vendor_principal(current_user)
+    return vendor_payout_accounts.save_payout_account(
+        db,
+        get_authenticated_vendor_id(current_user),
+        payload.bank_name,
+        payload.account_number,
+    )
 
 
 @router.post("/me/products", status_code=status.HTTP_201_CREATED)

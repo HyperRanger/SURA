@@ -76,10 +76,13 @@ class AccountResolveRequest(BaseModel):
     # for every invalid length; schema validation would reject short input
     # before that contract can be applied.
     account_number: str = Field(min_length=1, max_length=32)
+    partner_bank_id: str | None = Field(default=None, min_length=1, max_length=128)
 
 
 class LinkAccountRequest(AccountResolveRequest):
     """The complete number is accepted only for this request and not persisted."""
+
+    share_with_partner: bool = False
 
 
 class VerifyOtpRequest(BaseModel):
@@ -184,6 +187,10 @@ class VendorProductUpdateRequest(BaseModel):
 
     def has_changes(self) -> bool:
         return self.name is not None or self.price is not None
+
+
+class VendorPayoutAccountRequest(AccountResolveRequest):
+    """A vendor's future settlement label; the full number is never stored."""
 
 
 class PayoutScheduleItem(BaseModel):
