@@ -43,9 +43,8 @@ class Settings(BaseSettings):
     # `last_activity_stamp_interval_seconds` throttles the per-request write to
     # the activity timestamp: an active member stamps at most once a minute, not
     # once per request.
-    session_idle_timeout_seconds: int = 30 * 60
+    session_idle_timeout_seconds: int = 5 * 60
     last_activity_stamp_interval_seconds: int = 60
-
     # Contact resolution helps a member build a group, but it must not become a
     # customer-directory endpoint. The limiter is durable and per authenticated
     # member, so app restarts and additional web instances do not reset it.

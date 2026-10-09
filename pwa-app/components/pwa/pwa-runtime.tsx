@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import { redirectAfterSessionExpiry, watchSessionExpiry } from "@/lib/session"
 
 type InstallPromptEvent = Event & {
   prompt: () => Promise<void>
@@ -19,18 +20,17 @@ function isAppleMobile() {
 
 /** Registers the safe shell cache and gives the user clear install/offline state. */
 export function PwaRuntime() {
-  const [offline, setOffline] = useState(false)
+  const [offline, setOffline] = useState(() => typeof navigator !== "undefined" && !navigator.onLine)
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null)
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null)
-  const [appleInstallAvailable, setAppleInstallAvailable] = useState(false)
+  const [appleInstallAvailable] = useState(() => isAppleMobile() && !isStandalone())
   const [showAppleInstallHint, setShowAppleInstallHint] = useState(false)
   const [updateReady, setUpdateReady] = useState(false)
   const reloadAfterActivation = useRef(false)
 
-  useEffect(() => {
-    setOffline(!navigator.onLine)
-    setAppleInstallAvailable(isAppleMobile() && !isStandalone())
+  useEffect(() => watchSessionExpiry(redirectAfterSessionExpiry), [])
 
+  useEffect(() => {
     const goOnline = () => setOffline(false)
     const goOffline = () => setOffline(true)
     const onInstallPrompt = (event: Event) => {
