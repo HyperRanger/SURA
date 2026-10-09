@@ -28,7 +28,7 @@ The role must be assigned by the backend, placed in the authenticated session/to
 - A member never sees another member's Sura Score.
 - A vendor sees the beneficiary's first name only, never their phone number or score.
 - A contribution action disables after first tap and submits a stable retry identifier. A retry must display `Already recorded`, never create a duplicate contribution.
-- Rotating Sura Lock is the only commitment type available in this MVP. Collective and individual goal types remain visibly marked `Coming soon`.
+- Three vendor-locked commitment types are available: Rotating Sura Lock, Collective goal, and Individual goal. All contribute toward a declared target or cycle pool and release a voucher only to the verified vendor; none creates a cash-withdrawal route.
 
 ## App navigation
 
@@ -153,11 +153,11 @@ The state survives refresh. The frontend displays policy decisions returned by t
 
 | Step | Content |
 |---|---|
-| M4a: Basics | Title and commitment type cards. Rotating enabled; other types disabled as coming soon. |
+| M4a: Basics | Title and commitment type cards: rotating Lock, collective goal, and individual goal. |
 | M4b: Vendor | Verified-vendor picker showing name, category, and verification badge. Vendor becomes locked after creation. |
-| M4c: Contribution | Amount, daily/weekly frequency, cycles, and live pool-per-cycle preview. |
+| M4c: Contribution | Amount and daily/weekly/monthly frequency. Rotating Locks show cycles and a pool-per-cycle preview; goal commitments require a declared target amount. |
 | M4d: Members | Add by phone or share invite code; show required/confirmed count. |
-| M4e: Payout order | Show backend-provided suggested order. All-new groups select order; explain the first-payout cap. |
+| M4e: Members and beneficiary | Rotating Locks use the backend payout order and explain the first-payout cap. Collective goals invite at least one other member and nominate the single voucher beneficiary. Individual goals have no additional members and the creator is the beneficiary. |
 | M4f: Review | Full summary, payout schedule, cap notice, and confirm action. |
 | M4g: Success | Invite code with copy/share actions; pending-members state and detail link. |
 
