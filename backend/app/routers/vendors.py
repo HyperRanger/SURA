@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.auth import AuthPrincipal, get_current_principal
 from app.database import get_db
-from app.models import Vendor
+from app.models import User, Vendor
 from app.schemas import (
     AccountResolveRequest,
     VendorProductCreateRequest,
@@ -67,6 +67,21 @@ def get_my_payout_account(
     return {"account": vendor_payout_accounts.get_payout_account(db, get_authenticated_vendor_id(current_user))}
 
 
+@router.get("/me/payout-account/simulation")
+def get_my_payout_account_simulation(
+    current_user: AuthPrincipal = Depends(get_current_principal),
+    db: Session = Depends(get_db),
+):
+    """Return the vendor's demo-only account fixture before payout setup.
+
+    This is deliberately separate from the saved payout label. It lets the
+    PWA show which simulated account/name pair will pass validation without
+    retaining an unmasked account number after setup.
+    """
+    _require_vendor_principal(current_user)
+    return linked_accounts.get_account_simulation(db, current_user.user_id)
+
+
 @router.post("/me/payout-account/resolve")
 def resolve_my_payout_account(
     payload: AccountResolveRequest,
@@ -74,7 +89,16 @@ def resolve_my_payout_account(
     db: Session = Depends(get_db),
 ):
     _require_vendor_principal(current_user)
-    return linked_accounts.resolve_account(db, payload.bank_name, payload.account_number, payload.partner_bank_id)
+    user = db.get(User, current_user.user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="Vendor account not found.")
+    return linked_accounts.resolve_account(
+        db,
+        payload.bank_name,
+        payload.account_number,
+        expected_subject_id=user.id,
+        expected_holder_name=user.name,
+    )
 
 
 @router.put("/me/payout-account")
@@ -84,11 +108,16 @@ def save_my_payout_account(
     db: Session = Depends(get_db),
 ):
     _require_vendor_principal(current_user)
+    user = db.get(User, current_user.user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="Vendor account not found.")
     return vendor_payout_accounts.save_payout_account(
         db,
         get_authenticated_vendor_id(current_user),
         payload.bank_name,
         payload.account_number,
+        holder_subject_id=user.id,
+        holder_name=user.name,
     )
 
 

@@ -10,8 +10,9 @@ from datetime import datetime, timedelta
 
 from fastapi.testclient import TestClient
 
-from app.models import User
+from app.models import User, Vendor
 from core.config import get_settings
+from core.security import create_token
 
 
 def _signed_in_user(client: TestClient) -> dict:
@@ -74,6 +75,34 @@ def test_an_idle_session_is_rejected(client):
             db.close()
 
         expired = client.get("/v1/me", headers=headers)
+        assert expired.status_code == 401
+        assert "expired" in expired.json()["detail"].lower()
+    finally:
+        _set_idle_timeout(previous)
+
+
+def test_an_idle_vendor_session_is_rejected(client):
+    """The inactivity rule is shared by members and vendor sessions."""
+    previous = _set_idle_timeout(60)
+    try:
+        db = client.app.state.testing_session()
+        try:
+            db.add(Vendor(id="idle_vendor_session_merchant", name="Idle Vendor Merchant", category="test"))
+            vendor = User(
+                id="idle_vendor_session_test",
+                name="Idle Vendor Test",
+                phone="2348030000399",
+                role="vendor",
+                vendor_id="idle_vendor_session_merchant",
+                last_active_at=datetime.utcnow() - timedelta(seconds=120),
+            )
+            db.add(vendor)
+            db.commit()
+        finally:
+            db.close()
+
+        token = create_token("idle_vendor_session_test", {"role": "vendor"})
+        expired = client.get("/v1/me", headers={"Authorization": f"Bearer {token}"})
         assert expired.status_code == 401
         assert "expired" in expired.json()["detail"].lower()
     finally:

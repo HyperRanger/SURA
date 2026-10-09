@@ -70,6 +70,12 @@ def simulated_display_name(bank_name: str, account_number: str) -> str:
     return f"{_FIRST_NAMES[digest[0] % len(_FIRST_NAMES)]} {_LAST_NAMES[digest[1] % len(_LAST_NAMES)]}"
 
 
+def simulated_account_number(subject_id: str) -> str:
+    """Stable, non-real 10-digit number used only by the competition demo."""
+    digest = hashlib.sha256(f"sura-demo-account:{subject_id}".encode("utf-8")).digest()
+    return str(1_000_000_000 + (int.from_bytes(digest[:8], "big") % 9_000_000_000))
+
+
 def list_banks(db: Session) -> dict[str, object]:
     """Return source-bank labels plus banks that have enabled the Sura API.
 
@@ -96,13 +102,26 @@ def _partner_or_400(db: Session, partner_bank_id: str | None) -> BankPartner | N
     return partner
 
 
-def resolve_account(db: Session, bank_name: str, account_number: str, partner_bank_id: str | None = None) -> dict[str, str]:
+def resolve_account(
+    db: Session,
+    bank_name: str,
+    account_number: str,
+    partner_bank_id: str | None = None,
+    *,
+    expected_subject_id: str | None = None,
+    expected_holder_name: str | None = None,
+) -> dict[str, str]:
     partner = _partner_or_400(db, partner_bank_id)
     bank = validate_bank(bank_name, partner)
     number = normalise_account_number(account_number)
+    if expected_subject_id is not None and number != simulated_account_number(expected_subject_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="This simulated account number is not registered to your Sura name.",
+        )
     return {
         "bank_name": bank,
-        "display_name": simulated_display_name(bank, number),
+        "display_name": expected_holder_name.strip() if expected_holder_name else simulated_display_name(bank, number),
         "account_number_masked": masked_account_number(number),
         "simulated": True,
     }
@@ -121,10 +140,17 @@ def link_account(
     if share_with_partner and partner_bank_id is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Choose a Sura-supported bank before sharing data with it.")
     partner = _partner_or_400(db, partner_bank_id)
-    resolved = resolve_account(db, bank_name, account_number, partner_bank_id)
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member account not found.")
+    resolved = resolve_account(
+        db,
+        bank_name,
+        account_number,
+        partner_bank_id,
+        expected_subject_id=user.id,
+        expected_holder_name=user.name,
+    )
     now = datetime.utcnow()
     linked = db.query(LinkedAccount).filter(LinkedAccount.user_id == user_id).one_or_none()
     if linked is None:
@@ -164,6 +190,19 @@ def link_account(
         user.bank_customer_id = None
     db.commit()
     return serialise(linked)
+
+
+def get_account_simulation(db: Session, user_id: str) -> dict[str, object]:
+    """Return the member's public demo fixture, never a real bank credential."""
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Member account not found.")
+    return {
+        "account_number": simulated_account_number(user.id),
+        "account_holder_name": user.name,
+        "simulated": True,
+        "notice": "Demo-only account fixture. Production uses a bank-confirmed account-name lookup.",
+    }
 
 
 def get_linked_account(db: Session, user_id: str) -> dict[str, object] | None:

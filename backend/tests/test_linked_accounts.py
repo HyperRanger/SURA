@@ -2,6 +2,7 @@
 
 from app.main import app
 from app.models import LinkedAccount, User
+from app.services.linked_accounts import simulated_account_number
 from core.security import create_token
 
 
@@ -21,6 +22,7 @@ def _member(client, user_id: str = "funding_member") -> dict[str, str]:
 
 def test_member_can_resolve_and_link_a_masked_simulated_account(client):
     headers = _member(client)
+    account_number = simulated_account_number("funding_member")
 
     banks = client.get("/v1/banks")
     assert banks.status_code == 200
@@ -28,25 +30,25 @@ def test_member_can_resolve_and_link_a_masked_simulated_account(client):
 
     resolved = client.post(
         "/v1/accounts/resolve",
-        json={"bank_name": "GTBank", "account_number": "0123456789"},
+        json={"bank_name": "GTBank", "account_number": account_number},
         headers=headers,
     )
     assert resolved.status_code == 200, resolved.text
     assert resolved.json() == {
         "bank_name": "GTBank",
-        "display_name": resolved.json()["display_name"],
-        "account_number_masked": "ending 6789",
+        "display_name": "Amina Bello",
+        "account_number_masked": f"ending {account_number[-4:]}",
         "simulated": True,
     }
     assert resolved.json()["display_name"]
 
     linked = client.post(
         "/v1/accounts/link",
-        json={"bank_name": "GTBank", "account_number": "0123456789"},
+        json={"bank_name": "GTBank", "account_number": account_number},
         headers=headers,
     )
     assert linked.status_code == 201, linked.text
-    assert linked.json()["account_number_masked"] == "ending 6789"
+    assert linked.json()["account_number_masked"] == f"ending {account_number[-4:]}"
     assert linked.json()["simulated"] is True
 
     account = client.get("/v1/me/account", headers=headers)
@@ -56,7 +58,7 @@ def test_member_can_resolve_and_link_a_masked_simulated_account(client):
     db = app.state.testing_session()
     try:
         row = db.query(LinkedAccount).one()
-        assert row.account_number_masked == "ending 6789"
+        assert row.account_number_masked == f"ending {account_number[-4:]}"
         assert "0123456789" not in str(row.__dict__)
     finally:
         db.close()
@@ -64,7 +66,8 @@ def test_member_can_resolve_and_link_a_masked_simulated_account(client):
 
 def test_relink_replaces_the_display_label_and_never_creates_a_second_source(client):
     headers = _member(client)
-    for bank_name, number in (("GTBank", "0123456789"), ("Ecobank Nigeria", "9876543210")):
+    number = simulated_account_number("funding_member")
+    for bank_name in ("GTBank", "Ecobank Nigeria"):
         response = client.post(
             "/v1/accounts/link",
             json={"bank_name": bank_name, "account_number": number},
@@ -77,7 +80,7 @@ def test_relink_replaces_the_display_label_and_never_creates_a_second_source(cli
         rows = db.query(LinkedAccount).all()
         assert len(rows) == 1
         assert rows[0].bank_name == "Ecobank Nigeria"
-        assert rows[0].account_number_masked == "ending 3210"
+        assert rows[0].account_number_masked == f"ending {number[-4:]}"
     finally:
         db.close()
 
@@ -90,6 +93,13 @@ def test_account_number_validation_and_member_boundary(client):
         headers=headers,
     )
     assert invalid.status_code == 400
+
+    mismatch = client.post(
+        "/v1/accounts/resolve",
+        json={"bank_name": "GTBank", "account_number": "0123456789"},
+        headers=headers,
+    )
+    assert mismatch.status_code == 400
 
     db = app.state.testing_session()
     try:

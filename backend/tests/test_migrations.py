@@ -46,7 +46,7 @@ def test_there_is_exactly_one_migration_head():
 
 def test_migration_paths_merge_at_the_expected_head():
     heads = _script_directory().get_heads()
-    assert heads == ["0023_partner_links_payouts"]
+    assert heads == ["0024_goal_commitments"]
 
 
 def test_release_readiness_documents_the_current_migration_head():

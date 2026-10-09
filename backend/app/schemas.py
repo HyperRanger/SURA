@@ -5,15 +5,17 @@ from pydantic import BaseModel, Field
 
 
 class LockRequest(BaseModel):
-    type: str = "rotating"
+    type: Literal["rotating", "collective_goal", "individual_goal"] = "rotating"
     title: str
     vendor_id: str
     product_id: str | None = Field(default=None, min_length=1, max_length=128)
     contribution_amount: int
+    target_amount: int | None = Field(default=None, gt=0)
     contribution_frequency: str
     cycles: int
     members: List[str]
     payout_order: Optional[List[str]] = None
+    beneficiary_id: str | None = Field(default=None, min_length=1, max_length=128)
     creator_id: Optional[str] = None
     first_cycle_due_at: datetime | None = None
     # This is a fixed, disclosed demo policy. Keeping the field in the request
