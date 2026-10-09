@@ -1,7 +1,7 @@
 import axios from "axios"
 import { env, isProduction } from "@/config/env"
 import { toApiError } from "@/lib/api-error"
-import { getAccessToken } from "@/lib/session"
+import { getAccessToken, redirectAfterSessionExpiry } from "@/lib/session"
 
 export const api = axios.create({
   baseURL: env.apiUrl,
@@ -22,6 +22,12 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     const apiError = toApiError(error)
+    // A protected request receiving 401 means the backend has ended this
+    // session (idle timeout, JWT expiry, logout, suspension, or revocation).
+    // Clear the locally stored bearer token before any UI can reuse it.
+    if (apiError.status === 401 && getAccessToken()) {
+      redirectAfterSessionExpiry()
+    }
     if (!isProduction && apiError.kind !== "cancelled") {
       const request = axios.isAxiosError(error) ? error.config : undefined
       console.error(

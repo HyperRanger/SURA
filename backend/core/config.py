@@ -38,6 +38,13 @@ class Settings(BaseSettings):
 
     access_token_ttl_seconds: int = 60 * 60 * 24
 
+    # A session that makes no request for this long is ended server-side on the
+    # next request, so a forgotten tab cannot stay signed in forever.
+    # `last_activity_stamp_interval_seconds` throttles the per-request write to
+    # the activity timestamp: an active member stamps at most once a minute, not
+    # once per request.
+    session_idle_timeout_seconds: int = 5 * 60
+    last_activity_stamp_interval_seconds: int = 60
     # Contact resolution helps a member build a group, but it must not become a
     # customer-directory endpoint. The limiter is durable and per authenticated
     # member, so app restarts and additional web instances do not reset it.

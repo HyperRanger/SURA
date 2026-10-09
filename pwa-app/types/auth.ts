@@ -45,7 +45,14 @@ export type AuthTokenResponse = {
   trusted_device_expires_in_seconds?: number
 }
 export type LoginResponse = AuthChallengeResponse | AuthTokenResponse
-export type Session = { accessToken: string; userId: string; role: UserRole; trustedDeviceToken?: string }
+export type Session = {
+  accessToken: string
+  userId: string
+  role: UserRole
+  trustedDeviceToken?: string
+  lastActivityAt?: number
+  expiresAt?: number
+}
 export type PendingChallenge = {
   challengeId: string
   purpose: ChallengePurpose
