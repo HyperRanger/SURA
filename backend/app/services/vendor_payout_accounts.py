@@ -14,8 +14,22 @@ def get_payout_account(db: Session, vendor_id: str) -> dict[str, object] | None:
     return _serialise(row) if row else None
 
 
-def save_payout_account(db: Session, vendor_id: str, bank_name: str, account_number: str) -> dict[str, object]:
-    resolved = linked_accounts.resolve_account(db, bank_name, account_number)
+def save_payout_account(
+    db: Session,
+    vendor_id: str,
+    bank_name: str,
+    account_number: str,
+    *,
+    holder_subject_id: str,
+    holder_name: str,
+) -> dict[str, object]:
+    resolved = linked_accounts.resolve_account(
+        db,
+        bank_name,
+        account_number,
+        expected_subject_id=holder_subject_id,
+        expected_holder_name=holder_name,
+    )
     row = db.query(VendorPayoutAccount).filter(VendorPayoutAccount.vendor_id == vendor_id).one_or_none()
     now = datetime.utcnow()
     if row is None:

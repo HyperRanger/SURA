@@ -57,7 +57,7 @@ After sign-in, call `GET /v1/me` to choose `/app/*` for `individual` or
 | M4 vendor recommendations | `GET /v1/app/recommendations/vendors` | optional advisory ranking; member still selects |
 | M4 member selection | `POST /v1/app/members/resolve` | exact phone lookup; returns only `user_id` and first name |
 | M4 payout review | `POST /v1/app/commitments/lock-preview` | validates and returns the deterministic plan without storing anything |
-| M4 create Lock | `POST /v1/commitments/lock` | rotating commitments only |
+| M4 create commitment | `POST /v1/commitments/lock` | rotating Lock, collective goal, or individual goal |
 | M6 invite preview | `GET /v1/commitments/preview?code={invite_code}` | intended invitee only |
 | M7 consent | `POST /v1/consent` | `{ "granted": true }` required before creating or joining |
 | M8 join | `POST /v1/commitments/join` | `{ "invite_code": "SURA-..." }` |
@@ -78,6 +78,23 @@ After sign-in, call `GET /v1/me` to choose `/app/*` for `individual` or
    cycles, or payout order changes. Render its schedule directly.
 4. Record consent with `POST /v1/consent` if it has not been granted.
 5. Submit the same payload to `POST /v1/commitments/lock` only after review.
+
+### Target goals
+
+`individual_goal` is creator-only. It requires `target_amount`, stores one
+beneficiary (the creator), and issues exactly one vendor voucher when the
+cumulative target is reached.
+
+`collective_goal` requires the creator plus at least one invited member and a
+`beneficiary_id` that belongs to that group. Invited members must join and give
+Score-processing consent before the goal becomes active. Contributions are
+flexible but cannot exceed the remaining target. The nominated beneficiary is
+the only member who can retrieve the one vendor voucher.
+
+For both goal types, use `cycles: 1`, `payout_order: []`, and a positive
+`target_amount`. A target is user-declared; it is not a live vendor price.
+Sura releases exactly the saved target amount and any product-price gap is
+settled directly with the vendor.
 
 ### Invitation boundary
 

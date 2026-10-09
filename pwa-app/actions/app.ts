@@ -4,6 +4,7 @@ import { endpoints } from "@/config/endpoints"
 export async function getMemberHome() { return (await api.get(endpoints.app.home)).data }
 export async function getMe() { return (await api.get(endpoints.me)).data }
 export async function getLinkedAccount() { return (await api.get(endpoints.account)).data }
+export async function getAccountSimulation() { return (await api.get(endpoints.accountSimulation)).data }
 export async function getBanks() { return (await api.get(endpoints.banks)).data }
 export async function resolveLinkedAccount(bank_name: string, account_number: string, partner_bank_id?: string) {
   return (await api.post(endpoints.accountResolve, { bank_name, account_number, ...(partner_bank_id ? { partner_bank_id } : {}) })).data
@@ -25,6 +26,7 @@ export async function updateVendorProduct(productId: string, name?: string, pric
 }
 export async function removeVendorProduct(productId: string) { return (await api.delete(`${endpoints.myVendorProducts}/${encodeURIComponent(productId)}`)).data }
 export async function getVendorPayoutAccount() { return (await api.get(endpoints.myVendorPayoutAccount)).data }
+export async function getVendorPayoutAccountSimulation() { return (await api.get(endpoints.myVendorPayoutAccountSimulation)).data }
 export async function resolveVendorPayoutAccount(bank_name: string, account_number: string) {
   return (await api.post(`${endpoints.myVendorPayoutAccount}/resolve`, { bank_name, account_number })).data
 }

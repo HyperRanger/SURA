@@ -73,7 +73,7 @@ def _member_phone(index: int) -> str:
 
 
 def _member_email(index: int) -> str:
-    return f"member.{index:02d}@pwa-test.sura.local"
+    return f"m{index:02d}@sura.test"
 
 
 def _has_activity(db, user_ids: list[str]) -> bool:
@@ -133,10 +133,14 @@ def seed(db, *, reset: bool) -> dict[str, object]:
             db.add(vendor)
         else:
             vendor.name, vendor.category, vendor.verified_at = name, category, now
+        # The vendor login holds a real FK to this merchant. Flush first rather
+        # than relying on ORM relationship ordering, because this script uses
+        # scalar IDs and Postgres enforces the parent row immediately.
+        db.flush()
         user = db.get(User, user_id)
         if user is None:
             db.add(User(
-                id=user_id, name=name, phone=f"234809800{index:04d}", email=f"vendor.{index:02d}@pwa-test.sura.local",
+                id=user_id, name=name, phone=f"234809800{index:04d}", email=f"v{index:02d}@sura.test",
                 password_hash=hash_password(vendor_password), role="vendor", vendor_id=vendor_id,
                 phone_verified_at=now, verified_at=now,
             ))
@@ -153,6 +157,10 @@ def seed(db, *, reset: bool) -> dict[str, object]:
         user = db.get(User, user_id)
         if user is None:
             db.add(User(id=user_id, name=f"{name} Portal Admin", phone=email, role="bank_admin", bank_id=bank_id, verified_at=now, phone_verified_at=now))
+        # SessionLocal deliberately runs without autoflush. Persist the parent
+        # rows before creating BankStaff, whose user_id is a real Postgres FK.
+        # SQLite's test defaults can hide this ordering issue; Render cannot.
+        db.flush()
         staff = db.query(BankStaff).filter(BankStaff.user_id == user_id).one_or_none()
         if staff is None:
             db.add(BankStaff(
@@ -165,7 +173,7 @@ def seed(db, *, reset: bool) -> dict[str, object]:
     db.commit()
     return {
         "members": [{"name": name, "context": context, "email": _member_email(index), "phone": "0" + _member_phone(index)[3:]} for index, (name, context) in enumerate(MEMBERS, start=1)],
-        "vendors": [{"name": name, "category": category, "email": f"vendor.{index:02d}@pwa-test.sura.local", "phone": "0" + f"234809800{index:04d}"[3:]} for index, (_, _, name, category) in enumerate(VENDORS, start=1)],
+        "vendors": [{"name": name, "category": category, "email": f"v{index:02d}@sura.test", "phone": "0" + f"234809800{index:04d}"[3:]} for index, (_, _, name, category) in enumerate(VENDORS, start=1)],
         "bank_portals": [{"bank": name, "email": email} for _, name, email in BANKS],
         "password_envs": [MEMBER_PASSWORD_ENV, VENDOR_PASSWORD_ENV, BANK_PASSWORD_ENV],
         "note": "No commitments, contributions, vouchers, redemptions, settlement records, or score history were created.",

@@ -44,7 +44,7 @@ directory search endpoint.
 |---|---|---|---|
 | POST | `/v1/consent` | Record Score-processing consent. Body: `{ "granted": true }`. | Individual |
 | POST | `/v1/app/commitments/lock-preview` | Validate a Lock plan without persisting it. | Individual |
-| POST | `/v1/commitments/lock` | Create a rotating Lock. Returns `201`, commitment ID, and invite code. | Individual |
+| POST | `/v1/commitments/lock` | Create a rotating Lock, collective goal, or individual goal. Returns `201`, commitment ID, and invite code. | Individual |
 | GET | `/v1/commitments` | List the signed-in member’s Locks. | Individual |
 | GET | `/v1/commitments/preview?code={invite_code}` | Preview a pending invitation for the intended invitee. | Individual |
 | POST | `/v1/commitments/join` | Join an invitation. Body: `{ "invite_code": "SURA-..." }`. | Invited individual |
@@ -71,6 +71,30 @@ The Lock preview and create requests use the same body:
   "first_cycle_due_at": "2026-10-10T12:00:00Z",
   "grace_period_hours": 72,
   "missed_cycle_policy": "carry_forward"
+}
+```
+
+### Goal commitment bodies
+
+`individual_goal` has one member (the creator), one target, and one voucher.
+`collective_goal` has at least two members and one nominated `beneficiary_id`.
+Both accept flexible positive contributions until their exact `target_amount`
+is reached; the final contribution cannot exceed the remaining target. They
+always use `cycles: 1`, one vendor, and one vendor-locked voucher.
+
+```json
+{
+  "type": "collective_goal",
+  "title": "Studio equipment",
+  "vendor_id": "vnd_demo_electronics",
+  "product_id": "prd_demo_electronics_1",
+  "contribution_amount": 5000,
+  "target_amount": 180000,
+  "contribution_frequency": "monthly",
+  "cycles": 1,
+  "members": ["member_b"],
+  "beneficiary_id": "member_b",
+  "payout_order": []
 }
 ```
 

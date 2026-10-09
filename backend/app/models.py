@@ -258,6 +258,10 @@ class Commitment(Base):
     product_name_snapshot: Mapped[str | None] = mapped_column(String, nullable=True)
     product_price_snapshot: Mapped[int | None] = mapped_column(Integer, nullable=True)
     contribution_amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Required for a non-rotating goal. It is user-declared rather than a live
+    # vendor price, so a later catalogue-price change cannot rewrite the group
+    # agreement. The voucher releases this exact saved amount, never more.
+    target_amount: Mapped[int | None] = mapped_column(Integer, nullable=True)
     frequency: Mapped[str] = mapped_column(String, nullable=False)
     cycles: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False, default="pending_members")
