@@ -18,7 +18,7 @@ from alembic.script import ScriptDirectory
 
 from app.bank.models import AccountRestriction, BankApiKey, BankAuditEvent, BankPartner, BankStaff, RiskFlag, WebhookDelivery, WebhookSubscription
 from app.database import Base
-from app.models import LinkedAccount, PlatformAuditEvent, SessionRevocation, TrustedDevice
+from app.models import LinkedAccount, PlatformAuditEvent, SessionRevocation, TrustedDevice, VendorPayoutAccount
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 ALEMBIC_INI = BACKEND_DIR / "alembic.ini"
@@ -44,15 +44,29 @@ def test_there_is_exactly_one_migration_head():
     assert len(heads) == 1, f"expected a single head, found {heads}"
 
 
-def test_bank_migration_paths_merge_at_the_expected_head():
+def test_migration_paths_merge_at_the_expected_head():
     heads = _script_directory().get_heads()
-    assert heads == ["0020_hot_read_indexes"]
+    assert heads == ["0024_goal_commitments"]
 
 
 def test_release_readiness_documents_the_current_migration_head():
     """The deployment runbook must not direct a release to an old revision."""
     head = _script_directory().get_heads()[0]
     assert head in RELEASE_READINESS.read_text(encoding="utf-8")
+
+
+def test_catalogue_migration_matches_the_product_agreement_schema():
+    """The product fields must reach deployed databases, not only test ORM tables."""
+    revision = _script_directory().get_revision("0021_vendor_catalogue")
+    assert revision is not None
+    source = Path(revision.path).read_text(encoding="utf-8")
+    expected = [
+        "vendor_products",
+        "vendor_product_id",
+        "product_name_snapshot",
+        "product_price_snapshot",
+    ]
+    assert not [name for name in expected if name not in source]
 
 
 def test_migration_identifiers_fit_the_existing_version_column():
@@ -75,6 +89,7 @@ def test_bank_tables_are_present_in_the_orm_metadata():
         SessionRevocation,
         PlatformAuditEvent,
         LinkedAccount,
+        VendorPayoutAccount,
         TrustedDevice,
     ):
         assert table.__tablename__ in Base.metadata.tables

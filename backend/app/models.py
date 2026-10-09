@@ -53,6 +53,9 @@ class User(Base):
     # refused on sight, which is how every outstanding session ends at once
     # without the service having to keep a table of live tokens.
     session_invalidated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Last authenticated request, stamped at most once a minute. Sessions that go
+    # quiet for longer than the idle timeout are refused on their next request.
+    last_active_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
 class LinkedAccount(Base):
@@ -73,7 +76,31 @@ class LinkedAccount(Base):
     bank_name: Mapped[str] = mapped_column(String, nullable=False)
     account_number_masked: Mapped[str] = mapped_column(String, nullable=False)
     display_name: Mapped[str] = mapped_column(String, nullable=False)
+    # This is an explicit, revocable demo consent to show this member inside a
+    # Sura partner's portal.  It is not implied merely because the source bank
+    # name happened to match a partner.
+    partner_bank_id: Mapped[str | None] = mapped_column(String, ForeignKey("bank_partners.id"), nullable=True, index=True)
+    shared_with_partner_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+
+
+class VendorPayoutAccount(Base):
+    """A vendor's future settlement destination for the simulated MVP.
+
+    Just like a member funding source, this stores a display label and masked
+    number only. It is not a payment instruction, credential, or live bank
+    connection.
+    """
+
+    __tablename__ = "vendor_payout_accounts"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    vendor_id: Mapped[str] = mapped_column(String, ForeignKey("vendors.id"), nullable=False, unique=True, index=True)
+    bank_name: Mapped[str] = mapped_column(String, nullable=False)
+    account_number_masked: Mapped[str] = mapped_column(String, nullable=False)
+    display_name: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class TrustedDevice(Base):
@@ -200,6 +227,25 @@ class Vendor(Base):
     verified_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
 
+class VendorProduct(Base):
+    """A text-only item a verified vendor makes available for future Locks.
+
+    Products are deactivated rather than deleted. A Lock copies the product
+    name and price into its own agreement fields, so later catalogue changes
+    can never rewrite a commitment that members have already accepted.
+    """
+
+    __tablename__ = "vendor_products"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True)
+    vendor_id: Mapped[str] = mapped_column(String, ForeignKey("vendors.id"), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    price: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False, default="active", index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class Commitment(Base):
     __tablename__ = "commitments"
 
@@ -208,7 +254,14 @@ class Commitment(Base):
     type: Mapped[str] = mapped_column(String, nullable=False, default="rotating")
     title: Mapped[str] = mapped_column(String, nullable=False)
     vendor_id: Mapped[str] = mapped_column(String, ForeignKey("vendors.id"), nullable=False)
+    vendor_product_id: Mapped[str | None] = mapped_column(String, ForeignKey("vendor_products.id"), nullable=True)
+    product_name_snapshot: Mapped[str | None] = mapped_column(String, nullable=True)
+    product_price_snapshot: Mapped[int | None] = mapped_column(Integer, nullable=True)
     contribution_amount: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Required for a non-rotating goal. It is user-declared rather than a live
+    # vendor price, so a later catalogue-price change cannot rewrite the group
+    # agreement. The voucher releases this exact saved amount, never more.
+    target_amount: Mapped[int | None] = mapped_column(Integer, nullable=True)
     frequency: Mapped[str] = mapped_column(String, nullable=False)
     cycles: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False, default="pending_members")

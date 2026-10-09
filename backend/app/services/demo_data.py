@@ -36,6 +36,7 @@ from app.models import (
     User,
     UserConsent,
     Vendor,
+    VendorProduct,
     Voucher,
 )
 from app.services.score_service import record_score_snapshot
@@ -49,7 +50,44 @@ LEGACY_DEMO_BANK_STAFF_USER_IDS = (
     "usr_demo_bank_integration",
     "usr_demo_bank",
 )
-DEMO_VENDOR_IDS = ("vnd_demo_electronics", "vnd_demo_education", "vnd_demo_equipment")
+DEMO_VENDOR_IDS = (
+    "vnd_demo_electronics", "vnd_demo_education", "vnd_demo_equipment",
+    "vnd_demo_music", "vnd_demo_hardware", "vnd_demo_groceries",
+    "vnd_demo_fashion", "vnd_demo_furniture", "vnd_demo_pharmacy",
+    "vnd_demo_mobile", "vnd_demo_beauty", "vnd_demo_auto", "vnd_demo_books",
+)
+DEMO_VENDOR_PRODUCTS = {
+    "vnd_demo_electronics": (("Entry-level laptop", 285_000), ("Bluetooth speaker", 42_500), ("Wireless router", 35_000), ("Power bank", 18_500), ("Laptop bag", 24_000)),
+    "vnd_demo_education": (("WAEC tutorial package", 28_000), ("Professional course fee", 85_000), ("Textbook bundle", 32_000), ("Exam registration", 19_500), ("Digital skills class", 60_000)),
+    "vnd_demo_equipment": (("Starter tool kit", 35_000), ("Sewing machine", 165_000), ("Ring light", 31_500), ("Generator service kit", 48_000), ("POS machine", 72_000)),
+    "vnd_demo_music": (("Acoustic guitar", 95_000), ("Studio headphones", 48_000), ("Keyboard stand", 27_500), ("Microphone", 62_000), ("Drum practice pad", 18_000)),
+    "vnd_demo_hardware": (("Cement bundle", 54_000), ("Paint set", 38_500), ("Door lock set", 22_000), ("Toolbox", 29_000), ("Roofing sheets", 120_000)),
+    "vnd_demo_groceries": (("Family food basket", 75_000), ("Rice bag", 96_000), ("Cooking essentials", 34_000), ("Bulk provisions", 58_000), ("Baby care basket", 46_000)),
+    "vnd_demo_fashion": (("Workwear set", 45_000), ("Tailored native set", 68_000), ("School uniform set", 29_000), ("Leather sandals", 25_000), ("Fabric bundle", 52_000)),
+    "vnd_demo_furniture": (("Work chair", 68_000), ("Study desk", 82_000), ("Mattress", 115_000), ("Wardrobe", 145_000), ("Dining set", 225_000)),
+    "vnd_demo_pharmacy": (("First aid kit", 24_000), ("Wellness bundle", 42_000), ("Baby care set", 38_000), ("Blood pressure monitor", 66_000), ("Prescription support", 30_000)),
+    "vnd_demo_mobile": (("Smartphone", 146_000), ("Feature phone", 31_000), ("Phone screen repair", 45_000), ("Charger bundle", 16_000), ("Tablet", 175_000)),
+    "vnd_demo_beauty": (("Salon starter kit", 78_000), ("Hair care bundle", 36_000), ("Makeup kit", 55_000), ("Barbing tools", 92_000), ("Skincare set", 41_000)),
+    "vnd_demo_auto": (("Tyre pair", 125_000), ("Battery", 78_000), ("Oil service", 28_000), ("Brake pad set", 39_000), ("Helmet", 32_000)),
+    "vnd_demo_books": (("University textbook set", 58_000), ("Business book bundle", 26_000), ("Children's readers", 22_000), ("Exam prep set", 31_000), ("Stationery pack", 15_000)),
+}
+assert set(DEMO_VENDOR_PRODUCTS) == set(DEMO_VENDOR_IDS)
+assert all(len(products) == 5 for products in DEMO_VENDOR_PRODUCTS.values())
+DEMO_VENDOR_SPECS = (
+    ("vnd_demo_electronics", "Sura Demo Electronics", "electronics"),
+    ("vnd_demo_education", "Sura Demo Education", "education"),
+    ("vnd_demo_equipment", "Sura Demo Equipment", "equipment"),
+    ("vnd_demo_music", "Harmony Music Store", "music"),
+    ("vnd_demo_hardware", "Buildwell Hardware", "hardware"),
+    ("vnd_demo_groceries", "Market Basket", "groceries"),
+    ("vnd_demo_fashion", "Thread & Needle", "fashion"),
+    ("vnd_demo_furniture", "Homeform Furniture", "furniture"),
+    ("vnd_demo_pharmacy", "Carepoint Pharmacy", "health"),
+    ("vnd_demo_mobile", "Pocket Mobile Hub", "mobile"),
+    ("vnd_demo_beauty", "Glow Beauty Supply", "beauty"),
+    ("vnd_demo_auto", "RoadReady Auto Parts", "automotive"),
+    ("vnd_demo_books", "Page One Books", "books"),
+)
 DEMO_COMMITMENT_ID = "cmt_demo_laptop_rotation"
 DEMO_REDEMPTION_ID = "rdm_demo_laptop_cycle_1"
 DEMO_BANK_ID = "bnk_sura_partner"
@@ -225,6 +263,7 @@ def _reset_demo_data(db: Session) -> None:
     db.execute(delete(CommitmentBeneficiary).where(CommitmentBeneficiary.commitment_id.in_(DEMO_COMMITMENT_IDS)))
     db.execute(delete(CommitmentMember).where(CommitmentMember.commitment_id.in_(DEMO_COMMITMENT_IDS)))
     db.execute(delete(Commitment).where(Commitment.id.in_(DEMO_COMMITMENT_IDS)))
+    db.execute(delete(VendorProduct).where(VendorProduct.vendor_id.in_(DEMO_VENDOR_IDS)))
     db.execute(delete(ScoreHistory).where(ScoreHistory.user_id.in_(DEMO_CUSTOMER_IDS)))
     db.execute(delete(User).where(User.id.in_(demo_user_ids)))
     # An old demo shortcut may have created additional users under ``bnk_demo``.
@@ -248,22 +287,10 @@ def _reset_demo_data(db: Session) -> None:
         db.execute(delete(Institution).where(Institution.id.in_(empty_institution_ids)))
 
 
-def seed_demo_data(db: Session, *, reset: bool = False) -> dict[str, object]:
-    """Create the fixed demo story and optionally replace only its own records."""
-    if reset:
-        _reset_demo_data(db)
-
-    existing = db.get(Commitment, DEMO_COMMITMENT_ID)
-    if existing is not None:
-        return {"created": False, "commitment_id": DEMO_COMMITMENT_ID, "message": "Demo data already exists."}
-
-    now = datetime.utcnow()
-    vendors = (
-        ("vnd_demo_electronics", "Sura Demo Electronics", "electronics"),
-        ("vnd_demo_education", "Sura Demo Education", "education"),
-        ("vnd_demo_equipment", "Sura Demo Equipment", "equipment"),
-    )
-    for vendor_id, name, category in vendors:
+def seed_demo_catalogue(db: Session, *, now: datetime | None = None) -> dict[str, int]:
+    """Upsert only public demo vendors and products; never touches member data."""
+    now = now or datetime.utcnow()
+    for vendor_id, name, category in DEMO_VENDOR_SPECS:
         vendor = db.get(Vendor, vendor_id)
         if vendor is None:
             db.add(Vendor(id=vendor_id, name=name, category=category, verified_at=now))
@@ -271,6 +298,35 @@ def seed_demo_data(db: Session, *, reset: bool = False) -> dict[str, object]:
             vendor.name = name
             vendor.category = category
             vendor.verified_at = now
+        for index, (product_name, price) in enumerate(DEMO_VENDOR_PRODUCTS[vendor_id], start=1):
+            product_id = f"prd_demo_{vendor_id.removeprefix('vnd_demo_')}_{index}"
+            product = db.get(VendorProduct, product_id)
+            if product is None:
+                db.add(VendorProduct(id=product_id, vendor_id=vendor_id, name=product_name, price=price, status="active", created_at=now, updated_at=now))
+            else:
+                product.name = product_name
+                product.price = price
+                product.status = "active"
+                product.updated_at = now
+    return {"vendor_count": len(DEMO_VENDOR_IDS), "product_count": sum(len(products) for products in DEMO_VENDOR_PRODUCTS.values())}
+
+
+def seed_demo_data(db: Session, *, reset: bool = False) -> dict[str, object]:
+    """Create the fixed demo story and optionally replace only its own records."""
+    if reset:
+        _reset_demo_data(db)
+
+    now = datetime.utcnow()
+    catalogue = seed_demo_catalogue(db, now=now)
+
+    existing = db.get(Commitment, DEMO_COMMITMENT_ID)
+    if existing is not None:
+        return {
+            "created": False,
+            "commitment_id": DEMO_COMMITMENT_ID,
+            **catalogue,
+            "message": "Demo Lock already exists; verified vendors and catalogue are up to date.",
+        }
 
     bank = db.get(BankPartner, DEMO_BANK_ID)
     if bank is None:

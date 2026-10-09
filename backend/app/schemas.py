@@ -5,14 +5,17 @@ from pydantic import BaseModel, Field
 
 
 class LockRequest(BaseModel):
-    type: str = "rotating"
+    type: Literal["rotating", "collective_goal", "individual_goal"] = "rotating"
     title: str
     vendor_id: str
+    product_id: str | None = Field(default=None, min_length=1, max_length=128)
     contribution_amount: int
+    target_amount: int | None = Field(default=None, gt=0)
     contribution_frequency: str
     cycles: int
     members: List[str]
     payout_order: Optional[List[str]] = None
+    beneficiary_id: str | None = Field(default=None, min_length=1, max_length=128)
     creator_id: Optional[str] = None
     first_cycle_due_at: datetime | None = None
     # This is a fixed, disclosed demo policy. Keeping the field in the request
@@ -75,10 +78,13 @@ class AccountResolveRequest(BaseModel):
     # for every invalid length; schema validation would reject short input
     # before that contract can be applied.
     account_number: str = Field(min_length=1, max_length=32)
+    partner_bank_id: str | None = Field(default=None, min_length=1, max_length=128)
 
 
 class LinkAccountRequest(AccountResolveRequest):
     """The complete number is accepted only for this request and not persisted."""
+
+    share_with_partner: bool = False
 
 
 class VerifyOtpRequest(BaseModel):
@@ -90,6 +96,24 @@ class VerifyOtpRequest(BaseModel):
 
 class ResendOtpRequest(BaseModel):
     challenge_id: str = Field(min_length=1, max_length=64)
+
+
+class PasswordRecoveryRequest(BaseModel):
+    """Ask for an SMS recovery code for a member account, by email or phone.
+
+    The service answers identically for an unknown identifier, so the response
+    itself never confirms whether an account exists.
+    """
+
+    identifier: str = Field(min_length=3, max_length=320)
+
+
+class PasswordRecoveryConfirmRequest(BaseModel):
+    """Finish recovery with the SMS code and the new password."""
+
+    challenge_id: str = Field(min_length=1, max_length=64)
+    code: str = Field(min_length=4, max_length=12)
+    new_password: str = Field(min_length=12, max_length=72)
 
 
 class DemoLoginAsRequest(BaseModel):
@@ -152,6 +176,23 @@ class MemberLookupRequest(BaseModel):
 
 class VendorRedeemRequest(BaseModel):
     voucher_code: str = Field(min_length=1, max_length=64)
+
+
+class VendorProductCreateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    price: int = Field(gt=0, le=100_000_000)
+
+
+class VendorProductUpdateRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    price: int | None = Field(default=None, gt=0, le=100_000_000)
+
+    def has_changes(self) -> bool:
+        return self.name is not None or self.price is not None
+
+
+class VendorPayoutAccountRequest(AccountResolveRequest):
+    """A vendor's future settlement label; the full number is never stored."""
 
 
 class PayoutScheduleItem(BaseModel):

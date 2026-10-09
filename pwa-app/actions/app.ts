@@ -4,12 +4,13 @@ import { endpoints } from "@/config/endpoints"
 export async function getMemberHome() { return (await api.get(endpoints.app.home)).data }
 export async function getMe() { return (await api.get(endpoints.me)).data }
 export async function getLinkedAccount() { return (await api.get(endpoints.account)).data }
+export async function getAccountSimulation() { return (await api.get(endpoints.accountSimulation)).data }
 export async function getBanks() { return (await api.get(endpoints.banks)).data }
-export async function resolveLinkedAccount(bank_name: string, account_number: string) {
-  return (await api.post(endpoints.accountResolve, { bank_name, account_number })).data
+export async function resolveLinkedAccount(bank_name: string, account_number: string, partner_bank_id?: string) {
+  return (await api.post(endpoints.accountResolve, { bank_name, account_number, ...(partner_bank_id ? { partner_bank_id } : {}) })).data
 }
-export async function linkAccount(bank_name: string, account_number: string) {
-  return (await api.post(endpoints.accountLink, { bank_name, account_number })).data
+export async function linkAccount(bank_name: string, account_number: string, partner_bank_id?: string, share_with_partner = false) {
+  return (await api.post(endpoints.accountLink, { bank_name, account_number, ...(partner_bank_id ? { partner_bank_id } : {}), share_with_partner })).data
 }
 export async function getCommitments() { return (await api.get(endpoints.commitments)).data }
 export async function getCommitment(id: string) { return (await api.get(`${endpoints.commitments}/${encodeURIComponent(id)}`)).data }
@@ -17,6 +18,21 @@ export async function getCommitmentActivity(id: string) { return (await api.get(
 export async function getVoucher(id: string, cycle: string) { return (await api.get(`${endpoints.commitments}/${encodeURIComponent(id)}/cycles/${encodeURIComponent(cycle)}/voucher`)).data }
 export async function getInvitePreview(code: string) { return (await api.get(`${endpoints.commitments}/preview`, { params: { code } })).data }
 export async function getVendors() { return (await api.get(endpoints.vendors)).data }
+export async function getVendorProducts(vendorId: string) { return (await api.get(endpoints.vendorProducts(vendorId))).data }
+export async function getMyVendorProducts() { return (await api.get(endpoints.myVendorProducts)).data }
+export async function addVendorProduct(name: string, price: number) { return (await api.post(endpoints.myVendorProducts, { name, price })).data }
+export async function updateVendorProduct(productId: string, name?: string, price?: number) {
+  return (await api.patch(`${endpoints.myVendorProducts}/${encodeURIComponent(productId)}`, { ...(name === undefined ? {} : { name }), ...(price === undefined ? {} : { price }) })).data
+}
+export async function removeVendorProduct(productId: string) { return (await api.delete(`${endpoints.myVendorProducts}/${encodeURIComponent(productId)}`)).data }
+export async function getVendorPayoutAccount() { return (await api.get(endpoints.myVendorPayoutAccount)).data }
+export async function getVendorPayoutAccountSimulation() { return (await api.get(endpoints.myVendorPayoutAccountSimulation)).data }
+export async function resolveVendorPayoutAccount(bank_name: string, account_number: string) {
+  return (await api.post(`${endpoints.myVendorPayoutAccount}/resolve`, { bank_name, account_number })).data
+}
+export async function saveVendorPayoutAccount(bank_name: string, account_number: string) {
+  return (await api.put(endpoints.myVendorPayoutAccount, { bank_name, account_number })).data
+}
 export async function resolveMember(phone: string) { return (await api.post(endpoints.app.resolveMember, { phone })).data }
 export async function getVendorRecommendations(category?: string, target_amount?: number) {
   return (await api.get(endpoints.app.vendorRecommendations, { params: { category, target_amount } })).data

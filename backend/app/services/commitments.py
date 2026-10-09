@@ -30,9 +30,11 @@ from app.services.lock_lifecycle import SUPPORTED_FREQUENCIES, advance_due_at, d
 from app.services.payout_rules import apply_anchor_and_cap_rule, build_payout_schedule
 from app.services.score_service import public_score_report, record_score_snapshot, refresh_commitment_member_scores
 from app.services.scoring import ENTRY_TIER_BASELINE
+from app.services.vendor_catalogue import active_product_for_vendor
 from core.config import get_settings
 
 ENTRY_TIER_SCORE = ENTRY_TIER_BASELINE
+GOAL_TYPES = {"collective_goal", "individual_goal"}
 
 
 def _normalize_due_at(value: datetime | None) -> datetime | None:
@@ -92,6 +94,16 @@ def _serialize_voucher_state(voucher: Voucher) -> dict[str, Any]:
         "status": voucher.status,
         "issued_at": voucher.issued_at.isoformat() if voucher.issued_at else None,
         "redeemed_at": voucher.redeemed_at.isoformat() if voucher.redeemed_at else None,
+    }
+
+
+def _product_snapshot(commitment: Commitment) -> dict[str, Any] | None:
+    if commitment.vendor_product_id is None:
+        return None
+    return {
+        "product_id": commitment.vendor_product_id,
+        "name": commitment.product_name_snapshot,
+        "price": commitment.product_price_snapshot,
     }
 
 
@@ -166,6 +178,10 @@ def _activate_if_fully_joined(db: Session, commitment: Commitment) -> None:
 
 def _refresh_lifecycle(db: Session, commitment: Commitment, *, now: datetime | None = None) -> bool:
     """Persist deadline-driven state transitions for the current unpaid cycle."""
+    # Goals complete when their declared cumulative target is reached; they do
+    # not have rotating cycle deadlines or missed-cycle transitions.
+    if commitment.type in GOAL_TYPES:
+        return False
     if commitment.status in {"pending_members", "cancelled", "completed", "under_review", "missed"}:
         return False
     now = now or datetime.utcnow()
@@ -352,13 +368,72 @@ def _build_payout_order(
     return [member_id for _, member_id in ranked], False
 
 
+def _goal_member_ids(payload: LockRequest, creator_id: str) -> list[str]:
+    """Return the final member set for a one-target goal.
+
+    Individual goals deliberately have no invitations. Collective goals must
+    include another individual; their one voucher is assigned to the nominated
+    beneficiary rather than rotated through a payout order.
+    """
+    if payload.type == "individual_goal":
+        requested = _normalize_member_ids(payload.members)
+        if requested and requested != [creator_id]:
+            raise HTTPException(status_code=400, detail="An individual goal cannot include other members.")
+        if payload.beneficiary_id not in {None, creator_id}:
+            raise HTTPException(status_code=400, detail="An individual goal beneficiary must be its creator.")
+        return [creator_id]
+
+    member_ids = _normalize_member_ids([creator_id, *payload.members])
+    if len(member_ids) < 2:
+        raise HTTPException(status_code=400, detail="A collective goal requires at least two distinct members.")
+    beneficiary_id = payload.beneficiary_id or creator_id
+    if beneficiary_id not in member_ids:
+        raise HTTPException(status_code=400, detail="The nominated beneficiary must be a goal member.")
+    return member_ids
+
+
+def _validate_goal_payload(payload: LockRequest, creator_id: str) -> tuple[list[str], str]:
+    if payload.target_amount is None:
+        raise HTTPException(status_code=400, detail="A goal requires a positive target_amount.")
+    if payload.contribution_amount <= 0:
+        raise HTTPException(status_code=400, detail="Contribution amount must be positive.")
+    if payload.contribution_frequency not in SUPPORTED_FREQUENCIES:
+        raise HTTPException(status_code=400, detail="Contribution frequency must be daily, weekly, or monthly.")
+    if payload.first_cycle_due_at is not None and payload.first_cycle_due_at <= datetime.utcnow():
+        raise HTTPException(status_code=400, detail="first_cycle_due_at must be in the future.")
+    member_ids = _goal_member_ids(payload, creator_id)
+    return member_ids, payload.beneficiary_id or creator_id
+
+
 def preview_lock(
     db: Session, payload: LockRequest, authenticated_creator_id: str
 ) -> dict[str, Any]:
     """Return the deterministic Lock plan without storing a commitment."""
     payload.first_cycle_due_at = _normalize_due_at(payload.first_cycle_due_at)
+    if payload.type in GOAL_TYPES:
+        if payload.creator_id and payload.creator_id != authenticated_creator_id:
+            raise HTTPException(status_code=403, detail="creator_id must match the authenticated user.")
+        member_ids, beneficiary_id = _validate_goal_payload(payload, authenticated_creator_id)
+        vendor = db.get(Vendor, payload.vendor_id)
+        if vendor is None or vendor.verified_at is None:
+            raise HTTPException(status_code=400, detail="Commitment vendor must be verified before it can be selected.")
+        if payload.product_id is not None:
+            active_product_for_vendor(db, product_id=payload.product_id, vendor_id=vendor.id)
+        members = [db.get(User, member_id) for member_id in member_ids]
+        if any(member is None or member.role != "individual" for member in members):
+            raise HTTPException(status_code=400, detail="Goal members must be individual Sura accounts.")
+        return {
+            "members": member_ids,
+            "payout_order": [beneficiary_id],
+            "payout_schedule": [{"cycle": 1, "beneficiary_id": beneficiary_id, "amount": payload.target_amount}],
+            "goal": {"target_amount": payload.target_amount, "beneficiary_id": beneficiary_id},
+            "genesis_group": False,
+            "first_payout_is_within_cap": True,
+            "can_create": True,
+            "blocking_reason": None,
+        }
     if payload.type != "rotating":
-        raise HTTPException(status_code=400, detail="Only rotating commitments are supported.")
+        raise HTTPException(status_code=400, detail="Unsupported commitment type.")
     if not payload.members:
         raise HTTPException(status_code=400, detail="At least one member is required.")
     if payload.contribution_amount <= 0:
@@ -382,6 +457,8 @@ def preview_lock(
     vendor = db.get(Vendor, payload.vendor_id)
     if vendor is None or vendor.verified_at is None:
         raise HTTPException(status_code=400, detail="Commitment vendor must be verified before it can be selected.")
+    if payload.product_id is not None:
+        active_product_for_vendor(db, product_id=payload.product_id, vendor_id=vendor.id)
     members = [db.get(User, member_id) for member_id in member_ids]
     if any(member is None for member in members):
         raise HTTPException(status_code=400, detail="Every commitment member must have a Sura account.")
@@ -414,6 +491,82 @@ def preview_lock(
 def _serialize_commitment(commitment: Commitment, db: Session) -> dict[str, Any]:
     """Serialize one Lock through the same batch path used by list reads."""
     return _serialize_commitments([commitment], db)[0]
+
+
+def _create_goal_commitment(
+    db: Session, payload: LockRequest, creator_id: str
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Create an individual or collective, single-target vendor goal."""
+    member_ids, beneficiary_id = _validate_goal_payload(payload, creator_id)
+    try:
+        with db.begin():
+            for member_id in member_ids:
+                _ensure_member_user(db, member_id)
+            _require_score_processing_consent(db, creator_id)
+            vendor = db.get(Vendor, payload.vendor_id)
+            if vendor is None or vendor.verified_at is None:
+                raise HTTPException(status_code=400, detail="Commitment vendor must be verified before it can be locked.")
+            product = (
+                active_product_for_vendor(db, product_id=payload.product_id, vendor_id=vendor.id)
+                if payload.product_id is not None
+                else None
+            )
+            commitment = Commitment(
+                id=str(uuid.uuid4()),
+                creator_id=creator_id,
+                type=payload.type,
+                title=payload.title,
+                vendor_id=payload.vendor_id,
+                vendor_product_id=product.id if product is not None else None,
+                product_name_snapshot=product.name if product is not None else None,
+                product_price_snapshot=product.price if product is not None else None,
+                contribution_amount=payload.contribution_amount,
+                target_amount=payload.target_amount,
+                frequency=payload.contribution_frequency,
+                cycles=1,
+                status="pending_members" if payload.type == "collective_goal" else "active",
+                invite_code=f"SURA-{uuid.uuid4().hex[:8].upper()}",
+                payout_order_json=json.dumps([beneficiary_id]),
+                current_cycle_number=1,
+                completed_cycle_count=0,
+                first_cycle_due_at=payload.first_cycle_due_at,
+                current_cycle_due_at=None,
+                grace_period_hours=payload.grace_period_hours,
+                missed_cycle_policy="carry_forward",
+            )
+            db.add(commitment)
+            db.flush()
+            for member_id in member_ids:
+                db.add(CommitmentMember(
+                    commitment_id=commitment.id,
+                    user_id=member_id,
+                    role="creator" if member_id == creator_id else "invited",
+                    joined_at=datetime.utcnow(),
+                ))
+            db.add(CommitmentBeneficiary(
+                id=str(uuid.uuid4()), commitment_id=commitment.id, cycle_number=1,
+                user_id=beneficiary_id, payout_amount=payload.target_amount, status="scheduled",
+            ))
+            _activate_if_fully_joined(db, commitment)
+            _record_activity(
+                db, commitment.id, "goal_created", actor_user_id=creator_id,
+                details={
+                    "type": payload.type, "target_amount": payload.target_amount,
+                    "beneficiary_id": beneficiary_id, "vendor_id": commitment.vendor_id,
+                    "product_id": commitment.vendor_product_id, "member_count": len(member_ids),
+                },
+            )
+            schedule = [{"cycle": 1, "beneficiary_id": beneficiary_id, "amount": payload.target_amount}]
+            return _serialize_commitment(commitment, db), {
+                "commitment_id": commitment.id, "type": commitment.type,
+                "status": commitment.status, "invite_code": commitment.invite_code,
+                "payout_schedule": schedule,
+            }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Failed to create goal commitment.") from exc
 
 
 def _serialize_commitments(commitments: list[Commitment], db: Session) -> list[dict[str, Any]]:
@@ -516,6 +669,7 @@ def _serialize_commitment_with_relations(
 ) -> dict[str, Any]:
     economic_members = [member for member in members if member.role not in {"replaced", "declined"}]
     member_ids = [member.user_id for member in members]
+    is_goal = commitment.type in GOAL_TYPES
 
     current_cycle_contributions = [
         contribution
@@ -525,12 +679,12 @@ def _serialize_commitment_with_relations(
     current_member_totals = {
         member_id: sum(
             contribution.amount
-            for contribution in current_cycle_contributions
+            for contribution in (contributions if is_goal else current_cycle_contributions)
             if contribution.user_id == member_id
         )
         for member_id in member_ids
     }
-    required_cycle_total = commitment.contribution_amount * len(economic_members)
+    required_cycle_total = commitment.target_amount if is_goal else commitment.contribution_amount * len(economic_members)
     current_cycle_total = sum(current_member_totals.values())
     current_beneficiary = next(
         (item for item in beneficiaries if item.cycle_number == commitment.current_cycle_number),
@@ -548,7 +702,9 @@ def _serialize_commitment_with_relations(
             "category": vendor.category if vendor is not None else None,
             "verified": bool(vendor and vendor.verified_at),
         },
+        "product": _product_snapshot(commitment),
         "contribution_amount": commitment.contribution_amount,
+        "target_amount": commitment.target_amount,
         "contribution_frequency": commitment.frequency,
         "first_cycle_due_at": commitment.first_cycle_due_at.isoformat() if commitment.first_cycle_due_at else None,
         "current_cycle_due_at": commitment.current_cycle_due_at.isoformat() if commitment.current_cycle_due_at else None,
@@ -650,6 +806,20 @@ def _serialize_commitment_with_relations(
                 _first_name(users_by_id.get(current_beneficiary.user_id)) if current_beneficiary else None
             ),
         },
+        "goal": (
+            {
+                "target_amount": commitment.target_amount,
+                "contributed_total": current_cycle_total,
+                "remaining_total": max(0, (commitment.target_amount or 0) - current_cycle_total),
+                "progress_percent": (
+                    min(100, round((current_cycle_total / commitment.target_amount) * 100))
+                    if commitment.target_amount else 0
+                ),
+                "beneficiary_id": current_beneficiary.user_id if current_beneficiary else None,
+                "beneficiary_first_name": _first_name(users_by_id.get(current_beneficiary.user_id)) if current_beneficiary else None,
+            }
+            if is_goal else None
+        ),
     }
 
 
@@ -657,8 +827,12 @@ def create_commitment(
     db: Session, payload: LockRequest, authenticated_creator_id: str
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     payload.first_cycle_due_at = _normalize_due_at(payload.first_cycle_due_at)
+    if payload.creator_id and payload.creator_id != authenticated_creator_id:
+        raise HTTPException(status_code=403, detail="creator_id must match the authenticated user.")
+    if payload.type in GOAL_TYPES:
+        return _create_goal_commitment(db, payload, authenticated_creator_id)
     if payload.type != "rotating":
-        raise HTTPException(status_code=400, detail="Only rotating commitments are supported.")
+        raise HTTPException(status_code=400, detail="Unsupported commitment type.")
     if not payload.members:
         raise HTTPException(status_code=400, detail="At least one member is required.")
     if payload.contribution_amount <= 0:
@@ -671,8 +845,6 @@ def create_commitment(
         raise HTTPException(status_code=400, detail="first_cycle_due_at must be in the future.")
 
     member_ids = _normalize_member_ids(payload.members)
-    if payload.creator_id and payload.creator_id != authenticated_creator_id:
-        raise HTTPException(status_code=403, detail="creator_id must match the authenticated user.")
     creator_id = authenticated_creator_id
     if creator_id not in member_ids:
         member_ids = _normalize_member_ids([creator_id, *member_ids])
@@ -691,6 +863,11 @@ def create_commitment(
             vendor = db.get(Vendor, payload.vendor_id)
             if vendor is None or vendor.verified_at is None:
                 raise HTTPException(status_code=400, detail="Commitment vendor must be verified before it can be locked.")
+            product = (
+                active_product_for_vendor(db, product_id=payload.product_id, vendor_id=vendor.id)
+                if payload.product_id is not None
+                else None
+            )
             db.flush()
 
             payout_order, genesis_group = _build_payout_order(db, member_ids, payload.payout_order)
@@ -709,6 +886,9 @@ def create_commitment(
                 type=payload.type,
                 title=payload.title,
                 vendor_id=payload.vendor_id,
+                vendor_product_id=product.id if product is not None else None,
+                product_name_snapshot=product.name if product is not None else None,
+                product_price_snapshot=product.price if product is not None else None,
                 contribution_amount=payload.contribution_amount,
                 frequency=payload.contribution_frequency,
                 cycles=payload.cycles,
@@ -758,6 +938,9 @@ def create_commitment(
                 details={
                     "title": commitment.title,
                     "vendor_id": commitment.vendor_id,
+                    "product_id": commitment.vendor_product_id,
+                    "product_name": commitment.product_name_snapshot,
+                    "product_price": commitment.product_price_snapshot,
                     "member_count": len(member_ids),
                     "missed_cycle_policy": commitment.missed_cycle_policy,
                 },
@@ -791,6 +974,88 @@ def _refresh_score_history_for_commitment(
         event_type=event_type,
         reason=reason,
     )
+
+
+def _record_goal_contribution(
+    db: Session,
+    commitment: Commitment,
+    contributor_user_id: str,
+    payload: ContributionRequest,
+) -> dict[str, Any]:
+    """Record one cumulative goal contribution inside the caller's lock.
+
+    Goal payments are flexible up to the remaining declared target. Unlike a
+    rotating cycle, a member may make several contributions and no member is
+    required to contribute an identical amount.
+    """
+    target = commitment.target_amount
+    if target is None:
+        raise HTTPException(status_code=500, detail="Goal commitment has no target amount.")
+    contributed_before = int(
+        db.query(func.coalesce(func.sum(Contribution.amount), 0))
+        .filter(Contribution.commitment_id == commitment.id)
+        .scalar() or 0
+    )
+    remaining = target - contributed_before
+    if remaining <= 0:
+        raise HTTPException(status_code=400, detail="This goal has already reached its target.")
+    if payload.amount > remaining:
+        raise HTTPException(status_code=400, detail="Contribution exceeds the remaining goal target.")
+
+    contribution = Contribution(
+        id=str(uuid.uuid4()), commitment_id=commitment.id, cycle_number=1,
+        user_id=contributor_user_id, amount=payload.amount, event_id=payload.event_id,
+        status="goal_contribution",
+        rule_trace_json=json.dumps({
+            "engine": "goal_target_v1", "target_amount": target,
+            "contributed_before": contributed_before, "remaining_before": remaining,
+            "contribution_amount": payload.amount,
+        }),
+        paid_at=datetime.utcnow(),
+    )
+    db.add(contribution)
+    db.flush()
+    contributed_after = contributed_before + payload.amount
+    _record_activity(
+        db, commitment.id, "goal_contribution_recorded", actor_user_id=contributor_user_id,
+        cycle_number=1,
+        details={"amount": payload.amount, "event_id": payload.event_id, "target_amount": target, "contributed_total": contributed_after},
+    )
+    beneficiary = (
+        db.query(CommitmentBeneficiary)
+        .filter(CommitmentBeneficiary.commitment_id == commitment.id, CommitmentBeneficiary.cycle_number == 1)
+        .one_or_none()
+    )
+    completed = contributed_after == target
+    if completed:
+        if beneficiary is None:
+            raise HTTPException(status_code=500, detail="Goal beneficiary is missing.")
+        beneficiary.status = "paid"
+        commitment.status = "completed"
+        commitment.completed_cycle_count = 1
+        _record_activity(
+            db, commitment.id, "goal_reached", cycle_number=1,
+            details={"beneficiary_id": beneficiary.user_id, "target_amount": target},
+        )
+        _issue_voucher_if_needed(db, commitment, beneficiary)
+
+    _refresh_score_history_for_commitment(
+        db, commitment.id, event_id=payload.event_id, reason="goal_contribution_processed",
+    )
+    response = _serialize_commitment(commitment, db)
+    response.update({
+        "status": commitment.status,
+        "contribution_status": contribution.status,
+        "event_id": payload.event_id,
+        "idempotent_replay": False,
+        "cycle_status": "goal_completed" if completed else "goal_in_progress",
+        "completed_cycle": completed,
+        "beneficiary": ({"cycle_number": 1, "user_id": beneficiary.user_id, "payout_amount": beneficiary.payout_amount, "status": beneficiary.status} if beneficiary else None),
+        "updated_at": datetime.utcnow().isoformat(),
+        "rule_trace": json.loads(contribution.rule_trace_json),
+        "score": public_score_report(db, contributor_user_id),
+    })
+    return response
 
 
 def record_contribution(
@@ -853,6 +1118,9 @@ def record_contribution(
 
             if commitment.status not in {"active", "overdue", "missed"}:
                 raise HTTPException(status_code=400, detail="Commitment is not accepting contributions.")
+
+            if commitment.type in GOAL_TYPES:
+                return _record_goal_contribution(db, commitment, contributor_user_id, payload)
 
             current_cycle = commitment.current_cycle_number
             member_total_before = (
@@ -1335,6 +1603,7 @@ def get_cycle_voucher(
         if voucher is not None:
             response = _serialize_voucher(voucher)
             response["vendor_name"] = vendor.name if vendor is not None else None
+            response["product"] = _product_snapshot(commitment)
             # Sura Lock does not currently model voucher expiry. An explicit null
             # prevents clients from inventing a deadline that the backend cannot enforce.
             response["expires_at"] = None
@@ -1344,6 +1613,7 @@ def get_cycle_voucher(
             db.flush()
             response = _serialize_voucher(voucher)
             response["vendor_name"] = vendor.name if vendor is not None else None
+            response["product"] = _product_snapshot(commitment)
             response["expires_at"] = None
             return response
         if beneficiary.status == "redeemed":
@@ -1365,6 +1635,7 @@ def get_cycle_voucher(
                     "issued_at": None,
                     "redeemed_at": redemption.redeemed_at.isoformat() if redemption.redeemed_at else None,
                     "expires_at": None,
+                    "product": _product_snapshot(commitment),
                 }
         return {
             "commitment_id": commitment_id,
@@ -1378,6 +1649,7 @@ def get_cycle_voucher(
             "issued_at": None,
             "redeemed_at": None,
             "expires_at": None,
+            "product": _product_snapshot(commitment),
         }
 
 
@@ -1473,6 +1745,7 @@ def redeem_vendor_voucher(db: Session, voucher_code: str, vendor_id: str) -> dic
             "redeemed_at": redemption.redeemed_at.isoformat() if redemption.redeemed_at else None,
             "commitment_title": commitment.title if commitment is not None else None,
             "beneficiary_first_name": _first_name(beneficiary_user),
+            "product": _product_snapshot(commitment) if commitment is not None else None,
         }
 
 
@@ -1489,6 +1762,7 @@ def _serialize_vendor_redemption(
         "commitment_title": commitment.title if commitment is not None else None,
         "beneficiary_id": redemption.beneficiary_id,
         "beneficiary_first_name": _first_name(beneficiary),
+        "product": _product_snapshot(commitment) if commitment is not None else None,
         "cycle_number": redemption.cycle_number,
         "amount": redemption.amount,
         "voucher_code": redemption.voucher_code,

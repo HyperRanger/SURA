@@ -53,10 +53,11 @@ After sign-in, call `GET /v1/me` to choose `/app/*` for `individual` or
 | M1 home | `GET /v1/app/home` | PWA convenience read: profile, own score, own commitments, next payout |
 | M3 commitments | `GET /v1/commitments` | authenticated member only |
 | M4 vendor selection | `GET /v1/vendors` | verified vendors only |
+| M4 product selection | `GET /v1/vendors/{vendor_id}/products` | active products for that verified vendor only |
 | M4 vendor recommendations | `GET /v1/app/recommendations/vendors` | optional advisory ranking; member still selects |
 | M4 member selection | `POST /v1/app/members/resolve` | exact phone lookup; returns only `user_id` and first name |
 | M4 payout review | `POST /v1/app/commitments/lock-preview` | validates and returns the deterministic plan without storing anything |
-| M4 create Lock | `POST /v1/commitments/lock` | rotating commitments only |
+| M4 create commitment | `POST /v1/commitments/lock` | rotating Lock, collective goal, or individual goal |
 | M6 invite preview | `GET /v1/commitments/preview?code={invite_code}` | intended invitee only |
 | M7 consent | `POST /v1/consent` | `{ "granted": true }` required before creating or joining |
 | M8 join | `POST /v1/commitments/join` | `{ "invite_code": "SURA-..." }` |
@@ -70,12 +71,30 @@ After sign-in, call `GET /v1/me` to choose `/app/*` for `individual` or
 
 ### Wizard request sequence
 
-1. Call `GET /v1/vendors` and select only a returned vendor.
+1. Call `GET /v1/vendors`, then `GET /v1/vendors/{vendor_id}/products`.
+   Select only a returned active product from the selected vendor.
 2. For each known contact, call `POST /v1/app/members/resolve`.
-3. Call `POST /v1/app/commitments/lock-preview` whenever members, amount,
+3. Call `POST /v1/app/commitments/lock-preview` whenever members, product, amount,
    cycles, or payout order changes. Render its schedule directly.
 4. Record consent with `POST /v1/consent` if it has not been granted.
 5. Submit the same payload to `POST /v1/commitments/lock` only after review.
+
+### Target goals
+
+`individual_goal` is creator-only. It requires `target_amount`, stores one
+beneficiary (the creator), and issues exactly one vendor voucher when the
+cumulative target is reached.
+
+`collective_goal` requires the creator plus at least one invited member and a
+`beneficiary_id` that belongs to that group. Invited members must join and give
+Score-processing consent before the goal becomes active. Contributions are
+flexible but cannot exceed the remaining target. The nominated beneficiary is
+the only member who can retrieve the one vendor voucher.
+
+For both goal types, use `cycles: 1`, `payout_order: []`, and a positive
+`target_amount`. A target is user-declared; it is not a live vendor price.
+Sura releases exactly the saved target amount and any product-price gap is
+settled directly with the vendor.
 
 ### Invitation boundary
 
@@ -90,6 +109,7 @@ this contract.
   "type": "rotating",
   "title": "Laptop Fund",
   "vendor_id": "vnd_demo_electronics",
+  "product_id": "prd_demo_electronics_1",
   "contribution_amount": 5000,
   "contribution_frequency": "weekly",
   "cycles": 2,
@@ -106,6 +126,11 @@ appear in `members`, and `cycles` must equal the member count.
 `grace_period_hours` is fixed at 72 for the regional demo. Send one explicit
 `missed_cycle_policy`: `cover_shortfall`, `carry_forward`, or
 `cancel_and_refund`.
+When `product_id` is provided, the backend verifies that it is active and
+belongs to the selected vendor. Lock responses expose a `product` snapshot
+with its original name and price. That snapshot never changes if the vendor
+later edits or removes the catalogue item.
+
 The backend is the source of truth for ranking and the first-payout cap. Enable
 the final Create action only when preview returns `can_create: true`; otherwise
 show its `blocking_reason`.
@@ -145,6 +170,47 @@ instruction. Full funding records `cycle_recovered`, pays the beneficiary, and
 advances the rotation; no partial payout is ever issued. An invited member may
 decline before activation. The API has an unresolved-invite replacement helper,
 but the PWA must not build member substitution into its product flow.
+
+## Vendor catalogue
+
+| Screen | Endpoint | Notes |
+|---|---|---|
+| M4 product picker | `GET /v1/vendors/{vendor_id}/products` | member-only; active products from a verified vendor |
+| V9 list inventory | `GET /v1/vendors/me/products` | authenticated vendor; includes inactive items for management |
+| V9 add | `POST /v1/vendors/me/products` | `{ "name": "Starter Laptop", "price": 285000 }` |
+| V9 edit | `PATCH /v1/vendors/me/products/{product_id}` | change `name`, `price`, or both |
+| V9 remove | `DELETE /v1/vendors/me/products/{product_id}` | soft-deactivates the product; does not rewrite existing Locks |
+
+Product prices are whole naira values. The client must never assume a product
+belongs to a vendor from its display name; it must use the vendor-scoped list
+and send the returned `product_id`. A vendor cannot read or mutate another
+vendor's catalogue. Removing an item only removes it from future choices.
+
+## Funding sources and partner-bank visibility
+
+| Screen | Endpoint | Notes |
+|---|---|---|
+| M28 bank picker | `GET /v1/banks` | returns ordinary Nigerian source-bank labels and `sura_supported_banks` from registered partner banks |
+| M28 simulated lookup | `POST /v1/accounts/resolve` | `{ "bank_name", "account_number", "partner_bank_id?" }`; no real bank lookup occurs |
+| M29 link source | `POST /v1/accounts/link` | saves only a masked number; optional partner visibility requires both `partner_bank_id` and `share_with_partner: true` |
+| M29 current source | `GET /v1/me/account` | includes optional `sura_partner` when the member explicitly opted in |
+
+Selecting a bank name alone never gives that bank portal access to the member.
+Only the explicit `share_with_partner: true` action assigns the existing
+tenant-scoped `bank_id` relationship used by the Bank Portal. The account number
+is never retained; the service stores and returns only `ending 1234` plus a
+simulated display name. Re-linking without consent removes the partner link.
+
+## Vendor settlement account
+
+| Screen | Endpoint | Notes |
+|---|---|---|
+| V10 current label | `GET /v1/vendors/me/payout-account` | vendor-scoped; returns `null` until saved |
+| V10 simulated lookup | `POST /v1/vendors/me/payout-account/resolve` | validates the format and returns a fictional display name |
+| V10 save label | `PUT /v1/vendors/me/payout-account` | `{ "bank_name", "account_number" }`; stores only masked data |
+
+This is preparation for a future bank-confirmed settlement integration. It
+does not connect to a bank, verify ownership, or send money in the MVP.
 
 ## Vendor matching v1
 
@@ -193,6 +259,7 @@ never infer or manufacture a score change from a clock.
 | V3/V4 validate | `POST /v1/vendors/redeem/validate` | `{ "voucher_code": "SURA-..." }` |
 | V4 confirm | `POST /v1/vendors/redeem` | same request; records simulated settlement |
 | V7 history | `GET /v1/vendors/redemptions` | merchant-scoped only |
+| V9 catalogue | `GET/POST/PATCH/DELETE /v1/vendors/me/products` | merchant-scoped catalogue management |
 | V8 receipt detail | `GET /v1/vendors/redemptions/{redemption_id}` | merchant-scoped receipt; returns `404` for another merchant’s record |
 
 The backend derives the merchant from the authenticated vendor account. The
@@ -247,6 +314,8 @@ offline behaviour, amount formatting, and visual design are frontend work.
 | Commitment | `cmt_demo_laptop_rotation` |
 | Members | `usr_demo_amara`, `usr_demo_tunde` |
 | Vendor | `vnd_demo_electronics` |
+| Product | `prd_demo_electronics_1` (Entry-level laptop) |
+| Vendor catalogue | 13 verified demo vendors, five active text-only products each |
 | Existing voucher evidence | `SURA-DEMO-LAPTOP-01` |
 
 The seeded voucher is already redeemed. For a live vendor-success or

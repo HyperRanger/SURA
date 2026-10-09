@@ -448,6 +448,11 @@ def get_commitment(db: Session, bank_id: str, commitment_id: str) -> dict:
     return {
         "commitment_id": row.id, "title": row.title, "status": row.status, "type": row.type,
         "vendor": {"vendor_id": row.vendor_id, "name": vendor.name if vendor else None, "verified": bool(vendor and vendor.verified_at)},
+        "product": (
+            {"product_id": row.vendor_product_id, "name": row.product_name_snapshot, "price": row.product_price_snapshot}
+            if row.vendor_product_id is not None
+            else None
+        ),
         "contribution_amount": row.contribution_amount, "frequency": row.frequency, "cycles": row.cycles,
         "current_cycle_number": row.current_cycle_number, "completed_cycle_count": row.completed_cycle_count,
         "first_cycle_due_at": row.first_cycle_due_at.isoformat() if row.first_cycle_due_at else None,
