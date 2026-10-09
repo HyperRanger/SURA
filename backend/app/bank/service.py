@@ -481,6 +481,12 @@ def overview(db: Session, bank_id: str, *, date_from: datetime | None = None, da
         .filter(User.bank_id == bank_id, BankStaff.id.is_(None))
         .count()
     )
+    portfolio_balance_snapshot = (
+        db.query(func.coalesce(func.sum(User.available_balance), 0))
+        .outerjoin(BankStaff, BankStaff.user_id == User.id)
+        .filter(User.bank_id == bank_id, BankStaff.id.is_(None))
+        .scalar()
+    )
     contributions = db.query(Contribution).join(User, User.id == Contribution.user_id).filter(User.bank_id == bank_id)
     if date_from:
         contributions = contributions.filter(Contribution.paid_at >= date_from)
@@ -499,6 +505,10 @@ def overview(db: Session, bank_id: str, *, date_from: datetime | None = None, da
         "bank_name": bank.name,
         "environment": bank.environment,
         "customers": customer_count,
+        # Bank-owned, simulated customer-balance data. This is neither a
+        # Sura-held balance nor a settlement total.
+        "portfolio_available_balance_snapshot": int(portfolio_balance_snapshot or 0),
+        "portfolio_balance_currency": "NGN",
         "active_commitments": sum(1 for row in commitments if row["status"] == "active"),
         "total_contributed": int(contribution_total or 0),
         "completion_rate": round(sum(1 for row in commitments if row["status"] == "completed") / len(commitments), 2) if commitments else 0,

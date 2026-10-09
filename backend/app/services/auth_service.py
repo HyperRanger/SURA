@@ -384,6 +384,10 @@ def login(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=GENERIC_CREDENTIALS_ERROR)
 
     if _has_valid_trusted_device(db, user, device_token):
+        # Password plus a still-valid device credential begins a new login,
+        # rather than continuing the inactivity window of a past session.
+        user.last_active_at = datetime.utcnow()
+        db.commit()
         return _token_response(user, trusted_device_token=None, otp_required=False)
 
     challenge, code = _issue_challenge(db, user, PURPOSE_LOGIN, background_tasks=background_tasks)
@@ -429,6 +433,10 @@ def verify_otp(db: Session, challenge_id: str, code: str) -> dict[str, Any]:
     challenge.consumed_at = datetime.utcnow()
     if challenge.purpose == PURPOSE_SIGNUP and user.phone_verified_at is None:
         user.phone_verified_at = challenge.consumed_at
+    # A fresh OTP verification must start a fresh idle window. Otherwise a
+    # valid new token can be rejected on its first protected request because
+    # the account's previous session was idle for more than five minutes.
+    user.last_active_at = challenge.consumed_at
     trusted_device_token = _issue_trusted_device(db, user) if challenge.purpose in {PURPOSE_SIGNUP, PURPOSE_LOGIN} else None
     db.commit()
 

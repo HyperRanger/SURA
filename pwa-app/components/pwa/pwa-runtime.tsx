@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import { redirectAfterSessionExpiry, watchSessionExpiry } from "@/lib/session"
 
 type InstallPromptEvent = Event & {
@@ -18,9 +18,32 @@ function isAppleMobile() {
   return /iPad|iPhone|iPod/.test(navigator.userAgent)
 }
 
+function subscribeToNetworkStatus(onStoreChange: () => void) {
+  window.addEventListener("online", onStoreChange)
+  window.addEventListener("offline", onStoreChange)
+  return () => {
+    window.removeEventListener("online", onStoreChange)
+    window.removeEventListener("offline", onStoreChange)
+  }
+}
+
+function getNetworkStatus() {
+  return window.navigator.onLine
+}
+
+// The server has no meaningful connection status. Treat it as connected until
+// the client hydrates, then read the device's actual state via the store above.
+function getServerNetworkStatus() {
+  return true
+}
+
 /** Registers the safe shell cache and gives the user clear install/offline state. */
 export function PwaRuntime() {
-  const [offline, setOffline] = useState(() => typeof navigator !== "undefined" && !navigator.onLine)
+  const offline = !useSyncExternalStore(
+    subscribeToNetworkStatus,
+    getNetworkStatus,
+    getServerNetworkStatus,
+  )
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null)
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null)
   const [appleInstallAvailable] = useState(() => isAppleMobile() && !isStandalone())
@@ -31,15 +54,11 @@ export function PwaRuntime() {
   useEffect(() => watchSessionExpiry(redirectAfterSessionExpiry), [])
 
   useEffect(() => {
-    const goOnline = () => setOffline(false)
-    const goOffline = () => setOffline(true)
     const onInstallPrompt = (event: Event) => {
       event.preventDefault()
       setInstallPrompt(event as InstallPromptEvent)
     }
 
-    window.addEventListener("online", goOnline)
-    window.addEventListener("offline", goOffline)
     window.addEventListener("beforeinstallprompt", onInstallPrompt)
 
     if ("serviceWorker" in navigator) {
@@ -69,16 +88,12 @@ export function PwaRuntime() {
       navigator.serviceWorker.addEventListener("controllerchange", onControllerChange)
 
       return () => {
-        window.removeEventListener("online", goOnline)
-        window.removeEventListener("offline", goOffline)
         window.removeEventListener("beforeinstallprompt", onInstallPrompt)
         navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange)
       }
     }
 
     return () => {
-      window.removeEventListener("online", goOnline)
-      window.removeEventListener("offline", goOffline)
       window.removeEventListener("beforeinstallprompt", onInstallPrompt)
     }
   }, [])

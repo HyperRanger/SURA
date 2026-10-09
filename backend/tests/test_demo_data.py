@@ -1,6 +1,14 @@
 from app.bank.models import BankAuditEvent, BankPartner, BankStaff, RiskFlag
-from app.models import Commitment, CommitmentMember, Redemption, User, Voucher
-from app.services.demo_data import DEMO_BANK_ID, DEMO_COMMITMENT_ID, DEMO_REDEMPTION_ID, seed_demo_data
+from app.models import Commitment, CommitmentMember, Redemption, ScoreHistory, User, Voucher
+from app.services.demo_data import (
+    DEMO_BANK_ID,
+    DEMO_COMMITMENT_ID,
+    DEMO_PORTFOLIO_BALANCE_SNAPSHOT,
+    DEMO_PORTFOLIO_SPECS,
+    DEMO_REDEMPTION_ID,
+    SIM_BANK_CUSTOMER_ID,
+    seed_demo_data,
+)
 
 
 def test_demo_data_seed_is_idempotent_and_contains_the_demo_story(client):
@@ -12,10 +20,14 @@ def test_demo_data_seed_is_idempotent_and_contains_the_demo_story(client):
         assert db.get(Commitment, DEMO_COMMITMENT_ID).status == "active"
         assert db.get(Redemption, DEMO_REDEMPTION_ID).voucher_code == "SURA-DEMO-LAPTOP-01"
         assert db.get(Voucher, "vch_demo_laptop_cycle_1").status == "redeemed"
-        assert first["user_count"] == 70
-        assert db.query(User).filter(User.id.in_(first["users"])).count() == 70
+        assert first["user_count"] == 90
+        assert db.query(User).filter(User.id.in_(first["users"])).count() == 90
+        assert first["sim_bank_customer_id"] == SIM_BANK_CUSTOMER_ID
+        assert first["portfolio_available_balance_snapshot"] == DEMO_PORTFOLIO_BALANCE_SNAPSHOT
+        portfolio_user_ids = [spec[0] for spec in DEMO_PORTFOLIO_SPECS]
+        assert db.query(User).filter(User.id.in_(portfolio_user_ids)).count() == 20
         assert db.query(BankPartner).filter(BankPartner.id == DEMO_BANK_ID).count() == 1
-        assert first["partner_bank"]["customer_count"] == 70
+        assert first["partner_bank"]["customer_count"] == 90
         assert [bank["customer_count"] for bank in first["source_institutions"]] == [16, 14, 12, 10, 10, 8]
         assert first["commitment_count"] == 25
         commitments = db.query(Commitment).filter(Commitment.id.like("cmt_demo_%")).all()
@@ -34,6 +46,7 @@ def test_demo_data_seed_is_idempotent_and_contains_the_demo_story(client):
         assert member_ids == set(first["users"])
         assert db.query(RiskFlag).filter(RiskFlag.bank_id == DEMO_BANK_ID).count() == 12
         assert db.query(RiskFlag.status).filter(RiskFlag.bank_id == DEMO_BANK_ID).distinct().count() == 4
+        assert db.query(ScoreHistory.score).filter(ScoreHistory.user_id.in_(first["users"])).distinct().count() >= 4
         assert db.query(BankStaff).count() == 1
         assert db.get(User, "usr_demo_amara").available_balance > 0
         assert db.query(BankAuditEvent).filter(BankAuditEvent.bank_id == DEMO_BANK_ID).count() == 2
@@ -109,7 +122,8 @@ def test_seeded_bank_story_is_available_through_bank_portal_routes(client):
 
     overview = client.get("/v1/bank/overview", headers=headers)
     assert overview.status_code == 200, overview.text
-    assert overview.json()["customers"] == 70
+    assert overview.json()["customers"] == 90
+    assert overview.json()["portfolio_available_balance_snapshot"] == DEMO_PORTFOLIO_BALANCE_SNAPSHOT
 
     customer = client.get("/v1/bank/users?bank_customer_id=CUST-DEMO-8241", headers=headers)
     assert customer.status_code == 200, customer.text

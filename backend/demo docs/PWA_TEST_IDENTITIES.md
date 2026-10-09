@@ -6,7 +6,7 @@ or risk flags. It does not replace the richer bank-demo data set.
 
 ## Before running it
 
-Run it only after migration `0024_goal_commitments` has been deployed.
+Run it only after migration `0025_supported_partner_banks` has been deployed.
 Use the Render **External Database URL** from your computer; never commit that
 URL or any password.
 
@@ -72,7 +72,7 @@ All members use `SuraMemberDemo26!`.
 | Sadiq Ibrahim | freelancer | m17@sura.test | 08097000017 | Polaris Bank | 2561042166 |
 | Adaeze Ibe | other | m18@sura.test | 08097000018 | Jaiz Bank | 8912236768 |
 | Boma Tamuno | other | m19@sura.test | 08097000019 | Citibank Nigeria | 9954490156 |
-| Yejide Adewale | other | m20@sura.test | 08097000020 | Orbit Bank | 5320701582 |
+| Yejide Adewale | other | m20@sura.test | 08097000020 | Access Bank | 5320701582 |
 
 ## Vendor accounts
 
@@ -93,10 +93,17 @@ has five text-only catalogue items, but no redemption or settlement history.
 Each account is a `bank_admin` with the complete demo permission set and uses
 `SuraBankDemo26!`. A member appears in one portal only after they choose
 that bank under **Banks Sura supports** and explicitly consent to share their
-Sura evidence. Selecting a source-bank name alone does nothing.
+Sura evidence. Selecting a source-bank name alone does nothing. The funding
+bank and Sura partner can be the same or different banks: funding is only the
+simulated Ajo source label, while the partner link controls consented portal
+visibility.
+
+The four Sura-supported partner banks are **Access Bank**, **GTBank**,
+**Zenith Bank**, and **FirstBank**. They are a subset of the longer source-bank
+picker.
 
 | Partner bank | Portal email | Password |
 |---|---|---|
-| Orbit Bank | portal.admin@orbit.demo | SuraBankDemo26! |
-| Lantern Bank | portal.admin@lantern.demo | SuraBankDemo26! |
-| River Bank | portal.admin@river.demo | SuraBankDemo26! |
+| Access Bank | portal.admin@access.demo | SuraBankDemo26! |
+| GTBank | portal.admin@gtbank.demo | SuraBankDemo26! |
+| Zenith Bank | portal.admin@zenith.demo | SuraBankDemo26! |

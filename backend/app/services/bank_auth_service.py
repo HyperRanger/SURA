@@ -168,8 +168,15 @@ def _session_for(db: Session, staff: BankStaff) -> dict[str, Any]:
     # step and the second factor.
     _check_role(staff)
 
-    staff.last_login_at = _now()
+    now = _now()
+    staff.last_login_at = now
     staff.failed_password_attempts = 0
+    # Bank staff is protected by the same local-session idle guard as members.
+    # Reset the user timestamp before issuing a token, or a completed bank
+    # login inherits a stale timeout and immediately redirects to sign-in.
+    user = db.get(User, staff.user_id)
+    if user is not None:
+        user.last_active_at = now
     _audit(db, staff.bank_id, staff.user_id, "bank_login_succeeded", "bank_staff", staff.id)
     _audit_platform(
         db,

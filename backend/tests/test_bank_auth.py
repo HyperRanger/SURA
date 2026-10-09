@@ -132,6 +132,22 @@ def test_completing_the_second_factor_returns_a_working_bank_session(client):
     assert overview.status_code == 200, overview.text
 
 
+def test_a_new_bank_login_resets_a_previous_idle_timestamp(client):
+    staff = _provision_staff(client)
+    db = main_app.state.testing_session()
+    try:
+        user = db.get(User, staff["user_id"])
+        assert user is not None
+        user.last_active_at = datetime.utcnow() - timedelta(minutes=10)
+        db.commit()
+    finally:
+        db.close()
+
+    body = _sign_in(client)
+    overview = client.get("/v1/bank/overview", headers={"Authorization": f"Bearer {body['access_token']}"})
+    assert overview.status_code == 200, overview.text
+
+
 def test_a_bank_session_carries_the_bank_tenant_not_a_school(client):
     """`institution_id` on the bank principal is the partner bank.
 

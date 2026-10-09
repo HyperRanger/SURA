@@ -92,6 +92,11 @@ DEMO_COMMITMENT_ID = "cmt_demo_laptop_rotation"
 DEMO_REDEMPTION_ID = "rdm_demo_laptop_cycle_1"
 DEMO_BANK_ID = "bnk_sura_partner"
 DEMO_BANK_PASSWORD = "demo-password-never-in-production"
+SIM_BANK_CUSTOMER_ID = "usr_demo_portfolio_01"
+# This is a simulated aggregate of bank-owned customer-balance snapshots. It
+# is deliberately not called Sura funds, deposits, or assets under management:
+# Sura does not hold customer money in this MVP.
+DEMO_PORTFOLIO_BALANCE_SNAPSHOT = 10_405_933_000
 
 # There is deliberately one Sura API partner, not six bank tenants. ``bank_id``
 # is the security boundary for the Bank Portal, so every demo member belongs to
@@ -153,14 +158,44 @@ def _customer_specs() -> tuple[tuple[str, str, str, str, str, int, str], ...]:
             f"demo.member.{index:02d}@sura.local" if index > 2 else f"demo-{name.split()[0].lower()}@sura.local",
             _SOURCE_INSTITUTION_ASSIGNMENTS[index - 1],
             _CONTEXTS[(index - 1) % len(_CONTEXTS)],
-            _BALANCES[(index * 3) % len(_BALANCES)],
+            # The Sim Bank walkthrough uses the first verified customer. Its
+            # displayed balance therefore comes from this bank-only fixture,
+            # rather than a hard-coded number in the demo client.
+            284_500 if user_id == "usr_demo_amara" else _BALANCES[(index * 3) % len(_BALANCES)],
             _NON_ACTIVE_STATUSES.get(index, "active"),
         )
         for index, (user_id, name) in enumerate(names, start=1)
     )
 
 
-DEMO_CUSTOMER_SPECS = _customer_specs()
+DEMO_PORTFOLIO_SPECS = (
+    # A separate 20-customer bank portfolio cohort. Context is the product
+    # segment used by Sura; the fuller occupation wording belongs in demo
+    # narration, not an unmodelled free-text customer field.
+    ("usr_demo_portfolio_01", "Chiamaka Obiora", "portfolio.chiamaka@sura.local", "inst_banter", "student", 8_000_000, "active"),
+    ("usr_demo_portfolio_02", "Daniel Eze", "portfolio.daniel@sura.local", "inst_chai", "student", 15_000_000, "active"),
+    ("usr_demo_portfolio_03", "Maryam Bello", "portfolio.maryam@sura.local", "inst_kolo", "student", 30_000_000, "active"),
+    ("usr_demo_portfolio_04", "Oluwatobi Akinola", "portfolio.tobi@sura.local", "inst_jollof", "student", 50_000_000, "active"),
+    ("usr_demo_portfolio_05", "Blessing Okoro", "portfolio.blessing@sura.local", "inst_gbedu", "student", 75_000_000, "active"),
+    ("usr_demo_portfolio_06", "Sadiq Ibrahim", "portfolio.sadiq@sura.local", "inst_sapa", "student", 102_963_900, "active"),
+    ("usr_demo_portfolio_07", "Adebayo Yusuf", "portfolio.adebayo@sura.local", "inst_banter", "trader", 1_350_000_000, "active"),
+    ("usr_demo_portfolio_08", "Ngozi Nwosu", "portfolio.ngozi@sura.local", "inst_chai", "trader", 1_100_000_000, "active"),
+    ("usr_demo_portfolio_09", "Ifeanyi Kalu", "portfolio.ifeanyi@sura.local", "inst_kolo", "trader", 980_000_000, "active"),
+    ("usr_demo_portfolio_10", "Hauwa Musa", "portfolio.hauwa@sura.local", "inst_jollof", "trader", 875_000_000, "active"),
+    ("usr_demo_portfolio_11", "Tosin Adewale", "portfolio.tosin@sura.local", "inst_gbedu", "trader", 760_000_000, "active"),
+    ("usr_demo_portfolio_12", "Ebiere Tamuno", "portfolio.ebiere@sura.local", "inst_sapa", "trader", 690_000_000, "restricted"),
+    ("usr_demo_portfolio_13", "Kelechi Obi", "portfolio.kelechi@sura.local", "inst_banter", "freelancer", 625_000_000, "active"),
+    ("usr_demo_portfolio_14", "Zainab Garba", "portfolio.zainab@sura.local", "inst_chai", "freelancer", 590_000_000, "active"),
+    ("usr_demo_portfolio_15", "Tari Briggs", "portfolio.tari@sura.local", "inst_kolo", "freelancer", 540_000_000, "active"),
+    ("usr_demo_portfolio_16", "Mfon Akpan", "portfolio.mfon@sura.local", "inst_jollof", "freelancer", 510_000_000, "active"),
+    ("usr_demo_portfolio_17", "Femi Oladipo", "portfolio.femi@sura.local", "inst_gbedu", "freelancer", 490_000_000, "active"),
+    ("usr_demo_portfolio_18", "Ruth Nwankwo", "portfolio.ruth@sura.local", "inst_sapa", "other", 460_000_000, "active"),
+    ("usr_demo_portfolio_19", "Boma Douglas", "portfolio.boma@sura.local", "inst_banter", "other", 430_000_000, "active"),
+    ("usr_demo_portfolio_20", "Kabiru Sani", "portfolio.kabiru@sura.local", "inst_chai", "other", 722_000_000, "suspended"),
+)
+assert len(DEMO_PORTFOLIO_SPECS) == 20
+
+DEMO_CUSTOMER_SPECS = (*_customer_specs(), *DEMO_PORTFOLIO_SPECS)
 DEMO_CUSTOMER_IDS = tuple(row[0] for row in DEMO_CUSTOMER_SPECS)
 DEMO_RESET_BANK_IDS = (DEMO_BANK_ID, *LEGACY_DEMO_BANK_IDS)
 
@@ -196,7 +231,9 @@ def _demo_lock_specs() -> tuple[LockSpec, ...]:
     }]
     for index, title in enumerate(_ADDITIONAL_LOCK_TITLES, start=2):
         status = "active" if index <= 10 else "pending_members" if index <= 17 else "completed"
-        members = tuple(DEMO_CUSTOMER_IDS[(index * 3 + offset) % len(DEMO_CUSTOMER_IDS)] for offset in range(4))
+        # Step through the whole seeded population before wrapping so every
+        # bank-visible customer has at least one real Lock evidence record.
+        members = tuple(DEMO_CUSTOMER_IDS[((index - 2) * 4 + offset) % len(DEMO_CUSTOMER_IDS)] for offset in range(4))
         specs.append({
             "id": f"cmt_demo_circle_{index:02d}", "title": title,
             "vendor_id": DEMO_VENDOR_IDS[(index - 2) % len(DEMO_VENDOR_IDS)],
@@ -375,6 +412,11 @@ def seed_demo_data(db: Session, *, reset: bool = False) -> dict[str, object]:
             user.account_status = account_status
             user.restriction_reason = "Seeded review scenario." if account_status != "active" else None
             user.restricted_at = now if account_status != "active" else None
+
+    # Guard the headline number against accidental edits to the portfolio
+    # fixtures. The value is derived from persisted per-customer snapshots,
+    # never returned as a disconnected UI constant.
+    assert sum(spec[5] for spec in DEMO_CUSTOMER_SPECS) == DEMO_PORTFOLIO_BALANCE_SNAPSHOT
 
     # One portal identity only. Its administrator role carries every portal
     # permission so the demo never needs role switching or multiple OTP flows.
@@ -641,6 +683,8 @@ def seed_demo_data(db: Session, *, reset: bool = False) -> dict[str, object]:
         "created": True,
         "users": list(DEMO_CUSTOMER_IDS),
         "user_count": len(DEMO_CUSTOMER_IDS),
+        "sim_bank_customer_id": SIM_BANK_CUSTOMER_ID,
+        "portfolio_available_balance_snapshot": DEMO_PORTFOLIO_BALANCE_SNAPSHOT,
         "partner_bank": {"bank_id": DEMO_BANK_ID, "name": DEMO_PARTNER_BANK[1], "customer_count": len(DEMO_CUSTOMER_IDS)},
         "source_institutions": [
             {"institution_id": institution_id, "name": name, "customer_count": count}

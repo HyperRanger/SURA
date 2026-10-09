@@ -190,7 +190,7 @@ vendor's catalogue. Removing an item only removes it from future choices.
 
 | Screen | Endpoint | Notes |
 |---|---|---|
-| M28 bank picker | `GET /v1/banks` | returns ordinary Nigerian source-bank labels and `sura_supported_banks` from registered partner banks |
+| M28 bank picker | `GET /v1/banks` | returns ordinary Nigerian source-bank labels plus the fixed, independent Sura-partner choices: Access Bank, GTBank, Zenith Bank, and FirstBank |
 | M28 simulated lookup | `POST /v1/accounts/resolve` | `{ "bank_name", "account_number", "partner_bank_id?" }`; no real bank lookup occurs |
 | M29 link source | `POST /v1/accounts/link` | saves only a masked number; optional partner visibility requires both `partner_bank_id` and `share_with_partner: true` |
 | M29 current source | `GET /v1/me/account` | includes optional `sura_partner` when the member explicitly opted in |

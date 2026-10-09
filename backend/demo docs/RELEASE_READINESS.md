@@ -13,7 +13,7 @@ python -m pytest tests -q
 python -m alembic -c alembic.ini heads
 ```
 
-Expected migration result: exactly one head, `0024_goal_commitments`.
+Expected migration result: exactly one head, `0025_supported_partner_banks`.
 
 Confirm that `.env` is ignored and no secret appears in tracked files:
 

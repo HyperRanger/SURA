@@ -24,7 +24,7 @@ session. A bank can never read another bank’s customers.
 
 | Method | Path | Permission | Purpose |
 |---|---|---|---|
-| GET | `/v1/bank/overview` | `bank:overview:read` | Portfolio totals, recent settlement/audit activity. Query: `date_from`, `date_to`. |
+| GET | `/v1/bank/overview` | `bank:overview:read` | Portfolio totals, including the simulated bank-owned `portfolio_available_balance_snapshot`, plus recent settlement/audit activity. Query: `date_from`, `date_to`. |
 | GET | `/v1/bank/users` | `bank:users:read` | Search/filter customers. Query: `q`, `bank_customer_id`, `score_tier`, `flag_status`, `verified`, `float_eligibility`, `commitment_status`. |
 | GET | `/v1/bank/users/{user_id}` | `bank:users:read` | Customer profile, source institution, score summary, consent, and account state. |
 | GET | `/v1/bank/users/{user_id}/score` | `bank:users:read` | Current Score plus immutable explainable history. |
@@ -113,6 +113,7 @@ These routes are for a bank backend, not the Bank Portal browser.
 
 | Method | Path | Required API-key scope | Purpose |
 |---|---|---|---|
+| GET | `/v1/integrations/customers/{user_id}` | `score:read` | Read the tenant-scoped customer profile, including its simulated bank-owned balance snapshot. |
 | GET | `/v1/integrations/customers/{user_id}/score` | `score:read` | Read a tenant-scoped customer Score and evidence. |
 | GET | `/v1/integrations/customers/{user_id}/commitments` | `commitments:read` | Read a tenant-scoped customer’s Lock evidence. |
 

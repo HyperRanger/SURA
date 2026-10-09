@@ -12,15 +12,22 @@ unrelated records.
 
 ## Population
 
-The seed creates 70 fictional individual identities for **one** Sura API
+The seed creates 90 fictional individual identities for **one** Sura API
 partner: Sura Partner Bank (`bnk_sura_partner`). Its sole portal administrator
-can search and review all 70 customers. The six banks below are the source
+can search and review all 90 customers. The six banks below are the source
 institutions members use; they are not separate Sura Portal tenants.
 
 Customers deliberately vary by onboarding context, available balance, activity
 cadence, Score-processing consent, account-review state, and Lock membership.
 This supports realistic search, filters, empty states, portfolio views, and
 Score scenarios without representing real people, banks, or balances.
+
+The original 70-member Lock cohort is supplemented by 20 named customer
+profiles across student, trader, freelancer, and other contexts. There are
+still exactly 12 varied review flags across the complete portfolio. The
+`GET /v1/bank/overview` response derives a deterministic simulated customer
+balance snapshot of **₦10,405,933,000** from those individual records. It is
+bank-owned demo context only—not Sura-held money, deposits, or an AUM claim.
 
 | Source institution | ID | Customers |
 |---|---|---:|
@@ -39,7 +46,7 @@ snapshots available only to the Bank Portal, never to member or vendor APIs.
 
 - 25 rotating Locks: 10 active, 7 awaiting members, and 8 completed.
 - Membership overlaps intentionally, so some members appear in more than one
-  group and all 70 people can appear in realistic portfolio searches.
+  group and all 90 people can appear in realistic portfolio searches.
 - Completed cycles have voucher and simulated vendor-redemption history.
 - 12 varied review flags at most, with open, confirmed, dismissed, and
   escalated states. They are demo review records, not a claim that Sura has
@@ -55,6 +62,22 @@ snapshots available only to the Bank Portal, never to member or vendor APIs.
 | Cycle 1 | Fully contributed, settled to the vendor, and redeemed by Amara |
 | Voucher | `SURA-DEMO-LAPTOP-01` |
 | Cycle 2 | Active; Amara has paid and Tunde is outstanding |
+
+## Sim Bank customer
+
+The Sim_eco_bank walkthrough should use **Chiamaka Obiora**
+(`usr_demo_portfolio_01`). Retrieve the profile through the existing machine
+endpoint rather than copying identity or balance values into the bank UI:
+
+```text
+GET /v1/integrations/customers/usr_demo_portfolio_01
+```
+
+It requires an API key with `score:read`. The response contains the tenant-safe
+customer name, score summary, active Lock counts, and simulated bank-owned
+available-balance snapshot. The PWA test identities are not copied into this
+portfolio: they become visible to a portal only when their owner explicitly
+selects a Sura-supported partner bank and grants consent.
 
 ## Bank Portal login
 
