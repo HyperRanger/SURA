@@ -5,7 +5,7 @@ from datetime import datetime
 from app.bank.models import BankPartner
 from app.main import app
 from app.models import LinkedAccount, User, Vendor, VendorPayoutAccount
-from app.services.linked_accounts import simulated_account_number
+from app.services.linked_accounts import SURA_SUPPORTED_BANKS, simulated_account_number
 from core.security import create_token
 
 
@@ -17,7 +17,8 @@ def _setup(client) -> None:
     db = app.state.testing_session()
     try:
         db.add_all([
-            BankPartner(id="bnk_partner_test", name="Beacon Bank", environment="sandbox"),
+            *(BankPartner(id=bank_id, name=name, environment="sandbox") for bank_id, name in SURA_SUPPORTED_BANKS),
+            BankPartner(id="bnk_unrelated_portal", name="Orbit Bank", environment="sandbox"),
             User(id="member_partner_test", name="Amina Bello", phone="2348003300001", role="individual"),
             Vendor(id="vendor_payout_test", name="Lagos Tools", category="hardware", verified_at=datetime.utcnow()),
             User(id="vendor_payout_user", name="Tolu Tools", phone="2348003300002", role="vendor", vendor_id="vendor_payout_test"),
@@ -34,12 +35,12 @@ def test_member_must_explicitly_consent_before_a_partner_can_see_them(client):
 
     listed = client.get("/v1/banks", headers=headers)
     assert listed.status_code == 200
-    assert listed.json()["sura_supported_banks"] == [{
-        "bank_id": "bnk_partner_test", "name": "Beacon Bank", "environment": "sandbox",
-    }]
+    assert [bank["name"] for bank in listed.json()["sura_supported_banks"]] == [
+        "Access Bank", "GTBank", "Zenith Bank", "FirstBank",
+    ]
 
     no_consent = client.post("/v1/accounts/link", json={
-        "bank_name": "Beacon Bank", "account_number": account_number, "partner_bank_id": "bnk_partner_test",
+        "bank_name": "Ecobank Nigeria", "account_number": account_number, "partner_bank_id": "bnk_sura_gtbank",
     }, headers=headers)
     assert no_consent.status_code == 201, no_consent.text
 
@@ -51,19 +52,35 @@ def test_member_must_explicitly_consent_before_a_partner_can_see_them(client):
         db.close()
 
     consented = client.post("/v1/accounts/link", json={
-        "bank_name": "Beacon Bank", "account_number": account_number, "partner_bank_id": "bnk_partner_test", "share_with_partner": True,
+        "bank_name": "Ecobank Nigeria", "account_number": account_number, "partner_bank_id": "bnk_sura_gtbank", "share_with_partner": True,
     }, headers=headers)
     assert consented.status_code == 201, consented.text
-    assert consented.json()["sura_partner"]["bank_id"] == "bnk_partner_test"
+    assert consented.json()["bank_name"] == "Ecobank Nigeria"
+    assert consented.json()["sura_partner"]["bank_id"] == "bnk_sura_gtbank"
+    assert consented.json()["sura_partner"]["name"] == "GTBank"
 
     db = app.state.testing_session()
     try:
         member = db.get(User, "member_partner_test")
-        assert member.bank_id == "bnk_partner_test"
+        assert member.bank_id == "bnk_sura_gtbank"
         assert member.bank_customer_id
         row = db.query(LinkedAccount).one()
         assert row.account_number_masked == f"ending {account_number[-4:]}"
         assert account_number not in str(row.__dict__)
+    finally:
+        db.close()
+
+    # Changing only the source-bank label does not detach the consented partner.
+    relinked = client.post("/v1/accounts/link", json={
+        "bank_name": "Access Bank", "account_number": account_number,
+    }, headers=headers)
+    assert relinked.status_code == 201, relinked.text
+    assert relinked.json()["bank_name"] == "Access Bank"
+    assert relinked.json()["sura_partner"]["bank_id"] == "bnk_sura_gtbank"
+
+    db = app.state.testing_session()
+    try:
+        assert db.get(User, "member_partner_test").bank_id == "bnk_sura_gtbank"
     finally:
         db.close()
 

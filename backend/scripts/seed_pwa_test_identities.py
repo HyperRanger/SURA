@@ -51,9 +51,17 @@ VENDORS = (
 )
 
 BANKS = (
-    ("bnk_pwa_test_orbit", "Orbit Bank", "portal.admin@orbit.demo"),
-    ("bnk_pwa_test_lantern", "Lantern Bank", "portal.admin@lantern.demo"),
-    ("bnk_pwa_test_river", "River Bank", "portal.admin@river.demo"),
+    ("bnk_sura_access", "Access Bank", "portal.admin@access.demo"),
+    ("bnk_sura_gtbank", "GTBank", "portal.admin@gtbank.demo"),
+    ("bnk_sura_zenith", "Zenith Bank", "portal.admin@zenith.demo"),
+)
+
+# Original internal/demo tenant IDs. Retire their staff identities cleanly when
+# a developer reruns this seed after moving the public catalogue to real banks.
+LEGACY_BANK_IDS = (
+    "bnk_pwa_test_orbit",
+    "bnk_pwa_test_lantern",
+    "bnk_pwa_test_river",
 )
 
 
@@ -89,11 +97,13 @@ def _reset(db) -> None:
     member_ids = [_member_id(index) for index in range(1, len(MEMBERS) + 1)]
     vendor_user_ids = [row[1] for row in VENDORS]
     bank_user_ids = [f"usr_{bank_id}_admin" for bank_id, _, _ in BANKS]
+    bank_user_ids.extend(f"usr_{bank_id}_admin" for bank_id in LEGACY_BANK_IDS)
     all_user_ids = member_ids + vendor_user_ids + bank_user_ids
     if _has_activity(db, member_ids):
         raise SystemExit("Refusing to reset PWA test identities because one has Lock activity. Remove those test commitments deliberately first.")
     vendor_ids = [row[0] for row in VENDORS]
     bank_ids = [row[0] for row in BANKS]
+    bank_ids.extend(LEGACY_BANK_IDS)
     db.execute(delete(VendorPayoutAccount).where(VendorPayoutAccount.vendor_id.in_(vendor_ids)))
     db.execute(delete(VendorProduct).where(VendorProduct.vendor_id.in_(vendor_ids)))
     db.execute(delete(LinkedAccount).where(LinkedAccount.user_id.in_(member_ids)))

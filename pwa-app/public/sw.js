@@ -7,7 +7,7 @@
  * network and the API remains the source of truth.
  */
 
-const CACHE_NAME = "sura-public-shell-v1"
+const CACHE_NAME = "sura-public-shell-v2"
 const PUBLIC_SHELL = ["/", "/offline.html", "/icon.png", "/sura-mark.svg"]
 const STATIC_DESTINATIONS = new Set(["script", "style", "image", "font"])
 

@@ -37,6 +37,17 @@ NIGERIAN_BANKS = (
     "Zenith Bank",
 )
 
+# These are partner institutions that have enabled the Sura API in this demo.
+# They are deliberately separate from ``NIGERIAN_BANKS``, which is the much
+# broader list a member may choose as the displayed funding source.
+SURA_SUPPORTED_BANKS = (
+    ("bnk_sura_access", "Access Bank"),
+    ("bnk_sura_gtbank", "GTBank"),
+    ("bnk_sura_zenith", "Zenith Bank"),
+    ("bnk_sura_firstbank", "FirstBank"),
+)
+SURA_SUPPORTED_BANK_IDS = frozenset(bank_id for bank_id, _ in SURA_SUPPORTED_BANKS)
+
 # A small, intentionally fictional name pool.  It helps the simulated lookup
 # read naturally on screen without impersonating a real account-holder lookup.
 _FIRST_NAMES = ("Amina", "Chiamaka", "Damilola", "Ifeanyi", "Kelechi", "Teni", "Tunde", "Zainab")
@@ -53,9 +64,9 @@ def normalise_account_number(account_number: str) -> str:
     return digits
 
 
-def validate_bank(bank_name: str, partner: BankPartner | None = None) -> str:
+def validate_bank(bank_name: str) -> str:
     candidate = bank_name.strip()
-    if candidate not in NIGERIAN_BANKS and (partner is None or candidate != partner.name):
+    if candidate not in NIGERIAN_BANKS:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Choose a bank from the list.")
     return candidate
 
@@ -82,13 +93,16 @@ def list_banks(db: Session) -> dict[str, object]:
     A partner record does not by itself expose a member to that bank. The
     member must still explicitly opt in while linking the source account.
     """
-    partners = db.query(BankPartner).order_by(BankPartner.name.asc()).all()
-    names = sorted(set(NIGERIAN_BANKS) | {partner.name for partner in partners})
+    partners = {
+        partner.id: partner
+        for partner in db.query(BankPartner).filter(BankPartner.id.in_(SURA_SUPPORTED_BANK_IDS)).all()
+    }
     return {
-        "banks": names,
+        "banks": list(NIGERIAN_BANKS),
         "sura_supported_banks": [
-            {"bank_id": partner.id, "name": partner.name, "environment": partner.environment}
-            for partner in partners
+            {"bank_id": bank_id, "name": bank_name, "environment": partners[bank_id].environment}
+            for bank_id, bank_name in SURA_SUPPORTED_BANKS
+            if bank_id in partners
         ],
     }
 
@@ -96,6 +110,8 @@ def list_banks(db: Session) -> dict[str, object]:
 def _partner_or_400(db: Session, partner_bank_id: str | None) -> BankPartner | None:
     if partner_bank_id is None:
         return None
+    if partner_bank_id not in SURA_SUPPORTED_BANK_IDS:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Choose a Sura-supported bank from the list.")
     partner = db.get(BankPartner, partner_bank_id)
     if partner is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Choose a Sura-supported bank from the list.")
@@ -111,8 +127,8 @@ def resolve_account(
     expected_subject_id: str | None = None,
     expected_holder_name: str | None = None,
 ) -> dict[str, str]:
-    partner = _partner_or_400(db, partner_bank_id)
-    bank = validate_bank(bank_name, partner)
+    _partner_or_400(db, partner_bank_id)
+    bank = validate_bank(bank_name)
     number = normalise_account_number(account_number)
     if expected_subject_id is not None and number != simulated_account_number(expected_subject_id):
         raise HTTPException(
@@ -166,28 +182,30 @@ def link_account(
         linked.account_number_masked = resolved["account_number_masked"]
         linked.created_at = now
 
-    linked.partner_bank_id = partner.id if share_with_partner and partner else None
-    linked.shared_with_partner_at = now if linked.partner_bank_id else None
-    # ``users.bank_id`` is the existing Bank Portal tenant boundary. It changes
-    # only through this explicit member action, never because a bank guesses an
-    # account number or sees its name in a drop-down.
-    previous_partner_bank_id = user.bank_id
-    user.bank_id = linked.partner_bank_id
-    if user.bank_id:
-        if previous_partner_bank_id != user.bank_id or not user.bank_customer_id:
-            user.bank_customer_id = f"SURA-{user.bank_id[-6:].upper()}-{user.id.replace('-', '')[:10].upper()}"
-        db.add(BankAuditEvent(
-            id=str(uuid.uuid4()),
-            bank_id=user.bank_id,
-            actor_id=user.id,
-            event_type="member_partner_linked",
-            subject_type="user",
-            subject_id=user.id,
-            detail_json='{"simulated": true, "consent": true}',
-            occurred_at=now,
-        ))
-    else:
-        user.bank_customer_id = None
+    # Funding source and Sura-partner consent are independent. Replacing the
+    # displayed source bank must never silently remove or change a consented
+    # partner relationship. A partner selection is the only instruction that
+    # updates that relationship.
+    if partner_bank_id is not None:
+        linked.partner_bank_id = partner.id if share_with_partner and partner else None
+        linked.shared_with_partner_at = now if linked.partner_bank_id else None
+        previous_partner_bank_id = user.bank_id
+        user.bank_id = linked.partner_bank_id
+        if user.bank_id:
+            if previous_partner_bank_id != user.bank_id or not user.bank_customer_id:
+                user.bank_customer_id = f"SURA-{user.bank_id[-6:].upper()}-{user.id.replace('-', '')[:10].upper()}"
+            db.add(BankAuditEvent(
+                id=str(uuid.uuid4()),
+                bank_id=user.bank_id,
+                actor_id=user.id,
+                event_type="member_partner_linked",
+                subject_type="user",
+                subject_id=user.id,
+                detail_json='{"simulated": true, "consent": true}',
+                occurred_at=now,
+            ))
+        else:
+            user.bank_customer_id = None
     db.commit()
     return serialise(linked)
 
@@ -220,8 +238,10 @@ def serialise(linked: LinkedAccount) -> dict[str, object]:
         "simulated": True,
     }
     if linked.partner_bank_id:
+        partner_name = next((name for bank_id, name in SURA_SUPPORTED_BANKS if bank_id == linked.partner_bank_id), None)
         result["sura_partner"] = {
             "bank_id": linked.partner_bank_id,
+            "name": partner_name,
             "shared_at": linked.shared_with_partner_at.isoformat() if linked.shared_with_partner_at else None,
         }
     else:
