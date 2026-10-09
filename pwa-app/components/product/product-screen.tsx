@@ -336,48 +336,6 @@ export function ProductScreen({ role, segments }: { role: Role; segments: string
     return <div><div className="mb-5 flex items-center justify-between"><p className="text-sm text-muted-foreground">All your group Locks in one place.</p><Link href="/app/commitments/new" className="grid size-10 place-items-center rounded-full bg-primary text-xl font-bold text-white" aria-label="Create a Lock">＋</Link></div><div className="mb-5 grid grid-cols-3 rounded-lg bg-muted p-1">{["active", "pending", "completed"].map((value) => <button key={value} onClick={() => setListTab(value)} className={`rounded-md py-2 text-xs font-extrabold capitalize ${listTab === value ? "bg-card text-primary shadow-sm" : "text-muted-foreground"}`}>{value}</button>)}</div>{filtered.length ? <Rows rows={filtered} empty="" linkPrefix="/app/commitments/"/> : <Panel className="py-8 text-center"><div className="mx-auto grid size-12 place-items-center rounded-full bg-primary-soft text-xl text-primary">▤</div><h2 className="mt-4 font-extrabold">No {listTab} commitments</h2><p className="mx-auto mt-2 max-w-xs text-sm text-muted-foreground">Create your first Lock or join one with an invite code.</p><div className="mt-5 flex justify-center gap-2"><Button size="sm" onClick={() => router.push("/app/commitments/new")}>Create Lock</Button><Button size="sm" variant="outline" onClick={() => router.push("/app/join")}>Join a Lock</Button></div></Panel>}</div>
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  function LegacyNewCommitment() {
-    const fields = (key: string, value: unknown) => setForm((current) => ({ ...current, [key]: value }))
-    const commitmentType = String(form.type || "rotating")
-    const isGoal = commitmentType === "collective_goal" || commitmentType === "individual_goal"
-    const isIndividualGoal = commitmentType === "individual_goal"
-    const selectedBeneficiaryId = isIndividualGoal ? session?.userId : (form.beneficiary_id || session?.userId)
-    const payload = {
-      ...form,
-      type: commitmentType,
-      contribution_amount: Number(form.contribution_amount),
-      ...(isGoal ? { target_amount: Number(form.target_amount), cycles: 1, members: isIndividualGoal ? [] : members.map((member) => member.user_id), beneficiary_id: selectedBeneficiaryId, payout_order: [] } : { cycles: Number(form.cycles), members: members.map((member) => member.user_id), payout_order: lockPreview?.payout_order ?? [] }),
-    }
-    const chooseType = (type: "rotating" | "collective_goal" | "individual_goal") => {
-      setForm((current) => ({ ...current, type, cycles: type === "rotating" ? Math.max(2, members.length + 1) : 1, beneficiary_id: type === "individual_goal" ? session?.userId || "" : current.beneficiary_id }))
-      if (type === "individual_goal") setMembers([])
-      setLockPreview(null)
-    }
-    const submit = () => run(async () => {
-      if (consentAccepted) await recordConsent(true)
-      return createLock(payload)
-    }, (result) => { lockDraftStore.clear(); router.push(`/app/commitments/${result.commitment_id}`) })
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const advance = () => {
-      if (step === 3) {
-        run(() => previewLock(payload), (result) => { setLockPreview(result as Row); setStep(4) })
-        return
-      }
-      setStep((current) => current + 1)
-    }
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const addMember = () => run(() => resolveMember(memberPhone.trim()), (result) => {
-      const person = result as Row
-      if (members.some((member) => member.user_id === person.user_id)) { setError("That person is already on this Lock."); return }
-      const nextMembers = [...members, person]
-      setMembers(nextMembers)
-      setForm((current) => ({ ...current, cycles: nextMembers.length + 1 }))
-      setMemberPhone("")
-    })
-    return <div className="space-y-5"><div className="flex items-center justify-between"><p className="text-sm font-bold text-muted-foreground">Step {step + 1} of 4</p><span className="text-xs font-bold text-primary">{["Basics", "Vendor", "Contribution", "Review"][step]}</span></div><div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${(step + 1) * 25}%` }}/></div>{step === 0 && <Panel><h2 className="text-lg font-extrabold">Give your Lock a name</h2><label htmlFor="lock-title" className="mt-4 block text-sm font-bold">Lock name</label><input id="lock-title" value={form.title} onChange={(e) => fields("title", e.target.value)} placeholder="e.g. Laptop fund" className="mt-2 h-12 w-full rounded-lg border border-hairline bg-background px-3 outline-none focus:ring-4 focus:ring-primary/15"/><p className="mt-5 text-sm font-extrabold">Commitment type</p><div className="mt-2 grid gap-2"><div className="rounded-lg border-2 border-primary bg-primary-soft p-3"><p className="font-extrabold">Rotating Sura Lock</p><p className="mt-1 text-xs text-muted-foreground">Members contribute regularly and take turns receiving the pool.</p></div>{["Collective goal", "Individual goal"].map((name) => <div key={name} className="flex items-center justify-between rounded-lg border border-hairline p-3 opacity-60"><span className="text-sm font-bold">{name}</span><span className="text-[10px] font-extrabold text-muted-foreground">COMING SOON</span></div>)}</div></Panel>}{step === 1 && <Panel><h2 className="text-lg font-extrabold">Choose a verified vendor</h2><p className="mt-1 text-sm text-muted-foreground">Your payout is locked to this vendor after creation.</p><div className="mt-4 grid gap-2">{vendorList.map((vendor) => <button key={vendor.vendor_id} onClick={() => fields("vendor_id", vendor.vendor_id)} className={`flex items-center justify-between rounded-lg border p-4 text-left ${form.vendor_id === vendor.vendor_id ? "border-primary bg-primary-soft" : "border-hairline bg-card"}`}><span><span className="block font-extrabold">{vendor.name}</span><span className="text-xs text-muted-foreground">{vendor.category}</span></span><span className="text-xs font-bold text-success">Verified ✓</span></button>)}</div>{!vendorList.length && <p className="mt-4 text-sm text-muted-foreground">No verified vendors are available yet.</p>}</Panel>}{step === 2 && <Panel><h2 className="text-lg font-extrabold">Set your contribution</h2><label className="mt-4 block text-sm font-bold" htmlFor="amount">Amount per member</label><div className="mt-2 flex h-12 items-center rounded-lg border border-hairline bg-background px-3"><span className="font-bold text-muted-foreground">₦</span><input id="amount" inputMode="numeric" type="number" min="1" step="1" value={form.contribution_amount} onChange={(e) => fields("contribution_amount", e.target.value)} className="h-full min-w-0 flex-1 bg-transparent px-2 outline-none" placeholder="5,000"/></div><label className="mt-4 block text-sm font-bold" htmlFor="frequency">Frequency</label><select id="frequency" value={form.contribution_frequency} onChange={(e) => fields("contribution_frequency", e.target.value)} className="mt-2 h-12 w-full rounded-lg border border-hairline bg-background px-3"><option value="weekly">Weekly</option><option value="daily">Daily</option></select><label className="mt-4 block text-sm font-bold" htmlFor="cycles">Number of cycles / members</label><input id="cycles" type="number" min="2" max="20" value={form.cycles} onChange={(e) => fields("cycles", e.target.value)} className="mt-2 h-12 w-full rounded-lg border border-hairline bg-background px-3"/><div className="mt-4 flex justify-between rounded-lg bg-muted p-3 text-sm"><span className="font-bold">Pool per cycle</span><strong>{money(Number(form.contribution_amount || 0) * Number(form.cycles || 0))}</strong></div></Panel>}{step === 3 && <Panel><h2 className="text-lg font-extrabold">Review your Lock</h2><p className="mt-1 text-sm text-muted-foreground">Payout order and safety limits are decided by Sura policy.</p><dl className="mt-4 divide-y divide-hairline">{[["Lock", form.title], ["Vendor", vendorList.find((v) => v.vendor_id === form.vendor_id)?.name || "Not selected"], ["Contribution", `${money(Number(form.contribution_amount || 0))} · ${form.contribution_frequency}`], ["Cycles", form.cycles], ["Pool per cycle", money(Number(form.contribution_amount || 0) * Number(form.cycles || 0))]].map(([label, value]) => <div key={label} className="flex justify-between gap-4 py-3 text-sm"><dt className="text-muted-foreground">{label}</dt><dd className="text-right font-extrabold">{value}</dd></div>)}</dl><p className="mt-3 rounded-lg bg-gold-soft p-3 text-xs leading-5 text-gold-deep">Your first payout may be capped under the current safety policy. The final schedule is returned by Sura when your Lock is created.</p></Panel>}<div className="flex gap-3"><Button variant="outline" className="flex-1" disabled={step === 0 || busy} onClick={() => setStep((n) => n - 1)}>Back</Button><Button className="flex-1" loading={busy} disabled={step === 0 ? !String(form.title).trim() : step === 1 ? !form.vendor_id : step === 2 ? !Number(form.contribution_amount) || Number(form.cycles) < 2 : false} onClick={() => step < 3 ? setStep((n) => n + 1) : submit()}>{step < 3 ? "Continue" : "Create Lock"}</Button></div></div>
-  }
-
   function NewCommitment() {
     const fields = (key: string, value: unknown) => setForm((current) => ({ ...current, [key]: value }))
     const commitmentType = String(form.type || "rotating")
